@@ -239,7 +239,23 @@ export default function AmbassadorDashboardPage() {
 
           {/* DYNAMIC CALCULATOR FORM WITH DEDUCTION LOG PREVIEW SHIELDS */}
           <div className="bg-stone-900 border border-stone-800 rounded-[28px] p-5 shadow-xl md:col-span-2">
-            <span className="text-[8px] text-stone-500 uppercase font-mono font-bold flex items-center gap-1 mb-2"><Wallet className="h-3 w-3 text-emerald-500" /> Current Wallet Available: <strong className="text-white ml-1">₵{Number(partnerProfile?.total_earnings || 0).toFixed(2)}</strong></span>
+            
+            {/* ====== UPGRADED HIGH-VISIBILITY WALLET CARD LAYOUT ====== */}
+            <div className="mb-5 p-5 bg-gradient-to-br from-emerald-950/70 to-stone-950 border border-emerald-900/40 rounded-2xl shadow-inner relative overflow-hidden">
+              <div className="absolute right-4 top-4 text-emerald-500/10 opacity-40 pointer-events-none">
+                <Wallet className="h-24 w-24" />
+              </div>
+              <span className="text-[10px] text-emerald-400 uppercase font-mono font-black tracking-widest flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-emerald-400" /> Current Wallet Available
+              </span>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-4xl sm:text-5xl font-black text-white font-mono tracking-tight">
+                  ₵{Number(partnerProfile?.total_earnings || 0).toFixed(2)}
+                </span>
+                <span className="text-[10px] font-mono text-stone-500 uppercase font-bold tracking-wider">GHS</span>
+              </div>
+            </div>
+            {/* ========================================================== */}
             
             <form onSubmit={handleRequestWithdrawal} className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-[11px] pt-1">
               <div className="space-y-2">
@@ -270,10 +286,10 @@ export default function AmbassadorDashboardPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
                 <div className="sm:col-span-2 relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-500" />
-                  <input type="text" value={auditSearchText} onChange={(e) => setAuditSearchText(e.target.value)} placeholder="Search by Client name, ID or Flavor..." className="w-full bg-stone-950 border border-stone-850 rounded-xl pl-9 pr-3 py-2 text-white outline-none focus:border-emerald-600/40" />
+                  <input type="text" value={auditSearchText} onChange={(e) => setAuditSearchText(e.target.value)} placeholder="Search by Client name, ID or Flavor..." className="w-full bg-stone-955 border border-stone-850 rounded-xl pl-9 pr-3 py-2 text-white outline-none focus:border-emerald-600/40" />
                 </div>
                 <div className="relative">
-                  <select value={sizeFilterText} onChange={(e) => setSizeFilterText(e.target.value)} className="w-full bg-stone-950 border border-stone-850 rounded-xl px-3 py-2 text-stone-300 outline-none cursor-pointer focus:border-emerald-600/40">
+                  <select value={sizeFilterText} onChange={(e) => setSizeFilterText(e.target.value)} className="w-full bg-stone-955 border border-stone-850 rounded-xl px-3 py-2 text-stone-300 outline-none cursor-pointer focus:border-emerald-600/40">
                     <option value="all">All Sizes</option>
                     <option value="300ml">300ml Pack</option>
                     <option value="500ml">500ml Pack</option>

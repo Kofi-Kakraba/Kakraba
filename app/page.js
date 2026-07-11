@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, ShoppingBag, ChevronRight } from 'lucide-react';
+import { ArrowRight, Sparkles, ShoppingBag, ChevronRight, UserPlus } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../lib/supabaseClient';
 
 export default function BrandWelcomeHomePage() {
@@ -51,6 +51,7 @@ export default function BrandWelcomeHomePage() {
           <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" className="h-16 sm:h-20 w-auto object-contain" />
         </div>
         <div className="flex items-center gap-4 sm:gap-6">
+          <Link href="/referrer" className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors hidden sm:inline-block">Become an Ambassador 🌟</Link>
           <Link href="/shop" className="text-xs font-semibold text-stone-300 hover:text-white transition-colors">Retail Shop</Link>
           <Link href="/custom" className="bg-[#15803D] hover:bg-[#166534] text-white px-4 py-2 rounded-full font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm">
             <Sparkles className="h-3.5 w-3.5" /> <span>Custom Packages</span>
@@ -59,7 +60,7 @@ export default function BrandWelcomeHomePage() {
       </nav>
 
       {/* COVER HERO */}
-      <header className="relative bg-stone-950 text-white overflow-hidden py-24 px-4 md:px-8 min-h-[70vh] flex items-center">
+      <header className="relative bg-stone-950 text-white overflow-hidden py-24 px-4 md:px-8 min-h-[75vh] flex items-center">
         <div className="absolute inset-0 z-0 opacity-40 mix-blend-luminosity">
           <img src={cms.hero_image} alt="Cover Banner Graphic" className="w-full h-full object-cover" />
         </div>
@@ -75,12 +76,17 @@ export default function BrandWelcomeHomePage() {
           <p className="text-stone-300 text-sm md:text-base max-w-xl leading-relaxed font-light">
             {cms.hero_subtitle}
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <Link href="/shop" className="bg-white hover:bg-stone-100 text-stone-950 text-xs font-bold px-6 py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg">
+          
+          {/* UPDATED ACTION BUTTON ROW WITH AMBASSADOR HUB PATHWAY */}
+          <div className="flex flex-col sm:flex-row flex-wrap gap-4 pt-4">
+            <Link href="/shop" className="bg-white hover:bg-stone-100 text-stone-950 text-xs font-bold px-6 py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform hover:-translate-y-0.5">
               <ShoppingBag className="h-4 w-4" /> <span>Order Retail Batches</span> <ChevronRight className="h-4 w-4 text-stone-400" />
             </Link>
-            <Link href="/custom" className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-6 py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg">
+            <Link href="/custom" className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-6 py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform hover:-translate-y-0.5">
               <Sparkles className="h-4 w-4" /> <span>Explore Custom Event Packages</span> <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href="/referrer" className="bg-stone-900 hover:bg-stone-850 text-emerald-400 border border-emerald-500/30 text-xs font-extrabold px-6 py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform hover:-translate-y-0.5">
+              <UserPlus className="h-4 w-4 text-emerald-400" /> <span>Become an Ambassador 🌟</span>
             </Link>
           </div>
         </div>
@@ -101,7 +107,7 @@ export default function BrandWelcomeHomePage() {
         </div>
       </section>
 
-      {/* MEDIA GALLERY - TRANSFORMED INTO PORTRAIT (3:4) CONTAINER CONFIGURATIONS */}
+      {/* MEDIA GALLERY */}
       <section className="bg-stone-900 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-12">
           <div className="text-center space-y-2 max-w-xl mx-auto">
@@ -110,9 +116,7 @@ export default function BrandWelcomeHomePage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {galleryItems.map(item => (
-              <div key={item.id} className="bg-stone-950 border border-stone-800 rounded-2xl overflow-hidden flex flex-col group transition-all duration-300 hover:border-emerald-500/30 shadow-xl">
-                
-                {/* UPGRADED TO aspect-[3/4] TO NATIVELY MATCH VERTICAL STAND-UP POUCHES EDGE-TO-EDGE */}
+              <div key={item.id} className="bg-stone-955 border border-stone-800 rounded-2xl overflow-hidden flex flex-col group transition-all duration-300 hover:border-emerald-500/30 shadow-xl">
                 <div className="aspect-[3/4] w-full relative overflow-hidden bg-stone-900 flex items-center justify-center">
                   {item.src ? (
                     <img 
@@ -125,7 +129,6 @@ export default function BrandWelcomeHomePage() {
                   )}
                   <span className="absolute top-3 left-3 bg-stone-900/90 backdrop-blur-sm text-emerald-400 font-mono text-[9px] font-bold uppercase px-2 py-0.5 rounded-md border border-stone-800 z-10">{item.tag}</span>
                 </div>
-
                 <div className="p-4 bg-stone-900/60">
                   <h3 className="font-serif font-bold text-sm text-stone-100 group-hover:text-emerald-400 transition-colors line-clamp-1">{item.title}</h3>
                 </div>
@@ -142,8 +145,6 @@ export default function BrandWelcomeHomePage() {
           <h2 className="text-3xl font-serif font-black tracking-tight text-stone-900">Meet Our Team</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-          
-          {/* LEADER 1 */}
           <div className="space-y-2 group">
             <div className="aspect-[3/4] w-full bg-stone-200 rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex items-center justify-center">
               {cms.team_m1_img ? (
@@ -156,7 +157,6 @@ export default function BrandWelcomeHomePage() {
             <p className="text-xs text-stone-400 font-mono uppercase tracking-wide">{cms.team_m1_role}</p>
           </div>
 
-          {/* LEADER 2 */}
           <div className="space-y-2 group">
             <div className="aspect-[3/4] w-full bg-stone-200 rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex items-center justify-center">
               {cms.team_m2_img ? (
@@ -169,7 +169,6 @@ export default function BrandWelcomeHomePage() {
             <p className="text-xs text-stone-400 font-mono uppercase tracking-wide">{cms.team_m2_role}</p>
           </div>
 
-          {/* LEADER 3 */}
           <div className="space-y-2 group">
             <div className="aspect-[3/4] w-full bg-stone-200 rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex items-center justify-center">
               {cms.team_m3_img ? (
@@ -181,7 +180,6 @@ export default function BrandWelcomeHomePage() {
             <h4 className="font-serif font-bold text-base text-stone-900 mt-3">{cms.team_m3_name}</h4>
             <p className="text-xs text-stone-400 font-mono uppercase tracking-wide">{cms.team_m3_role}</p>
           </div>
-
         </div>
       </section>
 
