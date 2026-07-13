@@ -1,4 +1,3 @@
-// FORCE VERCEL UPDATE
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,8 +7,8 @@ import {
   ShoppingBag, Tag, Trash2, Plus, Minus, ArrowRight, 
   Leaf, Sparkles, CheckCircle2, AlertCircle, Loader2, Info, Lock, ArrowLeft, X
 } from 'lucide-react';
-import { createBrowserSupabaseClient } from '@/lib/supabaseClient';
-import { createCustomerOrderServerAction } from '@/actions/orders';
+import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
+import { createCustomerOrderServerAction } from '../actions/orders';
 
 export default function ShopPage() {
   const supabase = createBrowserSupabaseClient();
