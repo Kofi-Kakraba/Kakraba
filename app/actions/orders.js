@@ -1,6 +1,10 @@
 'use server';
 
 import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
+
+// Initialize the Resend Client utilizing your secure environment key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function getServiceSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -127,7 +131,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
 }
 
 /**
- * Verifies transaction integrity with Paystack APIs, updates order row columns to paid, logs conversion analytics and fires SMS
+ * Verifies transaction integrity with Paystack APIs, updates order row columns to paid, logs conversion analytics and fires alerts
  */
 export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
   try {
@@ -218,8 +222,33 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
     }
 
     // =========================================================================
+    // 📧 NEW: DISPATCH ADMIN EMAIL NOTIFICATION VIA RESEND
+    // =========================================================================
+    try {
+      await resend.emails.send({
+        from: 'Sparkle Storefront <onboarding@resend.dev>', // Resend's free tier testing domain
+        to: ['benjamin.amoakwa@gmail.com'], // <--- CHANGE THIS TO YOUR ACTUAL EMAIL ADDRESS
+        subject: `🚨 New PAID Sparkle Order: ₵${Number(updatedOrder.total_amount).toFixed(2)}`,
+        html: `
+          <div style="font-family: sans-serif; padding: 20px; border-radius: 10px; background-color: #FAFAFA; border: 1px solid #E5E7EB;">
+            <h2 style="color: #065F46;">New Order Secured! 🎉</h2>
+            <p><strong>Order ID:</strong> #${updatedOrder.id.substring(0, 8).toUpperCase()}</p>
+            <p><strong>Customer:</strong> ${updatedOrder.customer_name}</p>
+            <p><strong>Phone:</strong> ${updatedOrder.customer_phone}</p>
+            <p><strong>Delivery:</strong> ${updatedOrder.delivery_type.toUpperCase()}</p>
+            <p><strong>Total Value:</strong> ₵${Number(updatedOrder.total_amount).toFixed(2)}</p>
+            <hr style="border: 1px solid #E5E7EB; margin: 20px 0;" />
+            <p style="font-size: 12px; color: #6B7280;">Log into your Sparkle Admin Portal to view full order lines and fulfillment details.</p>
+          </div>
+        `
+      });
+      console.log("Admin email notification dispatched successfully!");
+    } catch (emailError) {
+      console.error("Failed to send admin email:", emailError);
+    }
+
+    // =========================================================================
     // 🛑 SILENCED EARLY CHECKOUT CONFIRMATION SMS ALERT
-    // Commented out to lock message distribution cleanly to the Admin Panel.
     // =========================================================================
     /*
     const CLEAN_PERSONALIZED_SMS = `Hi ${updatedOrder.customer_name}, your Sparkle Beverages order #${updatedOrder.id.substring(0, 8).toUpperCase()} of GHS ${Number(updatedOrder.total_amount).toFixed(2)} has been confirmed and paid successfully! We are preparing your order now. Thank you!`;
