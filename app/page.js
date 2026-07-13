@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, Sparkles, ShoppingBag, ChevronRight, UserPlus } from 'lucide-react';
-import { createBrowserSupabaseClient } from '../lib/supabaseClient';
+import { createBrowserSupabaseClient } from '@/lib/supabaseClient';
 
 export default function BrandWelcomeHomePage() {
   const supabase = createBrowserSupabaseClient();
@@ -48,7 +49,7 @@ export default function BrandWelcomeHomePage() {
       {/* BRAND NAVIGATION HEADER */}
       <nav className="bg-stone-900 text-white py-2 px-6 sticky top-0 z-50 shadow-md flex justify-between items-center h-24">
         <div className="flex items-center h-full">
-          <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" className="h-16 sm:h-20 w-auto object-contain" />
+          <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={200} height={80} className="h-16 sm:h-20 w-auto object-contain" />
         </div>
         <div className="flex items-center gap-4 sm:gap-6">
           <Link href="/referrer" className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors hidden sm:inline-block">Become an Ambassador 🌟</Link>
@@ -62,7 +63,14 @@ export default function BrandWelcomeHomePage() {
       {/* COVER HERO */}
       <header className="relative bg-stone-950 text-white overflow-hidden py-24 px-4 md:px-8 min-h-[75vh] flex items-center">
         <div className="absolute inset-0 z-0 opacity-40 mix-blend-luminosity">
-          <img src={cms.hero_image} alt="Cover Banner Graphic" className="w-full h-full object-cover" />
+          <Image 
+            src={cms.hero_image} 
+            alt="Cover Banner Graphic" 
+            width={1920} 
+            height={1080} 
+            priority
+            className="w-full h-full object-cover" 
+          />
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-stone-950 via-stone-950/80 to-transparent z-10" />
 
@@ -103,7 +111,7 @@ export default function BrandWelcomeHomePage() {
           </div>
         </div>
         <div className="relative rounded-[32px] overflow-hidden bg-stone-100 p-8 h-[420px] border border-stone-200 flex items-center justify-center shadow-sm">
-          <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Branding Graphic" className="max-h-64 object-contain" />
+          <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Branding Graphic" width={300} height={300} className="max-h-64 object-contain" />
         </div>
       </section>
 
@@ -119,9 +127,11 @@ export default function BrandWelcomeHomePage() {
               <div key={item.id} className="bg-stone-955 border border-stone-800 rounded-2xl overflow-hidden flex flex-col group transition-all duration-300 hover:border-emerald-500/30 shadow-xl">
                 <div className="aspect-[3/4] w-full relative overflow-hidden bg-stone-900 flex items-center justify-center">
                   {item.src ? (
-                    <img 
+                    <Image 
                       src={item.src} 
                       alt={item.title} 
+                      width={400} 
+                      height={533} 
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-103" 
                     />
                   ) : (
@@ -148,7 +158,7 @@ export default function BrandWelcomeHomePage() {
           <div className="space-y-2 group">
             <div className="aspect-[3/4] w-full bg-stone-200 rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex items-center justify-center">
               {cms.team_m1_img ? (
-                <img src={cms.team_m1_img} alt={cms.team_m1_name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
+                <Image src={cms.team_m1_img} alt={cms.team_m1_name} width={400} height={533} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
               ) : (
                 <div className="text-stone-400 font-mono text-[11px] font-bold flex items-center gap-1">👤 Awaiting Portrait</div>
               )}
@@ -160,7 +170,7 @@ export default function BrandWelcomeHomePage() {
           <div className="space-y-2 group">
             <div className="aspect-[3/4] w-full bg-stone-200 rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex items-center justify-center">
               {cms.team_m2_img ? (
-                <img src={cms.team_m2_img} alt={cms.team_m2_name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
+                <Image src={cms.team_m2_img} alt={cms.team_m2_name} width={400} height={533} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
               ) : (
                 <div className="text-stone-400 font-mono text-[11px] font-bold flex items-center gap-1">👤 Awaiting Portrait</div>
               )}
@@ -172,7 +182,7 @@ export default function BrandWelcomeHomePage() {
           <div className="space-y-2 group">
             <div className="aspect-[3/4] w-full bg-stone-200 rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex items-center justify-center">
               {cms.team_m3_img ? (
-                <img src={cms.team_m3_img} alt={cms.team_m3_name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
+                <Image src={cms.team_m3_img} alt={cms.team_m3_name} width={400} height={533} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
               ) : (
                 <div className="text-stone-400 font-mono text-[11px] font-bold flex items-center gap-1">👤 Awaiting Portrait</div>
               )}
