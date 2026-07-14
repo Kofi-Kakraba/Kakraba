@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { 
   CheckCircle2, Clock, Truck, MapPin, Phone, User, Search, Calendar, ToggleLeft, ToggleRight,
   ShieldAlert, PackageCheck, RefreshCw, AlertCircle, Download, FileSpreadsheet, Camera, CreditCard,
-  Tag, PlusCircle, ListFilter, Landmark, Layers, Edit3, Save, LayoutGrid, FileText, Upload, ShieldCheck, Eye, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation
+  Tag, PlusCircle, ListFilter, Landmark, Layers, Edit3, Save, LayoutGrid, FileText, Upload, ShieldCheck, Eye, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Lock, Mail
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 import { 
@@ -14,16 +14,13 @@ import {
   getSiteSettingsAdmin, updateSiteSettingsAdmin,
   createNewProductWithVariantsAdmin, processReferrerApprovalAdminAction,
   processReferrerRejectionAdminAction, deleteReferrerAdminAction,
-  getAdminWithdrawalTicketsQueueAction
+  getAdminWithdrawalTicketsQueueAction, forceResetAmbassadorPasswordAdminAction
 } from '../actions/admin';
 import { confirmDispatchLogisticsServerAction } from '../actions/logistics';
 
 export default function AdminDashboardPage() {
   const supabase = createBrowserSupabaseClient();
 
-  // =========================================================================
-  // 1. ALL SYSTEM STATE CORES (DECLARED AT ABSOLUTE TOP BOUNDARY LAYER)
-  // =========================================================================
   const [activeTab, setActiveTab] = useState('orders'); 
   const [orders, setOrders] = useState([]);
   const [referrals, setReferrals] = useState([]);
@@ -62,8 +59,10 @@ export default function AdminDashboardPage() {
   
   const [newAmbassadorName, setNewAmbassadorName] = useState('');
   const [newAmbassadorPhone, setNewAmbassadorPhone] = useState('');
+  const [newAmbassadorEmail, setNewAmbassadorEmail] = useState('');
   const [newAmbassadorMomo, setNewAmbassadorMomo] = useState('');
   const [newAmbassadorNetwork, setNewAmbassadorNetwork] = useState('MTN');
+  const [newAmbassadorPassword, setNewAmbassadorPassword] = useState(''); 
   const [newAmbassadorPortrait, setNewAmbassadorPortrait] = useState(''); 
   const [newAmbassadorCard, setNewAmbassadorCard] = useState(''); 
 
@@ -89,9 +88,6 @@ export default function AdminDashboardPage() {
 
   const [globalOrderLinesMap, setGlobalOrderLinesMap] = useState({});
 
-  // =========================================================================
-  // 2. HOISTED COMPUTATION MATRIX (PREVENTS REACT BUNDLER RENDERING ERRORS)
-  // =========================================================================
   const humanAmbassadorsList = referrals.filter(r => r.legal_name && r.legal_name.trim() !== '');
   const purePromoCodesList = referrals.filter(r => !r.legal_name || r.legal_name.trim() === '');
   
@@ -122,9 +118,6 @@ export default function AdminDashboardPage() {
     }))
   ).filter(variant => variant.stock_quantity <= 20);
 
-  // =========================================================================
-  // 3. LIFECYCLE DISPATCH HOOKS
-  // =========================================================================
   useEffect(() => {
     loadDashboardData();
   }, []);
@@ -191,9 +184,6 @@ export default function AdminDashboardPage() {
     pullChildInvoiceLineItems();
   }, [selectedPrintOrder, products]);
 
-  // =========================================================================
-  // 4. SECURE ADMINISTRATIVE CORE WORKACTION HANDLERS
-  // =========================================================================
   async function loadDashboardData() {
     setLoading(true);
     setErrorMessage(null);
@@ -239,9 +229,6 @@ export default function AdminDashboardPage() {
     setLoading(false);
   }
 
-  // =========================================================================
-  // 🔥 NEW FULLY FUNCTIONAL SUPABASE STORAGE UPLOAD ENGINE
-  // =========================================================================
   const handleImageUploadEngine = async (e, targetKey, contextType, variantId = null) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -249,30 +236,25 @@ export default function AdminDashboardPage() {
     alert(`Uploading ${file.name}... Please wait for the success popup.`);
 
     try {
-      // 1. Give the file a unique name so it doesn't overwrite others
       const fileExt = file.name.split('.').pop();
       const fileName = `${targetKey}_${Date.now()}.${fileExt}`;
 
-      // 2. Upload it securely to your public sparkle-assets bucket
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('sparkle-assets')
         .upload(fileName, file, { cacheControl: '3600', upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // 3. Get the permanent public link
       const { data: publicUrlData } = supabase.storage
         .from('sparkle-assets')
         .getPublicUrl(fileName);
 
       const finalUrl = publicUrlData.publicUrl;
 
-      // 4. Feed the link directly into the JSON state
       if (contextType === 'cms') {
         setCmsContent(prev => ({ ...prev, [targetKey]: finalUrl }));
         alert("✅ Image securely uploaded! Click 'Publish Live Settings Modules' to lock it in.");
       } 
-      // Bonus: This also fixes your product variant image uploads!
       else if (contextType === 'inventory' && variantId) {
         const { error: dbErr } = await supabase.from('product_variants').update({ image_url: finalUrl }).eq('id', variantId);
         if (dbErr) throw dbErr;
@@ -286,7 +268,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Invokes our new server action securely to handle state changes and SMS dispatch loops
   const handleConfirmDispatchLogistics = async (e) => {
     e.preventDefault();
     if (!dispatchOrder) return;
@@ -369,13 +350,14 @@ export default function AdminDashboardPage() {
     if (!newCode || !newAmbassadorName || !newAmbassadorPhone) return;
     setUpdatingId('creating-ambassador');
     
-    const generatedPassToken = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const passToUse = newAmbassadorPassword.trim() || Math.random().toString(36).substring(2, 10).toUpperCase();
 
     const { error } = await supabase.from('referral_codes').insert([{
       code: newCode.trim().toUpperCase(),
       campaign_name: `${newAmbassadorName.trim()} [Ambassador]`,
       legal_name: newAmbassadorName.trim(),
       phone_number: newAmbassadorPhone.trim(),
+      email: newAmbassadorEmail.trim() || null, 
       momo_number: newAmbassadorMomo.trim(),
       momo_network: newAmbassadorNetwork,
       portrait_url: newAmbassadorPortrait || null, 
@@ -384,14 +366,42 @@ export default function AdminDashboardPage() {
       is_active: true,
       is_verified: true,
       status: 'approved',
-      password: generatedPassToken
+      password: passToUse
     }]);
 
     if (!error) {
-      alert(`AMBASSADOR ACCOUNT ALLOCATED LIVE!\nCode handle: #${newCode.trim().toUpperCase()}`);
-      setNewCode(''); setNewAmbassadorName(''); setNewAmbassadorPhone(''); setNewAmbassadorMomo('');
+      alert(`AMBASSADOR ACCOUNT ALLOCATED LIVE!\nCode handle: #${newCode.trim().toUpperCase()}\nPassword: ${passToUse}`);
+      setNewCode(''); setNewAmbassadorName(''); setNewAmbassadorPhone(''); setNewAmbassadorEmail(''); setNewAmbassadorMomo(''); setNewAmbassadorPassword('');
       await loadDashboardData();
     } else { alert(`Database rejected entry: ${error.message}`); }
+    setUpdatingId(null);
+  };
+
+  const handleForceResetPassword = async (profileId, name, email) => {
+    const newPass = Math.random().toString(36).substring(2, 10).toUpperCase();
+    
+    if (!confirm(`Auto-Generated Password for ${name} is:\n\n${newPass}\n\nClick OK to apply this to the database and draft an email to the ambassador.`)) return;
+
+    setUpdatingId(`reset-${profileId}`);
+    
+    const { error } = await supabase.from('referral_codes').update({ password: newPass }).eq('id', profileId);
+    
+    if (!error) {
+      alert("Password reset successfully! Opening your email client to notify the ambassador.");
+      
+      const subject = encodeURIComponent("Your Sparkle Ambassador Password Has Been Reset");
+      const body = encodeURIComponent(`Hello ${name},\n\nYour Sparkle Ambassador Hub password has been securely reset by an administrator.\n\nYour new temporary password is: ${newPass}\n\nPlease log in to the portal here: https://yourwebsite.com/referrer\n\nStay Sparkling,\nThe Sparkle Admin Team`);
+      
+      if (email) {
+        window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+      } else {
+        alert(`No email found for ${name}. Please manually send them this password: ${newPass}`);
+      }
+      
+      await loadDashboardData();
+    } else {
+      alert(`Failed to reset password: ${error.message}`);
+    }
     setUpdatingId(null);
   };
 
@@ -551,9 +561,9 @@ export default function AdminDashboardPage() {
         csvStringContent += `"${row.id}","${row.customer_name}","${row.customer_phone}","${row.delivery_type}","${row.landmark || 'Self-Pickup'}",${row.total_amount},"${row.payment_status}","${row.status}","${new Date(row.created_at).toLocaleString('en-GH')}"\r\n`;
       });
     } else if (datasetType === 'Ambassadors') {
-      csvStringContent = 'Code Account,Legal Representative,Contact Line,MoMo Wallet,Network Route,Wallet Balance (GHS),Account Verified\r\n';
+      csvStringContent = 'Code Account,Legal Representative,Contact Line,Email,MoMo Wallet,Network Route,Wallet Balance (GHS),Account Verified\r\n';
       dataArray.forEach(row => {
-        csvStringContent += `"${row.code}","${row.legal_name || 'Manual'}","${row.phone_number || 'None'}","${row.momo_number || 'None'}","${row.momo_network || 'None'}",${row.total_earnings},${row.is_verified}\r\n`;
+        csvStringContent += `"${row.code}","${row.legal_name || 'Manual'}","${row.phone_number || 'None'}","${row.email || 'None'}","${row.momo_number || 'None'}","${row.momo_network || 'None'}",${row.total_earnings},${row.is_verified}\r\n`;
       });
     }
     const blob = new Blob([csvStringContent], { type: 'text/csv;charset=utf-8;' });
@@ -773,7 +783,9 @@ export default function AdminDashboardPage() {
                   <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Ambassador Name</label><input type="text" required placeholder="e.g. Benjamin Baah Amoakwa" value={newAmbassadorName} onChange={(e) => setNewAmbassadorName(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold outline-none" /></div>
                   <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Unique Code Handle</label><input type="text" required placeholder="e.g. SPK-BEN7" value={newCode} onChange={(e) => setNewCode(e.target.value.toUpperCase())} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold outline-none uppercase tracking-widest" /></div>
                   <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Contact Phone Line</label><input type="tel" required placeholder="e.g. 0547664422" value={newAmbassadorPhone} onChange={(e) => setNewAmbassadorPhone(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" /></div>
+                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Contact Email</label><input type="email" placeholder="e.g. email@example.com" value={newAmbassadorEmail} onChange={(e) => setNewAmbassadorEmail(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" /></div>
                   <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">MoMo Wallet Number</label><input type="tel" placeholder="e.g. 0547664422" value={newAmbassadorMomo} onChange={(e) => setNewAmbassadorMomo(e.target.value)} className="w-full bg-stone-955 border border-stone-850 rounded-xl px-3 py-2 text-white outline-none" /></div>
+                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Account Password</label><input type="text" placeholder="Leave blank to auto-generate" value={newAmbassadorPassword} onChange={(e) => setNewAmbassadorPassword(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" /></div>
                 </div>
                 <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-center uppercase text-[10px]">Deploy Partner Profile</button>
               </form>
@@ -793,6 +805,7 @@ export default function AdminDashboardPage() {
                       </button>
                     </div>
                     <div className="bg-stone-955 border border-stone-800/60 rounded-xl p-3 text-[11px] font-mono space-y-1 text-stone-400">
+                      <div className="flex justify-between"><span>Email:</span><strong className="text-stone-200 truncate ml-2">{ref.email || 'None'}</strong></div>
                       <div className="flex justify-between"><span>Phone Line:</span><strong className="text-stone-200">{ref.phone_number}</strong></div>
                       <div className="flex justify-between"><span>Wallet Route:</span><strong className="text-stone-300">{ref.momo_number} ({ref.momo_network})</strong></div>
                       <div className="flex justify-between"><span>Ghana Card NIA ID:</span><strong className="text-stone-100 tracking-wider font-bold">{ref.ghana_card_number || 'MANUAL_LOG'}</strong></div>
@@ -822,6 +835,7 @@ export default function AdminDashboardPage() {
                   )}
 
                   <div className="border-t border-stone-800/60 pt-3 flex items-center justify-between gap-2">
+                    <button onClick={() => handleForceResetPassword(ref.id, ref.legal_name, ref.email)} disabled={updatingId === `reset-${ref.id}`} className="text-[9px] text-stone-400 hover:text-white flex items-center gap-1 font-bold uppercase tracking-widest bg-stone-955 px-2 py-1.5 rounded border border-stone-800 transition-colors"><Mail className="h-3 w-3" /> Auto-Reset Pass</button>
                     <button onClick={() => handleMasterDeleteReferrerRecord(ref.id, ref.code)} className="p-2 text-stone-600 hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
@@ -843,17 +857,17 @@ export default function AdminDashboardPage() {
                   </div>
                   <div>
                     <label className="block text-stone-500 mb-1 font-bold uppercase text-[9px]">Campaign Context Brief</label>
-                    <input type="text" required placeholder="e.g. Valentine Day 2026 Special Pool" value={newCode} onChange={(e) => setNewCode(e.target.value.toUpperCase())} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white text-stone-200 outline-none" />
+                    <input type="text" required placeholder="e.g. Valentine Day 2026 Special Pool" value={newCampaign} onChange={(e) => setNewCampaign(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white text-stone-200 outline-none" />
                   </div>
                 </div>
 
                 <div className="bg-stone-955 p-4 border border-stone-850 rounded-xl space-y-3">
                   <span className="font-bold text-cyan-400 text-[9px] uppercase tracking-wider block border-b border-stone-900 pb-1">Define Client Markdown Values (GHS Off Retail Price)</span>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-stone-400">
-                    <div><label className="text-[8px] font-bold block mb-1">300ml Discount</label><input type="number" step="0.01" value={promo300mlDiscount} className="w-full bg-stone-900 border text-white rounded px-2 py-1" /></div>
-                    <div><label className="text-[8px] font-bold block mb-1">500ml Discount</label><input type="number" step="0.01" value={promo500mlDiscount} className="w-full bg-stone-900 border text-white rounded px-2 py-1" /></div>
-                    <div><label className="text-[8px] font-bold block mb-1">1.5L Discount</label><input type="number" step="0.01" value={promo15LDiscount} className="w-full bg-stone-900 border text-white rounded px-2 py-1" /></div>
-                    <div><label className="text-[8px] font-bold block mb-1">5L Discount</label><input type="number" step="0.01" value={promo5LDiscount} className="w-full bg-stone-900 border text-white rounded px-2 py-1" /></div>
+                    <div><label className="text-[8px] font-bold block mb-1">300ml Discount</label><input type="number" step="0.01" value={promo300mlDiscount} onChange={(e)=>setPromo300mlDiscount(e.target.value)} className="w-full bg-stone-900 border text-white rounded px-2 py-1" /></div>
+                    <div><label className="text-[8px] font-bold block mb-1">500ml Discount</label><input type="number" step="0.01" value={promo500mlDiscount} onChange={(e)=>setPromo500mlDiscount(e.target.value)} className="w-full bg-stone-900 border text-white rounded px-2 py-1" /></div>
+                    <div><label className="text-[8px] font-bold block mb-1">1.5L Discount</label><input type="number" step="0.01" value={promo15LDiscount} onChange={(e)=>setPromo15LDiscount(e.target.value)} className="w-full bg-stone-900 border text-white rounded px-2 py-1" /></div>
+                    <div><label className="text-[8px] font-bold block mb-1">5L Discount</label><input type="number" step="0.01" value={promo5LDiscount} onChange={(e)=>setPromo5LDiscount(e.target.value)} className="w-full bg-stone-900 border text-white rounded px-2 py-1" /></div>
                   </div>
                 </div>
 
@@ -892,10 +906,10 @@ export default function AdminDashboardPage() {
                         {isEditingPromo ? (
                           <div className="space-y-2 pt-1">
                             <div className="grid grid-cols-2 gap-2 text-stone-400">
-                              <div>300ml: <input type="number" step="0.01" value={editPromo300ml} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
-                              <div>500ml: <input type="number" step="0.01" value={editPromo500ml} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
-                              <div>1.5L: <input type="number" step="0.01" value={editPromo15L} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
-                              <div>5L: <input type="number" step="0.01" value={editPromo5L} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
+                              <div>300ml: <input type="number" step="0.01" value={editPromo300ml} onChange={(e)=>setEditPromo300ml(e.target.value)} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
+                              <div>500ml: <input type="number" step="0.01" value={editPromo500ml} onChange={(e)=>setEditPromo500ml(e.target.value)} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
+                              <div>1.5L: <input type="number" step="0.01" value={editPromo15L} onChange={(e)=>setEditPromo15L(e.target.value)} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
+                              <div>5L: <input type="number" step="0.01" value={editPromo5L} onChange={(e)=>setEditPromo5L(e.target.value)} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
                             </div>
                             <button type="button" onClick={() => handleSavePromoCodeOverride(ref.id)} className="w-full bg-cyan-600 text-white font-bold py-1 rounded flex items-center justify-center gap-1 shadow-md uppercase text-[9px] tracking-wider"><Save className="h-3 w-3" /> Save Changes</button>
                           </div>
@@ -1049,13 +1063,13 @@ export default function AdminDashboardPage() {
                           <div className="border-t border-stone-900 pt-2 space-y-1.5 text-[11px] font-mono">
                             {isEditing ? (
                               <div className="space-y-2 text-stone-400">
-                                <div><label className="text-[8px] font-bold uppercase">Stock Count</label><input type="number" value={editStock} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-cyan-400 font-bold uppercase">Base Size MOQ Floor</label><input type="number" value={editSizeMoqFloor} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-blue-400 font-bold uppercase">Wholesale Volume Trigger</label><input type="number" value={editWholesaleTrigger} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-red-400 font-bold uppercase">Default Referral Discount</label><input type="number" step="0.01" value={editClientDiscount} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-purple-400 font-bold uppercase">Ambassador Bonus Earning</label><input type="number" step="0.01" value={editReferrerEarnings} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-emerald-400 font-bold uppercase">Retail Price (₵)</label><input type="number" step="0.01" value={editRetail} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-amber-500 font-bold uppercase">Wholesale Price (₵)</label><input type="number" step="0.01" value={editWholesale} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
+                                <div><label className="text-[8px] font-bold uppercase">Stock Count</label><input type="number" value={editStock} onChange={(e)=>setEditStock(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
+                                <div><label className="text-[8px] text-cyan-400 font-bold uppercase">Base Size MOQ Floor</label><input type="number" value={editSizeMoqFloor} onChange={(e)=>setEditSizeMoqFloor(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
+                                <div><label className="text-[8px] text-blue-400 font-bold uppercase">Wholesale Volume Trigger</label><input type="number" value={editWholesaleTrigger} onChange={(e)=>setEditWholesaleTrigger(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
+                                <div><label className="text-[8px] text-red-400 font-bold uppercase">Default Referral Discount</label><input type="number" step="0.01" value={editClientDiscount} onChange={(e)=>setEditClientDiscount(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
+                                <div><label className="text-[8px] text-purple-400 font-bold uppercase">Ambassador Bonus Earning</label><input type="number" step="0.01" value={editReferrerEarnings} onChange={(e)=>setEditReferrerEarnings(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
+                                <div><label className="text-[8px] text-emerald-400 font-bold uppercase">Retail Price (₵)</label><input type="number" step="0.01" value={editRetail} onChange={(e)=>setEditRetail(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
+                                <div><label className="text-[8px] text-amber-500 font-bold uppercase">Wholesale Price (₵)</label><input type="number" step="0.01" value={editWholesale} onChange={(e)=>setEditWholesale(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
                               </div>
                             ) : (
                               <div className="space-y-1.5 text-stone-400 font-medium">

@@ -153,7 +153,7 @@ export async function toggleReferralStateAdmin(codeId, updatePayload) {
 export async function getStoreInventoryAdmin() {
   try {
     const supabase = getAdminClient();
-    const { data, error } = await supabase.from('products').select(`id, name, description, is_active, product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, size_moq_floor, wholesale_trigger, client_discount, referrer_earnings, image_url )`).order('name', { ascending: true });
+    const { data, error } = await supabase.from('products').select(`id, name, description, is_active, product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, size_moq_floor, moq_floor, client_discount, referrer_earnings, image_url )`).order('name', { ascending: true });
     if (error) return { success: false, error: error.message };
     return { success: true, data };
   } catch (err) { return { success: false, error: err.message }; }
@@ -277,9 +277,23 @@ export async function createNewProductWithVariantsAdmin(name, description) {
       { size: '5L',   retail: 45.00, wholesale: 40.00, floor: 5 }
     ];
 
-    const variantRows = standardSizes.map(item => ({ product_id: newProduct.id, size: item.size, sku: `SPK-${skuSlug}-${item.size}`, retail_price: item.retail, wholesale_price: item.wholesale, stock_quantity: 0, size_moq_floor: 30, wholesale_trigger: item.floor, client_discount: 1.00, referrer_earnings: 1.00, is_in_stock: false }));
+    const variantRows = standardSizes.map(item => ({ product_id: newProduct.id, size: item.size, sku: `SPK-${skuSlug}-${item.size}`, retail_price: item.retail, wholesale_price: item.wholesale, stock_quantity: 0, size_moq_floor: 30, moq_floor: item.floor, client_discount: 1.00, referrer_earnings: 1.00, is_in_stock: false }));
     const { error: variantError } = await supabase.from('product_variants').insert(variantRows);
     if (variantError) return { success: false, error: `Product variant creation failed: ${variantError.message}` };
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
+}
+
+export async function forceResetAmbassadorPasswordAdminAction(profileId, newPassword, phone, name) {
+  try {
+    const supabase = getAdminClient();
+    const { error } = await supabase.from('referral_codes').update({ password: newPassword }).eq('id', profileId);
+    
+    if (error) return { success: false, error: error.message };
+
+    // You can keep the SMS fallback here if you want, but the Admin UI now triggers the email!
+    return { success: true };
+  } catch (err) { 
+    return { success: false, error: err.message }; 
+  }
 }

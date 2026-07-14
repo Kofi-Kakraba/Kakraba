@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { User, Lock, ArrowRight, AlertCircle, Sparkles } from 'lucide-react';
+import { User, Lock, ArrowRight, AlertCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { loginReferrerPortal } from '../actions/referrer';
 
 export default function ReferrerPortalPage() {
@@ -51,7 +51,10 @@ export default function ReferrerPortalPage() {
       <div className="w-full max-w-md bg-white/95 backdrop-blur-2xl border-2 border-white/50 rounded-[40px] p-8 md:p-10 shadow-2xl space-y-8 relative z-10">
         
         <div className="text-center space-y-4">
-          <Link href="/">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors mb-2">
+            <ArrowLeft className="h-3 w-3" /> Back to Storefront
+          </Link>
+          <Link href="/" className="block">
             <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={180} height={70} className="h-14 mx-auto object-contain transition-transform hover:scale-105" priority />
           </Link>
           <div className="inline-flex items-center gap-1.5 bg-stone-100 border border-stone-200 text-stone-600 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">
@@ -77,6 +80,11 @@ export default function ReferrerPortalPage() {
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
               <input type="password" required value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} placeholder="••••••••" className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl pl-12 pr-4 py-3.5 text-stone-900 font-bold outline-none focus:border-emerald-500 transition-colors placeholder:text-stone-300" />
+            </div>
+            
+            <div className="flex justify-end mt-2">
+              {/* CHANGE THIS NUMBER TO YOUR SUPPORT WHATSAPP */}
+              <a href="https://wa.me/233540000000?text=Hello%20Sparkle%20Admin,%20I%20am%20an%20ambassador%20and%20I%20have%20forgotten%20my%20password.%20Can%20you%20help%20me%20reset%20it?" target="_blank" rel="noopener noreferrer" className="text-[10px] text-emerald-600 font-black uppercase tracking-widest hover:text-emerald-500 transition-colors">Forgot Password?</a>
             </div>
           </div>
 

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { LogOut, Wallet, History, RefreshCw, Package, Search, Printer, X, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { LogOut, Wallet, History, RefreshCw, Package, Search, Printer, X, Sparkles, ArrowLeft, User } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../../lib/supabaseClient';
 
 export default function AmbassadorDashboardPage() {
@@ -194,17 +195,26 @@ export default function AmbassadorDashboardPage() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-900 font-sans antialiased pb-12 relative selection:bg-emerald-500 selection:text-white">
       
-      {/* BRAND NAVIGATION */}
+      {/* BRAND NAVIGATION WITH HOME LINK */}
       <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 py-3 px-6 sticky top-0 z-40 shadow-sm flex justify-between items-center h-20">
         <div className="flex items-center gap-4 h-full">
-          <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={180} height={70} className="h-14 sm:h-16 w-auto object-contain" priority />
+          <Link href="/">
+            <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={180} height={70} className="h-14 sm:h-16 w-auto object-contain cursor-pointer hover:scale-105 transition-transform" priority />
+          </Link>
           <span className="text-[10px] font-black uppercase tracking-widest bg-stone-100 text-stone-600 px-3 py-1.5 rounded-full hidden sm:inline-flex border border-stone-200 shadow-sm">
             Backstage Access
           </span>
         </div>
-        <button onClick={handleSignOutSession} className="text-[10px] font-black uppercase tracking-widest text-stone-500 hover:text-stone-950 flex items-center gap-1.5 bg-white border border-stone-200 hover:border-stone-400 px-4 py-2.5 rounded-full transition-all shadow-sm">
-          <LogOut className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Sign Out</span>
-        </button>
+        
+        <div className="flex items-center gap-3 sm:gap-6">
+          <Link href="/" className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors flex items-center gap-1">
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Storefront</span>
+          </Link>
+          
+          <button onClick={handleSignOutSession} className="text-[10px] font-black uppercase tracking-widest text-stone-500 hover:text-stone-950 flex items-center gap-1.5 bg-white border border-stone-200 hover:border-stone-400 px-4 py-2.5 rounded-full transition-all shadow-sm">
+            <LogOut className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Sign Out</span>
+          </button>
+        </div>
       </nav>
 
       <main className="max-w-6xl mx-auto px-4 py-12 space-y-8">
