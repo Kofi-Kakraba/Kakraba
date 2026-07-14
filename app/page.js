@@ -37,7 +37,6 @@ export default function BrandWelcomeHomePage() {
     gallery_4_title: "Community Impact", "gallery_4_img": ""
   };
 
-  // Adjusted heights (h-40, h-52, h-64, h-76) for clearer size differentiation
   const quickProducts = {
     sobolo: {
       name: "Hibiscus Drink (Sobolo)",
@@ -204,12 +203,15 @@ export default function BrandWelcomeHomePage() {
                 </div>
               </div>
 
-              {/* Dynamic Image with Realistic Floor Shadow */}
+              {/* Dynamic Image with Realistic Floor Shadow & INSTANT LOADING */}
               <div className="h-80 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 pb-6">
-                <img 
+                <Image 
                   key={activeSize.img} 
                   src={activeSize.img} 
                   alt={`${quickProducts[selectedFlavor].name} ${activeSize.volume}`}
+                  width={400}
+                  height={400}
+                  priority={true}
                   className={`object-contain transition-all duration-500 transform group-hover:-translate-y-2 group-hover:scale-105 z-10 ${activeSize.height}`}
                 />
                 {/* The "Blue Skies" style detached floor shadow */}

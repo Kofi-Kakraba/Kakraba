@@ -120,7 +120,6 @@ export default function ShopPage() {
         return [...prevCart, { product, variant, quantity: continuousQuantity }];
       });
 
-      setLocalQuantities(prev => ({ ...prev, [variant.id]: 1 }));
       setButtonStatuses(prev => ({ ...prev, [variant.id]: 'added' }));
 
       setTimeout(() => {
@@ -255,11 +254,11 @@ export default function ShopPage() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-900 antialiased font-sans pb-24 selection:bg-rose-500 selection:text-white relative">
       
-      {/* BRAND NAVIGATION (Matches Homepage) */}
+      {/* BRAND NAVIGATION */}
       <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 py-3 px-6 sticky top-0 z-40 shadow-sm flex justify-between items-center h-20">
         <div className="flex items-center h-full">
           <Link href="/">
-            <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={220} height={90} className="h-16 sm:h-20 w-auto object-contain cursor-pointer" />
+            <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={220} height={90} className="h-16 sm:h-20 w-auto object-contain cursor-pointer" priority />
           </Link>
           {appliedCoupon && (
             <span className="text-[10px] bg-stone-900 text-emerald-400 font-mono font-bold px-3 py-1 rounded-full ml-4 hidden sm:inline-block shadow-sm">
@@ -318,7 +317,25 @@ export default function ShopPage() {
                 : 0;
               const displayedCostPaidPerBottle = Number(variant.retail_price) - activeUnitDiscount;
 
-              const currentPickerCount = localQuantities[variant.id] || 1;
+              const cartItem = cart.find(item => item.variant.id === variant.id);
+              const currentPickerCount = cartItem ? cartItem.quantity : (localQuantities[variant.id] || 1);
+              
+              const handleMinusClick = () => {
+                if (cartItem) {
+                  handleAdjustCartQuantityIndex(variant.id, -1);
+                } else {
+                  setLocalQuantities(prev => ({ ...prev, [variant.id]: Math.max(1, currentPickerCount - 1) }));
+                }
+              };
+
+              const handlePlusClick = () => {
+                if (cartItem) {
+                  handleAdjustCartQuantityIndex(variant.id, 1);
+                } else {
+                  setLocalQuantities(prev => ({ ...prev, [variant.id]: currentPickerCount + 1 }));
+                }
+              };
+
               const cumulativeUnitsInThisSizeGroup = combinedQuantityMapBySizeGroup[variant.size] || 0;
               const requiredMoqSizeLimit = parseInt(variant.size_moq_floor) || 1;
               const isCardGroupMoqSatisfied = cumulativeUnitsInThisSizeGroup >= requiredMoqSizeLimit;
@@ -344,7 +361,7 @@ export default function ShopPage() {
                     </span>
                   </div>
 
-                  {/* Giant Floating Image with Floor Shadow */}
+                  {/* Giant Floating Image */}
                   {variant.image_url && (
                     <div className="h-64 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 py-4">
                       <Image 
@@ -352,6 +369,7 @@ export default function ShopPage() {
                         alt={variant.sku} 
                         width={400} 
                         height={400} 
+                        priority={true} 
                         className="h-full object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transform transition-transform duration-500 group-hover:scale-105 group-hover:-translate-y-2 z-10" 
                       />
                       {/* Floor Shadow */}
@@ -393,21 +411,21 @@ export default function ShopPage() {
 
                     {/* Action Row */}
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center border-2 border-stone-200 rounded-2xl bg-white overflow-hidden h-14 shadow-sm shrink-0 w-28">
+                      <div className={`flex items-center border-2 rounded-2xl overflow-hidden h-14 shadow-sm shrink-0 w-28 transition-colors ${cartItem ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-stone-200'}`}>
                         <button 
                           type="button"
                           disabled={activeBtnStatus !== 'idle'}
-                          onClick={() => setLocalQuantities(prev => ({ ...prev, [variant.id]: Math.max(1, currentPickerCount - 1) }))}
-                          className="flex-1 hover:bg-stone-50 text-stone-500 h-full transition-colors flex items-center justify-center disabled:opacity-20"
+                          onClick={handleMinusClick}
+                          className={`flex-1 h-full transition-colors flex items-center justify-center disabled:opacity-20 ${cartItem ? 'text-emerald-700 hover:bg-emerald-100' : 'text-stone-500 hover:bg-stone-50'}`}
                         >
                           <Minus className="h-4 w-4" />
                         </button>
-                        <span className="font-black text-sm text-stone-950 w-8 text-center">{currentPickerCount}</span>
+                        <span className={`font-black text-sm w-8 text-center ${cartItem ? 'text-emerald-950' : 'text-stone-950'}`}>{currentPickerCount}</span>
                         <button 
                           type="button"
                           disabled={activeBtnStatus !== 'idle'}
-                          onClick={() => setLocalQuantities(prev => ({ ...prev, [variant.id]: currentPickerCount + 1 }))}
-                          className="flex-1 hover:bg-stone-50 text-stone-500 h-full transition-colors flex items-center justify-center disabled:opacity-20"
+                          onClick={handlePlusClick}
+                          className={`flex-1 h-full transition-colors flex items-center justify-center disabled:opacity-20 ${cartItem ? 'text-emerald-700 hover:bg-emerald-100' : 'text-stone-500 hover:bg-stone-50'}`}
                         >
                           <Plus className="h-4 w-4" />
                         </button>
@@ -415,21 +433,32 @@ export default function ShopPage() {
 
                       <button 
                         type="button" 
-                        disabled={isOutOfStock || activeBtnStatus !== 'idle'}
+                        disabled={isOutOfStock || activeBtnStatus !== 'idle' || !!cartItem}
                         onClick={() => handleAddItemToCartChannel(product, variant, currentPickerCount)}
                         className={`flex-1 font-black text-xs h-14 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest transition-all duration-300 shadow-lg ${
                           isOutOfStock 
                             ? 'bg-stone-100 text-stone-400 cursor-not-allowed shadow-none' 
-                            : activeBtnStatus === 'adding'
-                              ? 'bg-stone-800 text-stone-300 cursor-wait'
-                              : activeBtnStatus === 'added'
-                                ? 'bg-emerald-500 text-white animate-pulse'
-                                : 'bg-stone-950 hover:bg-stone-800 text-white hover:-translate-y-0.5'
+                            : !!cartItem
+                              ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-200 shadow-none'
+                              : activeBtnStatus === 'adding'
+                                ? 'bg-stone-800 text-stone-300 cursor-wait'
+                                : activeBtnStatus === 'added'
+                                  ? 'bg-emerald-500 text-white animate-pulse'
+                                  : 'bg-stone-950 hover:bg-stone-800 text-white hover:-translate-y-0.5'
                         }`}
                       >
-                        {activeBtnStatus === 'idle' && <span>Add To Cart</span>}
-                        {activeBtnStatus === 'adding' && <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />}
-                        {activeBtnStatus === 'added' && <CheckCircle2 className="h-5 w-5 text-white animate-bounce" />}
+                        {!!cartItem ? (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            <span>In Your Drop</span>
+                          </>
+                        ) : activeBtnStatus === 'idle' ? (
+                          <span>Add To Cart</span>
+                        ) : activeBtnStatus === 'adding' ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                        ) : (
+                          <CheckCircle2 className="h-5 w-5 text-white animate-bounce" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -577,12 +606,12 @@ export default function ShopPage() {
             <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500 rounded-full blur-3xl opacity-10 -mr-20 -mt-20 pointer-events-none"></div>
 
             <div className="space-y-3 relative z-10">
-              <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Logo" width={150} height={100} className="h-16 mx-auto object-contain drop-shadow-sm mb-6" />
+              <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Logo" width={250} height={150} className="h-24 mx-auto object-contain drop-shadow-sm mb-6" />
               <div className="inline-flex items-center gap-1.5 bg-stone-900 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">
-                <Lock className="h-3 w-3" /> Exclusive Access
+                <Lock className="h-3 w-3" /> Discount Gateway
               </div>
               <h2 className="text-3xl font-black tracking-tighter text-stone-950 uppercase">Unlock The Drop.</h2>
-              <p className="text-sm text-stone-500 font-medium px-4">Do you have a Promo or Ambassador referral code for exclusive rates?</p>
+              <p className="text-sm text-stone-500 font-medium px-4">Got a promo code? Drop it here to score a sweet discount on your batch.</p>
             </div>
 
             {gatewayStage === 'question' && (
