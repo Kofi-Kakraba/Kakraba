@@ -32,20 +32,30 @@ export default function ReferrerPortalPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-stone-900 font-sans antialiased flex flex-col justify-center items-center px-4 py-12 selection:bg-emerald-500 selection:text-white relative overflow-hidden">
+    <div className="min-h-screen font-sans antialiased flex flex-col justify-center items-center px-4 py-12 selection:bg-emerald-500 selection:text-white relative overflow-hidden">
       
-      {/* Background Accents */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500 rounded-full blur-[100px] opacity-10 pointer-events-none transform translate-x-1/3 -translate-y-1/3" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-rose-500 rounded-full blur-[100px] opacity-10 pointer-events-none transform -translate-x-1/3 translate-y-1/3" />
+      {/* SQUAD LIFESTYLE BACKGROUND IMAGE */}
+      <div className="absolute inset-0 z-0">
+        <Image 
+          src="/sparkle-drinks.png" 
+          alt="Sparkle Squad Lifestyle" 
+          layout="fill" 
+          objectFit="cover" 
+          priority
+          className="w-full h-full object-cover object-center opacity-80" 
+        />
+        {/* Rich moody overlay to make the white card pop */}
+        <div className="absolute inset-0 bg-gradient-to-br from-stone-950/90 via-stone-900/80 to-emerald-950/70" />
+      </div>
 
-      <div className="w-full max-w-md bg-white/80 backdrop-blur-xl border-2 border-stone-100 rounded-[40px] p-8 md:p-10 shadow-2xl space-y-8 relative z-10">
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-2xl border-2 border-white/50 rounded-[40px] p-8 md:p-10 shadow-2xl space-y-8 relative z-10">
         
         <div className="text-center space-y-4">
           <Link href="/">
             <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={180} height={70} className="h-14 mx-auto object-contain transition-transform hover:scale-105" priority />
           </Link>
           <div className="inline-flex items-center gap-1.5 bg-stone-100 border border-stone-200 text-stone-600 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">
-            <Sparkles className="h-3 w-3 text-amber-500" /> Ambassador Hub
+            <Sparkles className="h-3 w-3 text-emerald-500" /> Ambassador Hub
           </div>
           <h2 className="text-3xl font-black text-stone-950 uppercase tracking-tighter leading-tight">The Squad <br/>Portal.</h2>
           <p className="text-sm text-stone-500 font-bold max-w-xs mx-auto leading-relaxed">

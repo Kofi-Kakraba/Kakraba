@@ -32,13 +32,23 @@ export default function ReferrerSignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-stone-900 font-sans antialiased flex flex-col justify-center items-center px-4 py-12 selection:bg-rose-500 selection:text-white relative overflow-hidden">
+    <div className="min-h-screen font-sans antialiased flex flex-col justify-center items-center px-4 py-12 selection:bg-rose-500 selection:text-white relative overflow-hidden">
       
-      {/* Background Accents */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500 rounded-full blur-[100px] opacity-10 pointer-events-none transform translate-x-1/3 -translate-y-1/3" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-rose-500 rounded-full blur-[100px] opacity-10 pointer-events-none transform -translate-x-1/3 translate-y-1/3" />
+      {/* SQUAD LIFESTYLE BACKGROUND IMAGE */}
+      <div className="absolute inset-0 z-0">
+        <Image 
+          src="/sparkle-drinks.png" 
+          alt="Sparkle Squad Lifestyle" 
+          layout="fill" 
+          objectFit="cover" 
+          priority
+          className="w-full h-full object-cover object-center opacity-80" 
+        />
+        {/* Warm moody overlay for the signup page */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-stone-950/90 via-stone-900/80 to-rose-950/70" />
+      </div>
 
-      <div className="w-full max-w-md bg-white/80 backdrop-blur-xl border-2 border-stone-100 rounded-[40px] p-8 md:p-10 shadow-2xl space-y-8 relative z-10">
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-2xl border-2 border-white/50 rounded-[40px] p-8 md:p-10 shadow-2xl space-y-8 relative z-10">
         
         <div className="text-center space-y-4">
           <Link href="/">
