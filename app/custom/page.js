@@ -1,123 +1,245 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, MessageSquare, CheckCircle2, Sparkles } from 'lucide-react';
+import Image from 'next/image';
+import { 
+  Sparkles, CheckCircle2, ArrowRight, Flame, 
+  Crown, Star, HeartHandshake, Info, MessageCircle, ArrowLeft
+} from 'lucide-react';
 
-export default function CustomEventsPackagesPage() {
+export default function CustomDropsPage() {
+
+  const packages = [
+    {
+      id: "bronze",
+      name: "Bronze Package",
+      tagline: "Perfect for intimate gatherings, small birthdays, and private celebrations.",
+      minOrder: 100,
+      hlPrice: "10.00",
+      pzPrice: "12.00",
+      theme: { bg: "bg-white", border: "border-stone-200", text: "text-stone-900", accent: "text-stone-500", badge: "bg-stone-100 text-stone-600" },
+      icon: <HeartHandshake className="h-6 w-6 text-stone-400" />,
+      features: [
+        "Personalised event label (names, date, details)",
+        "1 pack of branded water bottles (12 bottles)",
+        "Choice of Hibiscus, Lemonade, or PineZest",
+        "Standard Sparkle recipe"
+      ]
+    },
+    {
+      id: "silver",
+      name: "Silver Package",
+      tagline: "Ideal for traditional engagements, corporate networking sessions, and milestone celebrations.",
+      minOrder: 200,
+      hlPrice: "9.50",
+      pzPrice: "11.50",
+      theme: { bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-900", accent: "text-slate-500", badge: "bg-slate-200 text-slate-700" },
+      icon: <Sparkles className="h-6 w-6 text-slate-500" />,
+      features: [
+        "Personalised event label (names, date, details)",
+        "2 packs of branded water bottles (24 bottles)",
+        "Choice of Hibiscus, Lemonade, or PineZest",
+        "Custom branding on label design"
+      ]
+    },
+    {
+      id: "gold",
+      name: "Gold Package",
+      isPopular: true,
+      tagline: "Tailored for large weddings, multi-day conferences, and high-profile corporate events.",
+      minOrder: 300,
+      hlPrice: "9.00",
+      pzPrice: "11.00",
+      theme: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-950", accent: "text-amber-600", badge: "bg-amber-200 text-amber-800" },
+      icon: <Star className="h-6 w-6 text-amber-500" />,
+      features: [
+        "Personalised event label (names, date, details)",
+        "3 packs of branded water bottles (36 bottles)",
+        "Choice of Hibiscus, Lemonade, PineZest, or Dates Hibiscus",
+        "Premium custom label design",
+        "Mixed flavour orders available"
+      ]
+    },
+    {
+      id: "platinum",
+      name: "Platinum Package",
+      tagline: "Our ultimate tier for mega-weddings, large festivals, and high-volume corporate retreats.",
+      minOrder: 400,
+      hlPrice: "8.50",
+      pzPrice: "10.50",
+      theme: { bg: "bg-stone-950", border: "border-stone-800", text: "text-white", accent: "text-stone-400", badge: "bg-stone-800 text-stone-300" },
+      icon: <Crown className="h-6 w-6 text-rose-500" />,
+      features: [
+        "Personalised event label (names, date, details)",
+        "4 packs of branded water bottles (48 bottles)",
+        "Full range available (incl. Dates Hibiscus)",
+        "Premium custom label design",
+        "Mixed flavour orders available",
+        "Dedicated event coordinator contact",
+        "Custom MOQ options available for massive orders"
+      ]
+    }
+  ];
+
+  // Replace with your actual WhatsApp Number
+  const whatsappNumber = "233540000000"; 
+  const whatsappLink = `https://wa.me/${whatsappNumber}?text=Hey!%20I'm%20interested%20in%20booking%20a%20Custom%20Sparkle%20Drop%20for%20my%20event.`;
+
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-800 font-sans antialiased pb-20 selection:bg-emerald-600 selection:text-white">
+    <div className="min-h-screen bg-[#FDFBF7] text-stone-900 antialiased font-sans pb-24 selection:bg-rose-500 selection:text-white relative">
       
-      <header className="bg-white/90 backdrop-blur-md border-b border-stone-200/60 py-4 px-6 sticky top-0 z-40 shadow-sm flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" className="h-12 object-contain" />
-          <div className="h-6 w-px bg-stone-200" />
-          <span className="text-xs font-serif font-black text-emerald-950 uppercase tracking-tight">Custom Events</span>
+      {/* BRAND NAVIGATION */}
+      <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 py-3 px-6 sticky top-0 z-40 shadow-sm flex justify-between items-center h-20">
+        <div className="flex items-center h-full">
+          <Link href="/">
+            <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={220} height={90} className="h-16 sm:h-20 w-auto object-contain cursor-pointer" priority />
+          </Link>
         </div>
-        <Link href="/shop" className="text-[11px] font-mono font-bold text-stone-500 hover:text-stone-800 transition-colors flex items-center gap-1 bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200">
-          <ArrowLeft className="h-3.5 w-3.5" /> <span>Return to Store Menu</span>
-        </Link>
+        
+        <div className="flex items-center gap-3 sm:gap-6">
+          <Link href="/shop" className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors flex items-center gap-1">
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Back to Store</span>
+          </Link>
+
+          <a 
+            href={whatsappLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2.5 rounded-full hover:bg-rose-700 transition-all shadow-xl group"
+          >
+            <MessageCircle className="h-4 w-4 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] font-black tracking-widest uppercase">Chat Now</span>
+          </a>
+        </div>
+      </nav>
+
+      {/* HEADER */}
+      <header className="max-w-4xl mx-auto px-4 md:px-8 py-16 text-center space-y-6">
+        <div className="inline-flex items-center gap-1.5 bg-rose-50 border border-rose-200 text-rose-600 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
+          <Flame className="h-3.5 w-3.5" /> Event Exclusives
+        </div>
+        <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase text-stone-950 leading-[0.95]">
+          Make Your Event <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-amber-500">Unforgettable.</span>
+        </h1>
+        <p className="text-stone-500 text-sm md:text-base font-bold max-w-2xl mx-auto leading-relaxed">
+          Custom branded beverages for weddings, corporate events, and special occasions across Ghana. Every package includes personalised labels featuring your event details and complimentary branded water packs.
+        </p>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-10 space-y-10">
-        
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-[10px] font-mono tracking-widest uppercase text-emerald-700 font-black bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">Bespoke Production</span>
-          <h1 className="text-3xl font-serif font-black tracking-tight text-emerald-950 uppercase">Available Production Packages (300ml)</h1>
-          <p className="text-xs text-stone-500 leading-relaxed font-light font-sans">
-            Refining weddings, massive corporate AGMs, and special milestones across Ghana with custom flavor profiling layouts and custom branded batch labeling lines.
+      {/* GALLERY: EMOTION BEFORE LOGIC */}
+      <section className="max-w-7xl mx-auto px-4 md:px-8 pb-20">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 auto-rows-[250px]">
+          {/* Main Hero Shot */}
+          <div className="md:col-span-8 md:row-span-2 relative rounded-[32px] overflow-hidden group shadow-xl">
+            <Image src="/finidi-wedding.jpg" alt="Finidi Wedding Custom Sparkle Pouches" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" priority />
+            <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent opacity-80" />
+            <div className="absolute bottom-6 left-6 right-6">
+              <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/30">The Finidi Wedding</span>
+            </div>
+          </div>
+          
+          {/* Supporting Shots */}
+          <div className="md:col-span-4 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md hidden md:block">
+            <Image src="/rev-osai-1.jpg" alt="Rev Osai Retirement Custom Pouch" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" />
+          </div>
+          <div className="md:col-span-4 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md hidden md:block">
+            <Image src="/rev-osai-2.jpg" alt="Rev Osai Retirement Details" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" />
+          </div>
+          <div className="md:col-span-6 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md">
+            <Image src="/water-1.jpg" alt="Custom Branded Water" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" />
+            <div className="absolute bottom-4 left-4">
+              <span className="bg-stone-950/50 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full">Branded Water Included</span>
+            </div>
+          </div>
+          <div className="md:col-span-6 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md">
+            <Image src="/water-2.jpg" alt="Custom Branded Water Close Up" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" />
+          </div>
+        </div>
+      </section>
+
+      {/* PRODUCTION PACKAGES */}
+      <section className="max-w-7xl mx-auto px-4 md:px-8 pb-12">
+        <div className="flex items-center gap-4 mb-10">
+          <div className="h-px bg-stone-200 flex-1" />
+          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-stone-900">Select Your Tier</h2>
+          <div className="h-px bg-stone-200 flex-1" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          {packages.map((pkg) => (
+            <div key={pkg.id} className={`relative flex flex-col justify-between border-2 rounded-[40px] p-8 transition-all duration-300 hover:-translate-y-2 shadow-xl ${pkg.theme.bg} ${pkg.theme.border}`}>
+              
+              {pkg.isPopular && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg flex items-center gap-1 z-10">
+                  <Flame className="h-3 w-3" /> Most Requested
+                </div>
+              )}
+
+              <div className="space-y-6 relative z-10">
+                <div className="flex justify-between items-start">
+                  <div className={`p-3 rounded-2xl ${pkg.theme.badge}`}>
+                    {pkg.icon}
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${pkg.theme.accent}`}>Min. {pkg.minOrder}</span>
+                </div>
+
+                <div>
+                  <h3 className={`text-2xl font-black uppercase tracking-tight ${pkg.theme.text}`}>{pkg.name}</h3>
+                  <p className={`text-xs mt-2 font-medium leading-relaxed ${pkg.theme.accent}`}>{pkg.tagline}</p>
+                </div>
+
+                {/* Pricing Block */}
+                <div className={`p-4 rounded-[24px] space-y-2 border ${pkg.id === 'platinum' ? 'bg-stone-900 border-stone-800' : 'bg-white/50 border-white'}`}>
+                  <div className="flex justify-between items-center">
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${pkg.theme.accent}`}>Hibiscus/Lemonade</span>
+                    <span className={`text-sm font-black ${pkg.theme.text}`}>GH₵{pkg.hlPrice}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${pkg.theme.accent}`}>PineZest</span>
+                    <span className={`text-sm font-black ${pkg.theme.text}`}>GH₵{pkg.pzPrice}</span>
+                  </div>
+                </div>
+
+                {/* Features List */}
+                <ul className="space-y-3 pt-2">
+                  {pkg.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-xs font-bold">
+                      <CheckCircle2 className={`h-4 w-4 shrink-0 ${pkg.id === 'platinum' ? 'text-rose-500' : pkg.isPopular ? 'text-amber-500' : 'text-emerald-500'}`} />
+                      <span className={pkg.id === 'platinum' ? 'text-stone-300' : 'text-stone-600'}>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PRICING NOTE */}
+      <section className="max-w-3xl mx-auto px-4 md:px-8 pb-20 text-center">
+        <div className="bg-stone-100/50 border border-stone-200 p-6 rounded-[32px] flex flex-col items-center gap-3 text-stone-500 text-xs font-bold leading-relaxed">
+          <Info className="h-5 w-5 text-stone-400" />
+          <p>
+            <strong className="text-stone-900">HL drinks = Hibiscus Drink and Lemonade.</strong> PineZest carries a small premium reflecting the cost of fresh pineapple. All prices are per 300ml pouch. Higher tiers offer a lower per-unit rate — the more you order, the more you save.
           </p>
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          
-          <div className="bg-white border border-stone-200/60 rounded-[32px] p-6 flex flex-col justify-between space-y-6 shadow-sm">
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-serif font-black text-lg text-emerald-950 uppercase">Bronze Package</h3>
-                <p className="text-[11px] text-stone-500 font-light leading-normal mt-0.5">Perfect for intimate gatherings, small birthdays, and private dinner milestones.</p>
-              </div>
-              <div className="border-t border-stone-100 pt-3">
-                <span className="text-2xl font-serif font-black text-emerald-950">₵8.00</span>
-                <span className="text-[10px] text-stone-400 font-mono"> / unit rate</span>
-              </div>
-              <ul className="space-y-2 font-mono text-[11px] text-stone-600 border-t border-stone-100 pt-3">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span>Min MOQ: 100 pouches</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span>Standard Recipe Mix</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span>Basic Event Labeling</span></li>
-              </ul>
-            </div>
-            <a href="https://wa.me/233547664422?text=Hi%20Sparkle,%20I%20want%20to%20book%20the%20Bronze%20Events%20Package" target="_blank" className="w-full bg-stone-900 hover:bg-stone-950 text-white font-mono font-bold text-center py-2.5 rounded-xl text-[11px] uppercase tracking-wide flex items-center justify-center gap-1.5 shadow-sm">
-              <MessageSquare className="h-3.5 w-3.5" /> <span>Book via WhatsApp</span>
-            </a>
-          </div>
+      {/* THE SINGLE MASTER CTA */}
+      <section className="max-w-xl mx-auto px-4 md:px-8 text-center pb-12">
+        <h2 className="text-3xl font-black uppercase tracking-tight text-stone-900 mb-6">Ready to Lock It In?</h2>
+        <a 
+          href={whatsappLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white p-5 rounded-[24px] text-sm font-black uppercase tracking-widest shadow-[0_8px_30px_rgb(16,185,129,0.3)] transition-transform hover:-translate-y-1"
+        >
+          <MessageCircle className="h-6 w-6" /> Talk to our Event Planners
+        </a>
+        <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 mt-4">Average response time: Under 10 minutes</p>
+      </section>
 
-          <div className="bg-white border border-stone-200/60 rounded-[32px] p-6 flex flex-col justify-between space-y-6 shadow-sm">
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-serif font-black text-lg text-emerald-950 uppercase">Silver Package</h3>
-                <p className="text-[11px] text-stone-500 font-light leading-normal mt-0.5">Ideal for standard corporate networking sessions and traditional engagements.</p>
-              </div>
-              <div className="border-t border-stone-100 pt-3">
-                <span className="text-2xl font-serif font-black text-emerald-950">₵8.00</span>
-                <span className="text-[10px] text-stone-400 font-mono"> / unit rate</span>
-              </div>
-              <ul className="space-y-2 font-mono text-[11px] text-stone-600 border-t border-stone-100 pt-3">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span>Min MOQ: 200 pouches</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span>2 Branded Water Packs Free</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span>Custom Branding Crests</span></li>
-              </ul>
-            </div>
-            <a href="https://wa.me/233547664422?text=Hi%20Sparkle,%20I%20want%20to%20book%20the%20Silver%20Events%20Package" target="_blank" className="w-full bg-stone-900 hover:bg-stone-950 text-white font-mono font-bold text-center py-2.5 rounded-xl text-[11px] uppercase tracking-wide flex items-center justify-center gap-1.5 shadow-sm">
-              <MessageSquare className="h-3.5 w-3.5" /> <span>Book via WhatsApp</span>
-            </a>
-          </div>
-
-          <div className="bg-white border-2 border-emerald-600 rounded-[32px] p-6 flex flex-col justify-between space-y-6 shadow-md relative">
-            <span className="absolute top-0 right-6 -translate-y-1/2 bg-emerald-600 text-white font-mono font-bold uppercase text-[8px] tracking-widest px-2.5 py-0.5 rounded-md shadow-sm">Most Requested</span>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-serif font-black text-lg text-emerald-950 uppercase flex items-center gap-1">Gold Package <Sparkles className="h-4 w-4 text-amber-500 fill-amber-500" /></h3>
-                <p className="text-[11px] text-stone-500 font-light leading-normal mt-0.5">Tailored for large wedding celebrations and multi-day high-profile conferences.</p>
-              </div>
-              <div className="border-t border-stone-100 pt-3">
-                <span className="text-2xl font-serif font-black text-emerald-950">₵8.00</span>
-                <span className="text-[10px] text-stone-400 font-mono"> / unit rate</span>
-              </div>
-              <ul className="space-y-2 font-mono text-[11px] text-stone-600 border-t border-stone-100 pt-3">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span>Min MOQ: 300 pouches</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span>3 Branded Water Packs Free</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span>Premium Mango/Zest variants</span></li>
-              </ul>
-            </div>
-            <a href="https://wa.me/233547664422?text=Hi%20Sparkle,%20I%20want%20to%20book%20the%20Gold%20Events%20Package" target="_blank" className="w-full bg-stone-900 hover:bg-stone-950 text-white font-mono font-bold text-center py-2.5 rounded-xl text-[11px] uppercase tracking-wide flex items-center justify-center gap-1.5 shadow-md">
-              <MessageSquare className="h-3.5 w-3.5" /> <span>Book via WhatsApp</span>
-            </a>
-          </div>
-
-          {/* DIAMOND TIER COMPONENT CARD FIXED CONTRAST */}
-          <div className="bg-white border border-stone-200/60 rounded-[32px] p-6 flex flex-col justify-between space-y-6 shadow-sm">
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-serif font-black text-lg text-emerald-950 uppercase">Diamond Tier</h3>
-                <p className="text-[11px] text-stone-700 font-semibold leading-normal mt-0.5">Our ultimate tier for massive festivals, mega-weddings, and high-volume corporate retreats.</p>
-              </div>
-              <div className="border-t border-stone-100 pt-3">
-                <span className="text-2xl font-serif font-black text-emerald-600">₵8.00</span>
-                <span className="text-[10px] text-stone-700 font-mono font-bold"> / unit base</span>
-              </div>
-              <ul className="space-y-2 font-mono text-[11px] text-stone-800 border-t border-stone-200 pt-3 font-bold">
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span className="text-stone-900">Custom MOQ Options Available</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span className="text-stone-900">4 Branded Water Packs Free</span></li>
-                <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" /><span className="text-stone-900">Dedicated Event Coordinator</span></li>
-              </ul>
-            </div>
-            <a href="https://wa.me/233547664422?text=Hi%20Sparkle,%20I%20want%20to%20book%20the%20Diamond%20Events%20Package" target="_blank" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-mono font-bold text-center py-2.5 rounded-xl text-[11px] uppercase tracking-wide flex items-center justify-center gap-1.5 shadow-sm">
-              <MessageSquare className="h-3.5 w-3.5" /> <span>Book via WhatsApp</span>
-            </a>
-          </div>
-
-        </div>
-      </main>
     </div>
   );
 }
