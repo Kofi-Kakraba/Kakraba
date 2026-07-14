@@ -239,10 +239,50 @@ export default function AdminDashboardPage() {
     setLoading(false);
   }
 
-  const handleImageUploadEngine = (e, targetKey, contextType, variantId = null) => {
+  // =========================================================================
+  // 🔥 NEW FULLY FUNCTIONAL SUPABASE STORAGE UPLOAD ENGINE
+  // =========================================================================
+  const handleImageUploadEngine = async (e, targetKey, contextType, variantId = null) => {
     const file = e.target.files?.[0];
-    if (file) {
-      alert(`File Hook Loaded: Selected "${file.name}" for ${targetKey}.`);
+    if (!file) return;
+
+    alert(`Uploading ${file.name}... Please wait for the success popup.`);
+
+    try {
+      // 1. Give the file a unique name so it doesn't overwrite others
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${targetKey}_${Date.now()}.${fileExt}`;
+
+      // 2. Upload it securely to your public sparkle-assets bucket
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('sparkle-assets')
+        .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // 3. Get the permanent public link
+      const { data: publicUrlData } = supabase.storage
+        .from('sparkle-assets')
+        .getPublicUrl(fileName);
+
+      const finalUrl = publicUrlData.publicUrl;
+
+      // 4. Feed the link directly into the JSON state
+      if (contextType === 'cms') {
+        setCmsContent(prev => ({ ...prev, [targetKey]: finalUrl }));
+        alert("✅ Image securely uploaded! Click 'Publish Live Settings Modules' to lock it in.");
+      } 
+      // Bonus: This also fixes your product variant image uploads!
+      else if (contextType === 'inventory' && variantId) {
+        const { error: dbErr } = await supabase.from('product_variants').update({ image_url: finalUrl }).eq('id', variantId);
+        if (dbErr) throw dbErr;
+        setProducts(prev => prev.map(p => ({
+          ...p, product_variants: p.product_variants.map(v => v.id === variantId ? { ...v, image_url: finalUrl } : v)
+        })));
+        alert("✅ Product image uploaded and saved live!");
+      }
+    } catch (err) {
+      alert(`Upload Failed: ${err.message}`);
     }
   };
 
