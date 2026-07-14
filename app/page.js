@@ -37,7 +37,7 @@ export default function BrandWelcomeHomePage() {
     gallery_4_title: "Community Impact", "gallery_4_img": ""
   };
 
-  // ALL IMAGES NOW POINT TO .png WITH THE SOCIAL NAMING SYSTEM
+  // FULLY UPDATED: Sobolo now has all 4 sizes matching the other flavors!
   const quickProducts = {
     sobolo: {
       name: "Hibiscus Drink (Sobolo)",
@@ -46,8 +46,12 @@ export default function BrandWelcomeHomePage() {
       bgLight: "bg-rose-50",
       accentText: "text-rose-600",
       border: "border-rose-200",
-      image: "/sobolo-500.png", 
-      sizes: ["300ml Solo", "500ml Gee"]
+      sizes: [
+        { volume: "300ml", slang: "Solo", img: "/sobolo-300.png", height: "h-44" },
+        { volume: "500ml", slang: "Gee", img: "/sobolo-500.png", height: "h-52" },
+        { volume: "1.5L", slang: "Paddy", img: "/sobolo-1500.png", height: "h-64" },
+        { volume: "5L", slang: "Link-Up", img: "/sobolo-5000.png", height: "h-72" }
+      ]
     },
     lemonade: {
       name: "Sparkle Lemonade",
@@ -56,8 +60,12 @@ export default function BrandWelcomeHomePage() {
       bgLight: "bg-amber-50",
       accentText: "text-amber-600",
       border: "border-amber-200",
-      image: "/lemonade-500.png", 
-      sizes: ["300ml Solo", "500ml Gee", "1.5L Paddy", "5L Link-Up"]
+      sizes: [
+        { volume: "300ml", slang: "Solo", img: "/lemonade-300.png", height: "h-44" },
+        { volume: "500ml", slang: "Gee", img: "/lemonade-500.png", height: "h-52" },
+        { volume: "1.5L", slang: "Paddy", img: "/lemonade-1500.png", height: "h-64" },
+        { volume: "5L", slang: "Link-Up", img: "/lemonade-5000.png", height: "h-72" }
+      ]
     },
     pinezest: {
       name: "Sparkle PineZest",
@@ -66,17 +74,14 @@ export default function BrandWelcomeHomePage() {
       bgLight: "bg-emerald-50",
       accentText: "text-emerald-600",
       border: "border-emerald-200",
-      image: "/pinezest-500.png", 
-      sizes: ["300ml Solo", "500ml Gee", "1.5L Paddy", "5L Link-Up"]
+      sizes: [
+        { volume: "300ml", slang: "Solo", img: "/pinezest-300.png", height: "h-44" },
+        { volume: "500ml", slang: "Gee", img: "/pinezest-500.png", height: "h-52" },
+        { volume: "1.5L", slang: "Paddy", img: "/pinezest-1500.png", height: "h-64" },
+        { volume: "5L", slang: "Link-Up", img: "/pinezest-5000.png", height: "h-72" }
+      ]
     }
   };
-
-  const galleryItems = [
-    { id: 1, title: cms.gallery_1_title, src: cms.gallery_1_img, tag: "The Drop" },
-    { id: 2, title: cms.gallery_2_title, src: cms.gallery_2_img, tag: "Lifestyle" },
-    { id: 3, title: cms.gallery_3_title, src: cms.gallery_3_img, tag: "Events" },
-    { id: 4, title: cms.gallery_4_title, src: cms.gallery_4_img, tag: "Culture" },
-  ];
 
   const handleFlavorChange = (flavorKey) => {
     setSelectedFlavor(flavorKey);
@@ -95,6 +100,8 @@ export default function BrandWelcomeHomePage() {
     );
   };
 
+  const activeSize = quickProducts[selectedFlavor].sizes[currentSizeIndex];
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] font-sans text-stone-950 antialiased selection:bg-rose-500 selection:text-white">
       
@@ -106,7 +113,6 @@ export default function BrandWelcomeHomePage() {
         <div className="flex items-center gap-4 sm:gap-6">
           <Link href="/referrer" className="text-[11px] font-black uppercase tracking-wide text-emerald-600 hover:text-emerald-500 transition-colors hidden sm:inline-block">Become an Ambassador 🌟</Link>
           <Link href="/shop" className="text-xs font-bold text-stone-500 hover:text-stone-900 transition-colors uppercase tracking-wide">Shop Now</Link>
-          
           <Link href="/custom" className="bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white px-6 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all shadow-[0_4px_15px_rgb(225,29,72,0.3)] hover:-translate-y-0.5">
             <Flame className="h-4 w-4 text-amber-300" /> <span>Custom Drops</span>
           </Link>
@@ -127,7 +133,6 @@ export default function BrandWelcomeHomePage() {
             className="w-full h-full object-cover object-center opacity-90" 
           />
         </div>
-        
         <div className="absolute inset-0 bg-gradient-to-r from-stone-900/60 via-stone-900/40 to-stone-900/10 z-10" />
 
         <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center z-20 relative pt-8 lg:pt-0">
@@ -158,52 +163,64 @@ export default function BrandWelcomeHomePage() {
                 <UserPlus className="h-4 w-4 text-emerald-500" /> <span>Ambassador Hub</span>
               </Link>
             </div>
-
-            <div className="pt-6 space-y-2 border-t border-stone-300/50">
-              <span className="text-[10px] font-black uppercase tracking-widest text-stone-600 block">Tap to Switch Flavor Showcase:</span>
-              <div className="flex gap-2">
-                <button onClick={() => handleFlavorChange('sobolo')} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'sobolo' ? 'bg-rose-600 border-rose-600 text-white shadow-md scale-102' : 'bg-white/80 text-stone-800 border-stone-300 hover:border-rose-400'}`}>Sobolo 🍓</button>
-                <button onClick={() => handleFlavorChange('lemonade')} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'lemonade' ? 'bg-amber-400 border-amber-400 text-stone-950 shadow-md scale-102' : 'bg-white/80 text-stone-800 border-stone-300 hover:border-amber-400'}`}>Lemonade 🍋</button>
-                <button onClick={() => handleFlavorChange('pinezest')} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'pinezest' ? 'bg-emerald-500 border-emerald-500 text-white shadow-md scale-102' : 'bg-white/80 text-stone-800 border-stone-300 hover:border-emerald-400'}`}>PineZest 🍍</button>
-              </div>
-            </div>
           </div>
 
-          {/* RIGHT SIDE: HERO PRODUCT PRESENTATION (Floating slightly off the glass) */}
-          <div className="lg:col-span-5 w-full flex flex-col items-center justify-center relative">
-            <div className={`w-full max-w-sm rounded-[40px] ${quickProducts[selectedFlavor].bgLight} border-2 ${quickProducts[selectedFlavor].border} p-6 space-y-6 shadow-2xl transition-all duration-500 flex flex-col justify-between relative overflow-hidden group min-h-[55vh]`}>
+          {/* RIGHT SIDE: HERO PRODUCT PRESENTATION & CONTROLS */}
+          <div className="lg:col-span-5 w-full flex flex-col items-center justify-center relative space-y-6">
+            
+            {/* The Glass Product Card */}
+            <div className={`w-full max-w-sm rounded-[40px] ${quickProducts[selectedFlavor].bgLight} border-2 ${quickProducts[selectedFlavor].border} p-6 shadow-2xl transition-all duration-500 flex flex-col justify-between relative overflow-hidden group min-h-[500px]`}>
               
-              <div className="flex justify-center z-10 w-full">
+              {/* Size Navigation */}
+              <div className="flex justify-center z-10 w-full mb-4">
                 <div className="flex items-center gap-3 bg-white/90 backdrop-blur-sm border border-stone-200/80 rounded-full p-1 shadow-sm">
                   <button onClick={handlePrevSize} className="p-1.5 hover:bg-stone-100 rounded-full text-stone-400 hover:text-stone-900 transition-colors">
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-stone-800 min-w-[95px] text-center">
-                    {quickProducts[selectedFlavor].sizes[currentSizeIndex]}
+                  
+                  {/* Styled typography: Bold size + Italic slang */}
+                  <span className="min-w-[110px] text-center flex items-center justify-center gap-1.5">
+                    <span className="text-[11px] font-black uppercase tracking-widest text-stone-900">{activeSize.volume}</span>
+                    <span className="text-[11px] font-bold italic tracking-wider text-stone-500">{activeSize.slang}</span>
                   </span>
+                  
                   <button onClick={handleNextSize} className="p-1.5 hover:bg-stone-100 rounded-full text-stone-400 hover:text-stone-900 transition-colors">
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
               </div>
 
-              <div className="h-64 w-full relative flex items-center justify-center transition-all duration-500 transform group-hover:scale-105 z-10">
+              {/* Dynamic Image with Fixed Container Height (h-72) to prevent layout jumps, but dynamic image scaling */}
+              <div className="h-72 w-full relative flex items-end justify-center transition-all duration-500 z-10 pb-4">
                 <img 
-                  src={quickProducts[selectedFlavor].image} 
-                  alt={quickProducts[selectedFlavor].name}
-                  className="h-full object-contain drop-shadow-[0_20px_35px_rgba(0,0,0,0.2)]"
+                  key={activeSize.img} 
+                  src={activeSize.img} 
+                  alt={`${quickProducts[selectedFlavor].name} ${activeSize.volume}`}
+                  className={`object-contain transition-all duration-500 transform group-hover:scale-105 drop-shadow-[0_30px_30px_rgba(0,0,0,0.5)] ${activeSize.height}`}
                 />
               </div>
 
-              <div className="bg-white border border-stone-100 p-4 rounded-2xl shadow-sm z-10 space-y-0.5 relative">
+              {/* Badges */}
+              <div className="bg-white border border-stone-100 p-4 rounded-2xl shadow-sm z-10 space-y-0.5 relative mt-auto">
                 <div className={`text-[10px] font-black uppercase tracking-widest ${quickProducts[selectedFlavor].accentText}`}>{quickProducts[selectedFlavor].flavor}</div>
                 <h3 className="text-xl font-black text-stone-950 tracking-tight uppercase">{quickProducts[selectedFlavor].name}</h3>
               </div>
 
+              {/* Color Bloom Effect */}
               <div className={`absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-gradient-to-br ${quickProducts[selectedFlavor].color} opacity-20 blur-2xl pointer-events-none`} />
             </div>
-          </div>
 
+            {/* FLAVOR SWAPPER MOVED UNDER THE CARD */}
+            <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl border border-white/50 shadow-xl flex flex-col items-center space-y-3 w-full max-w-sm transform transition-all hover:scale-[1.02]">
+              <span className="text-[10px] font-black uppercase tracking-widest text-stone-700">Tap to Switch Flavor:</span>
+              <div className="flex gap-2 justify-center w-full">
+                <button onClick={() => handleFlavorChange('sobolo')} className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'sobolo' ? 'bg-rose-600 border-rose-600 text-white shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-rose-400 hover:bg-rose-50'}`}>Sobolo 🍓</button>
+                <button onClick={() => handleFlavorChange('lemonade')} className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'lemonade' ? 'bg-amber-400 border-amber-400 text-stone-950 shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-amber-400 hover:bg-amber-50'}`}>Lemonade 🍋</button>
+                <button onClick={() => handleFlavorChange('pinezest')} className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'pinezest' ? 'bg-emerald-500 border-emerald-500 text-white shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-emerald-400 hover:bg-emerald-50'}`}>PineZest 🍍</button>
+              </div>
+            </div>
+
+          </div>
         </div>
       </header>
 
