@@ -37,7 +37,6 @@ export default function BrandWelcomeHomePage() {
     gallery_4_title: "Community Impact", "gallery_4_img": ""
   };
 
-  // FULLY UPDATED: Sobolo now has all 4 sizes matching the other flavors!
   const quickProducts = {
     sobolo: {
       name: "Hibiscus Drink (Sobolo)",
@@ -82,6 +81,14 @@ export default function BrandWelcomeHomePage() {
       ]
     }
   };
+
+  // ADDED BACK: The missing gallery items array that caused the crash!
+  const galleryItems = [
+    { id: 1, title: cms.gallery_1_title, src: cms.gallery_1_img, tag: "The Drop" },
+    { id: 2, title: cms.gallery_2_title, src: cms.gallery_2_img, tag: "Lifestyle" },
+    { id: 3, title: cms.gallery_3_title, src: cms.gallery_3_img, tag: "Events" },
+    { id: 4, title: cms.gallery_4_title, src: cms.gallery_4_img, tag: "Culture" },
+  ];
 
   const handleFlavorChange = (flavorKey) => {
     setSelectedFlavor(flavorKey);
@@ -190,7 +197,7 @@ export default function BrandWelcomeHomePage() {
                 </div>
               </div>
 
-              {/* Dynamic Image with Fixed Container Height (h-72) to prevent layout jumps, but dynamic image scaling */}
+              {/* Dynamic Image with Fixed Container Height */}
               <div className="h-72 w-full relative flex items-end justify-center transition-all duration-500 z-10 pb-4">
                 <img 
                   key={activeSize.img} 
