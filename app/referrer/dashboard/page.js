@@ -2,33 +2,26 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Coins, LogOut, TrendingUp, User, Wallet, History, AlertCircle, RefreshCw, BarChart3, Package, Search, Filter, Calendar, CreditCard, Printer, FileText, X } from 'lucide-react';
+import Image from 'next/image';
+import { LogOut, Wallet, History, RefreshCw, Package, Search, Printer, X, Sparkles } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../../lib/supabaseClient';
 
 export default function AmbassadorDashboardPage() {
   const supabase = createBrowserSupabaseClient();
   const router = useRouter();
 
-  // =========================================================================
-  // 1. ALL SYSTEM STATE CORES (DECLARED AT ABSOLUTE TOP BOUNDARY LAYER)
-  // =========================================================================
   const [partnerProfile, setPartnerProfile] = useState(null);
   const [payoutLogs, setPayoutLogs] = useState([]);
   const [salesPipeline, setSalesPipeline] = useState([]);
   const [loading, setLoading] = useState(true);
   const [withdrawing, setWithdrawing] = useState(false);
 
-  // CUSTOM INPUT WITHDRAW AMOUNT STATES
   const [customWithdrawInput, setCustomWithdrawInput] = useState('');
   const [selectedReceiptTicket, setSelectedReceiptTicket] = useState(null);
 
-  // SEARCH & AUDIT FILTER STATES
   const [auditSearchText, setAuditSearchText] = useState('');
   const [sizeFilterText, setSizeFilterText] = useState('all');
 
-  // =========================================================================
-  // 2. LIFECYCLE DATA LIFTERS EFFECT
-  // =========================================================================
   useEffect(() => {
     async function verifySessionAndLoadMetrics() {
       const storedCode = localStorage.getItem('SPARKLE_AMBASSADOR_CODE');
@@ -52,7 +45,6 @@ export default function AmbassadorDashboardPage() {
 
       setPartnerProfile(profile);
 
-      // Pull historical entries out of the active 'cashouts' table schema
       const { data: tickets } = await supabase
         .from('cashouts')
         .select('*')
@@ -61,7 +53,6 @@ export default function AmbassadorDashboardPage() {
 
       setPayoutLogs(tickets || []);
 
-      // Pull paid orders from database
       const { data: allPaidOrders } = await supabase
         .from('orders')
         .select('id, customer_name, total_amount, created_at, metadata')
@@ -71,12 +62,10 @@ export default function AmbassadorDashboardPage() {
       if (allPaidOrders && allPaidOrders.length > 0) {
         const targetCodeString = profile.code.trim().toUpperCase();
 
-        // Filter orders containing the ambassador's code inside the metadata payload object
         const matchedOrders = allPaidOrders.filter(order => {
           const m = order.metadata;
           if (!m) return false;
           
-          // Handles flat or nested string allocations cleanly
           const extractedCode = String(
             m.applied_code || m.code || m.referral_code || m.promo_code || m.discount_code || m.promo || ''
           ).trim().toUpperCase();
@@ -126,9 +115,6 @@ export default function AmbassadorDashboardPage() {
     verifySessionAndLoadMetrics();
   }, []);
 
-  // =========================================================================
-  // 3. INTERACTIVE FINANCIAL REQUEST WITHDRAWAL METHODS
-  // =========================================================================
   const grossRequestAmount = parseFloat(customWithdrawInput) || 0;
   const liveTaxDeduction = grossRequestAmount * 0.10;
   const paystackGatewayFee = grossRequestAmount > 0 ? 2.50 : 0.00; 
@@ -165,7 +151,6 @@ export default function AmbassadorDashboardPage() {
 
       if (ticketError) throw ticketError;
 
-      // Deduct only requested amount from wallet balance row atomically
       await supabase
         .from('referral_codes')
         .update({ total_earnings: availableBalance - grossRequestAmount })
@@ -185,9 +170,6 @@ export default function AmbassadorDashboardPage() {
     router.push('/referrer');
   };
 
-  // =========================================================================
-  // 4. ADVANCED FORENSIC FILTER MATCH COMPILER
-  // =========================================================================
   const filteredAuditSalesLog = salesPipeline.filter(sale => {
     const matchesSearch = auditSearchText.trim() === '' || 
       sale.customerName.toLowerCase().includes(auditSearchText.toLowerCase()) ||
@@ -202,94 +184,112 @@ export default function AmbassadorDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-955 flex flex-col justify-center items-center font-mono text-xs text-stone-400 gap-2">
-        <RefreshCw className="h-4 w-4 animate-spin text-emerald-500" />
-        <span>Syncing Wallet Ledger Matrix...</span>
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col justify-center items-center font-black text-xs uppercase tracking-widest text-stone-400 gap-4">
+        <RefreshCw className="h-6 w-6 animate-spin text-emerald-500" />
+        <span>Syncing Ledger...</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-stone-955 text-stone-100 font-sans antialiased pb-12 relative">
+    <div className="min-h-screen bg-[#FDFBF7] text-stone-900 font-sans antialiased pb-12 relative selection:bg-emerald-500 selection:text-white">
       
-      <nav className="bg-stone-900 border-b border-stone-800 py-4 px-6 flex justify-between items-center shadow-xl">
-        <div className="flex items-center gap-3">
-          <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Logo" className="h-10 w-auto object-contain" />
-          <span className="text-xs font-mono bg-emerald-950 text-emerald-400 border border-emerald-900 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Agent Workspace</span>
+      {/* BRAND NAVIGATION */}
+      <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 py-3 px-6 sticky top-0 z-40 shadow-sm flex justify-between items-center h-20">
+        <div className="flex items-center gap-4 h-full">
+          <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={180} height={70} className="h-14 sm:h-16 w-auto object-contain" priority />
+          <span className="text-[10px] font-black uppercase tracking-widest bg-stone-100 text-stone-600 px-3 py-1.5 rounded-full hidden sm:inline-flex border border-stone-200 shadow-sm">
+            Backstage Access
+          </span>
         </div>
-        <button onClick={handleSignOutSession} className="text-xs font-mono font-bold text-stone-400 hover:text-white flex items-center gap-1.5 bg-stone-955 border border-stone-800 px-3 py-1.5 rounded-xl transition-all"><LogOut className="h-3.5 w-3.5" /> <span>Sign Out</span></button>
+        <button onClick={handleSignOutSession} className="text-[10px] font-black uppercase tracking-widest text-stone-500 hover:text-stone-950 flex items-center gap-1.5 bg-white border border-stone-200 hover:border-stone-400 px-4 py-2.5 rounded-full transition-all shadow-sm">
+          <LogOut className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Sign Out</span>
+        </button>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 py-12 space-y-8">
         
-        {/* UPPER SUMMARY PARAMETERS CARDS BLOCKS GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        <header className="space-y-1">
+          <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-stone-950">
+            Welcome Back, <span className="text-emerald-600">{partnerProfile?.legal_name?.split(' ')[0] || 'Partner'}</span>.
+          </h1>
+          <p className="text-stone-500 font-bold">Track your conversions and manage your drops.</p>
+        </header>
+
+        {/* UPPER SUMMARY GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           
-          <div className="bg-stone-900 border border-stone-800 rounded-[28px] p-5 space-y-2 shadow-xl md:col-span-1 h-full flex flex-col justify-between">
-            <div>
-              <span className="text-[9px] text-stone-500 uppercase tracking-wider block font-bold font-mono">Welcome Back Partner</span>
-              <h2 className="text-base font-mono font-black text-white uppercase truncate">{partnerProfile?.legal_name || 'Ambassador'}</h2>
-              <span className="text-xs text-emerald-400 font-mono font-bold block mt-0.5">Code handle: #{partnerProfile?.code || '----'}</span>
+          {/* PROFILE CARD */}
+          <div className="bg-white border-2 border-stone-200 rounded-[40px] p-8 shadow-xl lg:col-span-1 flex flex-col justify-between relative overflow-hidden group min-h-[300px]">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-stone-100 rounded-full blur-3xl opacity-50 pointer-events-none -mr-10 -mt-10" />
+            <div className="relative z-10 space-y-1">
+              <span className="text-[10px] text-stone-500 uppercase tracking-widest font-black flex items-center gap-1.5"><User className="h-3 w-3" /> Ambassador Profile</span>
+              <h2 className="text-2xl font-black text-stone-950 uppercase tracking-tight truncate pt-2">{partnerProfile?.legal_name || 'Ambassador'}</h2>
+              <span className="text-xs text-emerald-600 font-black uppercase tracking-wider block">ID: #{partnerProfile?.code || '----'}</span>
             </div>
-            <div className="border-t border-stone-850 pt-3 mt-4 text-stone-400 text-[11px] font-mono space-y-1">
-              <div className="flex justify-between"><span>Wallet Route:</span><strong className="text-white">{partnerProfile?.momo_number || 'None'}</strong></div>
-              <div className="flex justify-between"><span>Route Bank:</span><strong className="text-stone-300">{partnerProfile?.momo_network || 'MTN'} Route</strong></div>
+            <div className="bg-[#FDFBF7] border border-stone-200 p-4 rounded-2xl text-[11px] font-bold space-y-2 relative z-10 text-stone-600 uppercase tracking-wide mt-6">
+              <div className="flex justify-between items-center"><span>Payout Route:</span><strong className="text-stone-950">{partnerProfile?.momo_number || 'None'}</strong></div>
+              <div className="flex justify-between items-center"><span>Network:</span><strong className="text-stone-950">{partnerProfile?.momo_network || 'MTN'}</strong></div>
             </div>
           </div>
 
-          {/* DYNAMIC CALCULATOR FORM WITH DEDUCTION LOG PREVIEW SHIELDS */}
-          <div className="bg-stone-900 border border-stone-800 rounded-[28px] p-5 shadow-xl md:col-span-2">
+          {/* DYNAMIC WALLET & WITHDRAWAL CARD */}
+          <div className="bg-white border-2 border-stone-200 rounded-[40px] p-8 shadow-xl lg:col-span-2 relative overflow-hidden">
             
-            {/* ====== UPGRADED HIGH-VISIBILITY WALLET CARD LAYOUT ====== */}
-            <div className="mb-5 p-5 bg-gradient-to-br from-emerald-950/70 to-stone-950 border border-emerald-900/40 rounded-2xl shadow-inner relative overflow-hidden">
-              <div className="absolute right-4 top-4 text-emerald-500/10 opacity-40 pointer-events-none">
+            {/* HIGH-VISIBILITY WALLET */}
+            <div className="mb-6 p-6 bg-stone-950 rounded-[24px] shadow-2xl relative overflow-hidden text-white">
+              <div className="absolute right-0 top-0 w-64 h-64 bg-emerald-500 rounded-full blur-[80px] opacity-20 pointer-events-none -mr-20 -mt-20" />
+              <div className="absolute right-6 top-1/2 -translate-y-1/2 text-emerald-500/20 pointer-events-none hidden sm:block">
                 <Wallet className="h-24 w-24" />
               </div>
-              <span className="text-[10px] text-emerald-400 uppercase font-mono font-black tracking-widest flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-emerald-400" /> Current Wallet Available
-              </span>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-4xl sm:text-5xl font-black text-white font-mono tracking-tight">
-                  ₵{Number(partnerProfile?.total_earnings || 0).toFixed(2)}
+              
+              <div className="relative z-10">
+                <span className="text-[10px] text-emerald-400 uppercase font-black tracking-widest flex items-center gap-2">
+                  <Sparkles className="h-3 w-3" /> Available Balance
                 </span>
-                <span className="text-[10px] font-mono text-stone-500 uppercase font-bold tracking-wider">GHS</span>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-5xl sm:text-6xl font-black tracking-tighter">
+                    ₵{Number(partnerProfile?.total_earnings || 0).toFixed(2)}
+                  </span>
+                  <span className="text-[10px] text-stone-400 uppercase font-black tracking-widest">GHS</span>
+                </div>
               </div>
             </div>
-            {/* ========================================================== */}
             
-            <form onSubmit={handleRequestWithdrawal} className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-[11px] pt-1">
-              <div className="space-y-2">
-                <label className="text-[9px] text-stone-500 uppercase font-bold tracking-wide block">Amount to cashout (GHS)</label>
-                <input type="number" required min="100" step="0.01" max={partnerProfile?.total_earnings || 0} placeholder="Minimum ₵100.00..." value={customWithdrawInput} onChange={(e) => setCustomWithdrawInput(e.target.value)} className="w-full bg-stone-955 border border-stone-850 rounded-xl px-3 py-2 text-white font-bold outline-none text-xs focus:border-emerald-600/40 transition-colors" />
-                <button type="submit" disabled={withdrawing || grossRequestAmount < 100} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-serif font-black py-2.5 rounded-xl text-center flex items-center justify-center gap-1 transition-all uppercase text-[10px] tracking-wider disabled:opacity-30 shadow-md">
-                  Request Custom Disbursal
+            <form onSubmit={handleRequestWithdrawal} className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+              <div className="space-y-3 flex flex-col justify-end">
+                <label className="text-[10px] text-stone-500 uppercase font-black tracking-widest block">Amount to cashout (GHS)</label>
+                <input type="number" required min="100" step="0.01" max={partnerProfile?.total_earnings || 0} placeholder="Minimum ₵100.00..." value={customWithdrawInput} onChange={(e) => setCustomWithdrawInput(e.target.value)} className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl px-4 py-3.5 text-stone-900 font-black outline-none focus:border-emerald-500 transition-colors placeholder:text-stone-300" />
+                <button type="submit" disabled={withdrawing || grossRequestAmount < 100} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl text-center transition-all uppercase text-xs tracking-widest disabled:opacity-30 shadow-[0_8px_30px_rgb(16,185,129,0.3)] disabled:shadow-none mt-auto">
+                  Request Funds
                 </button>
               </div>
 
-              <div className="bg-stone-955 rounded-2xl border border-stone-850 p-3.5 space-y-1.5 text-stone-400 shadow-inner">
-                <span className="text-[8px] text-stone-500 uppercase font-black block tracking-wider border-b border-stone-900 pb-1">Deductions Audit Breakdown Preview</span>
-                <div className="flex justify-between"><span>Gross Request:</span><span className="text-white font-bold">₵{grossRequestAmount.toFixed(2)}</span></div>
-                <div className="flex justify-between text-red-400/80"><span>10% WHT Withholding Cut:</span><span>-₵{liveTaxDeduction.toFixed(2)}</span></div>
-                <div className="flex justify-between text-purple-400/80"><span>Paystack Network Gateway Fee:</span><span>-₵{paystackGatewayFee.toFixed(2)}</span></div>
-                <div className="flex justify-between border-t border-stone-900 pt-1.5 mt-1 font-black text-emerald-400 text-xs"><span>Net Disbursal Estim:</span><span>₵{liveNetPayoutEstimation.toFixed(2)}</span></div>
+              <div className="bg-[#FDFBF7] rounded-[24px] border border-stone-200 p-5 space-y-2 text-stone-500 text-xs font-bold shadow-inner">
+                <span className="text-[10px] text-stone-400 uppercase font-black block tracking-widest border-b border-stone-200 pb-2 mb-3">Audit Breakdown Preview</span>
+                <div className="flex justify-between items-center"><span>Gross Request:</span><span className="text-stone-900 font-black">₵{grossRequestAmount.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center text-rose-500"><span>10% WHT Tax Cut:</span><span>-₵{liveTaxDeduction.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center text-stone-400"><span>Gateway API Fee:</span><span>-₵{paystackGatewayFee.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center border-t border-stone-200 pt-3 mt-2 font-black text-emerald-600 text-sm uppercase tracking-wide"><span>Net Disbursal:</span><span>₵{liveNetPayoutEstimation.toFixed(2)}</span></div>
               </div>
             </form>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start font-mono text-xs">
+        {/* BOTTOM GRIDS: SALES LOG & WITHDRAWAL HISTORY */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
           
-          {/* DYNAMIC SALES PIPELINE LEDGER VIEW WITH SEARCH & FILTERS CHANNELS */}
-          <div className="lg:col-span-2 bg-stone-900 border border-stone-800 rounded-[24px] p-5 space-y-4 shadow-lg">
-            <div className="border-b border-stone-850 pb-3 space-y-3">
-              <h3 className="text-xs font-bold text-white tracking-wider flex items-center gap-1.5 uppercase"><Package className="h-4 w-4 text-emerald-500" /> Granular Conversion Earnings Audit Log</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
+          {/* DYNAMIC SALES PIPELINE */}
+          <div className="xl:col-span-2 bg-white border-2 border-stone-200 rounded-[40px] p-6 sm:p-8 shadow-xl">
+            <div className="border-b border-stone-100 pb-5 space-y-4 mb-4">
+              <h3 className="text-sm font-black text-stone-900 uppercase tracking-widest flex items-center gap-2"><Package className="h-4 w-4 text-emerald-500" /> Conversion Log</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-500" />
-                  <input type="text" value={auditSearchText} onChange={(e) => setAuditSearchText(e.target.value)} placeholder="Search by Client name, ID or Flavor..." className="w-full bg-stone-955 border border-stone-850 rounded-xl pl-9 pr-3 py-2 text-white outline-none focus:border-emerald-600/40" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                  <input type="text" value={auditSearchText} onChange={(e) => setAuditSearchText(e.target.value)} placeholder="Search by Client name, ID..." className="w-full bg-[#FDFBF7] border border-stone-200 rounded-2xl pl-11 pr-4 py-3 text-stone-900 font-bold text-xs outline-none focus:border-emerald-500 placeholder:text-stone-400" />
                 </div>
                 <div className="relative">
-                  <select value={sizeFilterText} onChange={(e) => setSizeFilterText(e.target.value)} className="w-full bg-stone-955 border border-stone-850 rounded-xl px-3 py-2 text-stone-300 outline-none cursor-pointer focus:border-emerald-600/40">
+                  <select value={sizeFilterText} onChange={(e) => setSizeFilterText(e.target.value)} className="w-full bg-[#FDFBF7] border border-stone-200 rounded-2xl px-4 py-3 text-stone-600 font-bold text-xs outline-none cursor-pointer focus:border-emerald-500 uppercase tracking-wide">
                     <option value="all">All Sizes</option>
                     <option value="300ml">300ml Pack</option>
                     <option value="500ml">500ml Pack</option>
@@ -301,24 +301,24 @@ export default function AmbassadorDashboardPage() {
             </div>
 
             {filteredAuditSalesLog.length === 0 ? (
-              <div className="text-center py-16 text-stone-600 font-sans font-light italic">No historical orders match your active search terms parameters. Adjust criteria to audit log records.</div>
+              <div className="text-center py-16 text-stone-400 font-bold text-sm uppercase tracking-widest bg-stone-50 rounded-[24px]">No conversions found.</div>
             ) : (
-              <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1 scrollbar-thin divide-y divide-stone-850/40">
+              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2 scrollbar-thin">
                 {filteredAuditSalesLog.map((sale) => (
-                  <div key={sale.id} className="pt-2.5 first:pt-0 flex justify-between items-center gap-2 group transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 bg-stone-955 border border-stone-800 text-stone-400 font-bold flex items-center justify-center rounded-lg uppercase text-[10px] shadow-md shrink-0 font-sans group-hover:border-emerald-500/30 transition-colors">{sale.initials}</div>
+                  <div key={sale.id} className="bg-[#FDFBF7] p-4 rounded-[24px] border border-stone-200 flex justify-between items-center gap-4 hover:border-emerald-300 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 bg-white border border-stone-200 text-stone-900 font-black flex items-center justify-center rounded-xl uppercase text-xs shadow-sm shrink-0">{sale.initials}</div>
                       <div>
-                        <div className="font-sans font-bold text-stone-200 text-[11px] leading-tight uppercase flex items-center gap-1.5">
+                        <div className="font-black text-stone-900 text-sm leading-tight uppercase flex flex-wrap items-center gap-2">
                           <span>{sale.customerName}</span>
-                          <span className="text-[9px] font-mono font-normal text-stone-500 uppercase">Ref: #{sale.id.substring(0,8).toUpperCase()}</span>
+                          <span className="text-[9px] bg-stone-200/50 px-2 py-0.5 rounded-full text-stone-500">#{sale.id.substring(0,8)}</span>
                         </div>
-                        <p className="text-[10px] text-stone-455 mt-0.5 font-sans font-light leading-relaxed">Attributed order lines: <strong className="text-stone-300 font-mono font-medium">{sale.itemsSummary}</strong></p>
+                        <p className="text-xs text-stone-500 mt-1 font-bold">{sale.itemsSummary}</p>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="text-emerald-400 font-black text-[12px] block font-mono font-bold">+₵{Number(sale.bountyEarned).toFixed(2)}</span>
-                      <span className="text-[9px] text-stone-500 block mt-0.5">{sale.date}</span>
+                      <span className="text-emerald-600 font-black text-lg block tracking-tight">+₵{Number(sale.bountyEarned).toFixed(2)}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mt-0.5">{sale.date}</span>
                     </div>
                   </div>
                 ))}
@@ -326,25 +326,29 @@ export default function AmbassadorDashboardPage() {
             )}
           </div>
 
-          {/* CASHOUT REQUESTS HISTORICAL HISTORY TABLE LEDGER COLUMN */}
-          <div className="bg-stone-900 border border-stone-800 rounded-[24px] p-5 space-y-4 shadow-lg">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 border-b border-stone-850 pb-2"><History className="h-4 w-4 text-stone-500" /> Withdrawal History Log</h3>
+          {/* WITHDRAWAL HISTORY */}
+          <div className="bg-white border-2 border-stone-200 rounded-[40px] p-6 sm:p-8 shadow-xl xl:col-span-1">
+            <h3 className="text-sm font-black text-stone-900 uppercase tracking-widest flex items-center gap-2 border-b border-stone-100 pb-5 mb-4"><History className="h-4 w-4 text-stone-400" /> Withdrawals</h3>
             {payoutLogs.length === 0 ? (
-              <div className="text-center py-12 text-stone-600 italic font-sans font-light">No withdrawal settlements requested yet.</div>
+              <div className="text-center py-12 text-stone-400 font-bold text-xs uppercase tracking-widest bg-stone-50 rounded-[24px]">No cashouts yet.</div>
             ) : (
-              <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1 scrollbar-thin">
+              <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2 scrollbar-thin">
                 {payoutLogs.map((ticket) => {
                   const isReadyForSlipReceipt = ticket.status === 'completed' || ticket.status === 'approved';
                   return (
-                    <div key={ticket.id} className="bg-stone-955 p-3 rounded-xl border border-stone-850/60 flex justify-between items-center gap-1">
+                    <div key={ticket.id} className="bg-[#FDFBF7] p-4 rounded-2xl border border-stone-200 flex justify-between items-center gap-2">
                       <div>
-                        <div className="font-bold text-stone-200">₵{Number(ticket.net_payout).toFixed(2)} Net</div>
-                        <span className="text-[9px] text-stone-500 block mt-0.5 font-sans">Gross: ₵{Number(ticket.gross_amount).toFixed(2)}</span>
+                        <div className="font-black text-stone-900 text-sm tracking-tight">₵{Number(ticket.net_payout).toFixed(2)} Net</div>
+                        <span className="text-[9px] text-stone-400 font-black uppercase tracking-widest block mt-0.5">Gross: ₵{Number(ticket.gross_amount).toFixed(2)}</span>
                       </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded border block text-center ${ticket.status === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>{ticket.status}</span>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full border shadow-sm text-center ${ticket.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>
+                          {ticket.status}
+                        </span>
                         {isReadyForSlipReceipt && (
-                          <button type="button" onClick={() => setSelectedReceiptTicket(ticket)} className="text-[9px] text-cyan-400 hover:underline flex items-center gap-0.5 font-bold font-mono uppercase tracking-wide bg-stone-950 px-2 py-0.5 rounded border border-stone-800 mt-0.5"><Printer className="h-2.5 w-2.5" /> Receipt</button>
+                          <button type="button" onClick={() => setSelectedReceiptTicket(ticket)} className="text-[9px] text-stone-500 hover:text-stone-950 flex items-center gap-1 font-black uppercase tracking-widest bg-white px-2 py-1 rounded border border-stone-200 shadow-sm transition-colors">
+                            <Printer className="h-3 w-3" /> Receipt
+                          </button>
                         )}
                       </div>
                     </div>
@@ -357,37 +361,37 @@ export default function AmbassadorDashboardPage() {
         </div>
       </main>
 
-      {/* NEW AGENT DISBURSAL STATEMENT RECEIPT MODAL OVERLAY SHEET */}
+      {/* RECEIPT MODAL OVERLAY */}
       {selectedReceiptTicket && (
-        <div className="fixed inset-0 bg-stone-955/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white text-stone-900 rounded-[32px] max-w-sm w-full p-6 space-y-6 shadow-2xl relative font-sans text-center">
-            <button type="button" onClick={() => setSelectedReceiptTicket(null)} className="absolute right-4 top-4 p-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-500 border"><X className="h-4 w-4" /></button>
+        <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+          <div className="bg-white text-stone-900 rounded-[40px] max-w-sm w-full p-8 space-y-6 shadow-2xl relative font-sans text-center border border-stone-200">
+            <button type="button" onClick={() => setSelectedReceiptTicket(null)} className="absolute right-6 top-6 p-2 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 transition-colors"><X className="h-4 w-4" /></button>
             
-            <div className="space-y-1 text-center">
-              <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Logo" className="h-10 mx-auto object-contain" />
-              <h2 className="text-xs font-mono font-black uppercase text-emerald-950 tracking-wider pt-2">Disbursal Manifest Statement</h2>
-              <p className="text-[9px] text-stone-400 font-mono">Fulfillment Settlement Handshake Node</p>
+            <div className="space-y-2 text-center pt-2">
+              <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Logo" width={120} height={50} className="h-12 mx-auto object-contain" />
+              <h2 className="text-sm font-black uppercase text-stone-950 tracking-widest pt-2">Disbursal Manifest</h2>
+              <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">Fulfillment Settlement Handshake</p>
             </div>
 
-            <div className="border-y border-dashed border-stone-200 py-3 text-left font-mono text-[10px] space-y-1.5 text-stone-600">
-              <div className="flex justify-between"><span>Statement Ref:</span><strong className="text-stone-900">#DISB-{selectedReceiptTicket.id.substring(0,8).toUpperCase()}</strong></div>
-              <div className="flex justify-between"><span>Dispatched Date:</span><strong className="text-stone-900">{new Date(selectedReceiptTicket.created_at).toLocaleString('en-GH')}</strong></div>
-              <div className="flex justify-between"><span>Legal Recipient:</span><strong className="text-stone-900 uppercase">{partnerProfile?.legal_name}</strong></div>
-              <div className="flex justify-between"><span>MoMo Wallet:</span><strong className="text-stone-900">{partnerProfile?.momo_number}</strong></div>
+            <div className="border-y-2 border-dashed border-stone-200 py-4 text-left text-xs font-bold space-y-2 text-stone-500 uppercase tracking-wider">
+              <div className="flex justify-between"><span>Ref:</span><strong className="text-stone-950">#DISB-{selectedReceiptTicket.id.substring(0,8)}</strong></div>
+              <div className="flex justify-between"><span>Date:</span><strong className="text-stone-950">{new Date(selectedReceiptTicket.created_at).toLocaleDateString('en-GH')}</strong></div>
+              <div className="flex justify-between"><span>Recipient:</span><strong className="text-stone-950 truncate max-w-[150px] text-right">{partnerProfile?.legal_name}</strong></div>
+              <div className="flex justify-between"><span>MoMo/Route:</span><strong className="text-stone-950">{partnerProfile?.momo_number}</strong></div>
             </div>
 
-            <div className="bg-stone-50 p-4 border rounded-2xl font-mono text-[11px] space-y-2 text-left text-stone-600">
-              <div className="flex justify-between"><span>Gross Commission Payout:</span><strong className="text-stone-900">₵{Number(selectedReceiptTicket.gross_amount).toFixed(2)}</strong></div>
-              <div className="flex justify-between text-red-600/90"><span>10% WHT Withholding Cut:</span><strong>-₵{Number(selectedReceiptTicket.wht_deducted).toFixed(2)}</strong></div>
-              <div className="flex justify-between text-purple-700/90"><span>Paystack API Rail Fee:</span><strong>-₵2.50</strong></div>
-              <div className="flex justify-between border-t border-stone-200 pt-2 font-black text-emerald-800 text-sm uppercase"><span>Net Disbursed funds:</span><span>₵{Number(selectedReceiptTicket.net_payout).toFixed(2)}</span></div>
+            <div className="bg-[#FDFBF7] p-5 rounded-[24px] border border-stone-200 text-xs font-bold space-y-2.5 text-left text-stone-500 shadow-inner">
+              <div className="flex justify-between"><span>Gross Payout:</span><strong className="text-stone-950 font-black">₵{Number(selectedReceiptTicket.gross_amount).toFixed(2)}</strong></div>
+              <div className="flex justify-between text-rose-500"><span>10% WHT Tax:</span><strong>-₵{Number(selectedReceiptTicket.wht_deducted).toFixed(2)}</strong></div>
+              <div className="flex justify-between text-stone-400"><span>Gateway Fee:</span><strong>-₵2.50</strong></div>
+              <div className="flex justify-between border-t border-stone-200 pt-3 mt-2 font-black text-emerald-600 text-sm uppercase tracking-widest"><span>Net Disbursed:</span><span>₵{Number(selectedReceiptTicket.net_payout).toFixed(2)}</span></div>
             </div>
 
-            <div className="text-center font-mono text-[8px] text-stone-400 leading-normal uppercase max-w-[220px] mx-auto">
-              This statement confirms Paystack Mobile Money api rail dispatch is approved and cleared. Sparkle Beverages Ltd, Accra.
+            <div className="text-center font-bold text-[9px] text-stone-400 leading-relaxed uppercase tracking-widest max-w-[220px] mx-auto">
+              This statement confirms Paystack Mobile Money dispatch is approved and cleared. Sparkle Beverages Ltd.
             </div>
 
-            <button type="button" onClick={() => window.print()} className="w-full bg-stone-900 hover:bg-stone-850 text-white font-mono font-bold text-[10px] uppercase tracking-wide py-2 rounded-xl flex items-center justify-center gap-1 shadow-sm"><Printer className="h-3.5 w-3.5" /> Print Statement Slip</button>
+            <button type="button" onClick={() => window.print()} className="w-full bg-stone-950 hover:bg-stone-800 text-white font-black text-[10px] uppercase tracking-widest py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl hover:-translate-y-1 transition-all"><Printer className="h-4 w-4" /> Print Statement</button>
           </div>
         </div>
       )}
