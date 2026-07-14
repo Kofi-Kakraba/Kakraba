@@ -130,8 +130,8 @@ export default function CustomDropsPage() {
       {/* GALLERY: EMOTION BEFORE LOGIC */}
       <section className="max-w-7xl mx-auto px-4 md:px-8 pb-20">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 auto-rows-[250px]">
-          {/* Main Hero Shot */}
-          <div className="md:col-span-8 md:row-span-2 relative rounded-[32px] overflow-hidden group shadow-xl">
+          {/* Main Hero Shot (Kept as cover because it's a lifestyle photo) */}
+          <div className="md:col-span-8 md:row-span-2 relative rounded-[32px] overflow-hidden group shadow-xl bg-white">
             <Image src="/finidi-wedding.jpg" alt="Finidi Wedding Custom Sparkle Pouches" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" priority />
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent opacity-80" />
             <div className="absolute bottom-6 left-6 right-6">
@@ -139,21 +139,21 @@ export default function CustomDropsPage() {
             </div>
           </div>
           
-          {/* Supporting Shots */}
-          <div className="md:col-span-4 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md hidden md:block">
-            <Image src="/rev-osai-1.jpg" alt="Rev Osai Retirement Custom Pouch" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" />
+          {/* Supporting Shots (Changed to contain with white backgrounds to show full product) */}
+          <div className="md:col-span-4 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md hidden md:block bg-white">
+            <Image src="/rev-osai-1.jpg" alt="Rev Osai Retirement Custom Pouch" layout="fill" objectFit="contain" className="transition-transform duration-700 group-hover:scale-105 p-2" />
           </div>
-          <div className="md:col-span-4 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md hidden md:block">
-            <Image src="/rev-osai-2.jpg" alt="Rev Osai Retirement Details" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" />
+          <div className="md:col-span-4 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md hidden md:block bg-white">
+            <Image src="/rev-osai-2.jpg" alt="Rev Osai Retirement Details" layout="fill" objectFit="contain" className="transition-transform duration-700 group-hover:scale-105 p-2" />
           </div>
-          <div className="md:col-span-6 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md">
-            <Image src="/water-1.jpg" alt="Custom Branded Water" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" />
-            <div className="absolute bottom-4 left-4">
+          <div className="md:col-span-6 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md bg-white">
+            <Image src="/water-1.jpg" alt="Custom Branded Water" layout="fill" objectFit="contain" className="transition-transform duration-700 group-hover:scale-105 p-2" />
+            <div className="absolute bottom-4 left-4 z-10">
               <span className="bg-stone-950/50 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full">Branded Water Included</span>
             </div>
           </div>
-          <div className="md:col-span-6 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md">
-            <Image src="/water-2.jpg" alt="Custom Branded Water Close Up" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" />
+          <div className="md:col-span-6 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md bg-white">
+            <Image src="/water-2.jpg" alt="Custom Branded Water Close Up" layout="fill" objectFit="contain" className="transition-transform duration-700 group-hover:scale-105 p-2" />
           </div>
         </div>
       </section>
@@ -221,7 +221,7 @@ export default function CustomDropsPage() {
         <div className="bg-stone-100/50 border border-stone-200 p-6 rounded-[32px] flex flex-col items-center gap-3 text-stone-500 text-xs font-bold leading-relaxed">
           <Info className="h-5 w-5 text-stone-400" />
           <p>
-            <strong className="text-stone-900">HL drinks = Hibiscus Drink and Lemonade.</strong> PineZest carries a small premium reflecting the cost of fresh pineapple. All prices are per 300ml pouch. Higher tiers offer a lower per-unit rate — the more you order, the more you save.
+            PineZest carries a small premium reflecting the cost of fresh pineapple. All prices are per 300ml pouch. Higher tiers offer a lower per-unit rate — the more you order, the more you save.
           </p>
         </div>
       </section>
