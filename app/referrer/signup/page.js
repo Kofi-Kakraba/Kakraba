@@ -4,8 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { User, Lock, ArrowRight, AlertCircle, Zap } from 'lucide-react';
-import { loginReferrerPortal } from '../actions/referrer';
+import { User, Lock, ArrowRight, AlertCircle, Zap, ArrowLeft } from 'lucide-react';
+
+// FIXED: Added the extra '../' to correctly point to the actions folder from this nested route.
+import { loginReferrerPortal } from '../../actions/referrer';
 
 export default function ReferrerSignupPage() {
   const router = useRouter();
@@ -51,7 +53,10 @@ export default function ReferrerSignupPage() {
       <div className="w-full max-w-md bg-white/95 backdrop-blur-2xl border-2 border-white/50 rounded-[40px] p-8 md:p-10 shadow-2xl space-y-8 relative z-10">
         
         <div className="text-center space-y-4">
-          <Link href="/">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors mb-2">
+            <ArrowLeft className="h-3 w-3" /> Back to Storefront
+          </Link>
+          <Link href="/" className="block">
             <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={180} height={70} className="h-14 mx-auto object-contain transition-transform hover:scale-105" priority />
           </Link>
           <div className="inline-flex items-center gap-1.5 bg-stone-100 border border-stone-200 text-stone-600 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">
