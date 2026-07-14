@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { 
   ShoppingBag, Tag, Trash2, Plus, Minus, ArrowRight, 
-  Leaf, Sparkles, CheckCircle2, AlertCircle, Loader2, Info, Lock, ArrowLeft, X, Zap
+  Leaf, Sparkles, CheckCircle2, AlertCircle, Loader2, Info, Lock, ArrowLeft, X, Zap, Key
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 import { createCustomerOrderServerAction } from '../actions/orders';
@@ -606,9 +606,21 @@ export default function ShopPage() {
             <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500 rounded-full blur-3xl opacity-10 -mr-20 -mt-20 pointer-events-none"></div>
 
             <div className="space-y-3 relative z-10">
-              <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Logo" width={250} height={150} className="h-24 mx-auto object-contain drop-shadow-sm mb-6" />
+              
+              {/* GIANT, INTERACTIVE, CLICKABLE LOGO */}
+              <Link href="/" className="block transform transition-all duration-300 hover:scale-105 hover:-translate-y-1">
+                <Image 
+                  src="/SPARKLE BEV. LOGO A No BG.png" 
+                  alt="Sparkle Logo" 
+                  width={320} 
+                  height={180} 
+                  className="h-32 mx-auto object-contain drop-shadow-xl mb-6" 
+                  priority 
+                />
+              </Link>
+
               <div className="inline-flex items-center gap-1.5 bg-stone-900 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">
-                <Lock className="h-3 w-3" /> Discount Gateway
+                <Key className="h-3 w-3" /> Promo Access
               </div>
               <h2 className="text-3xl font-black tracking-tighter text-stone-950 uppercase">Unlock The Drop.</h2>
               <p className="text-sm text-stone-500 font-medium px-4">Got a promo code? Drop it here to score a sweet discount on your batch.</p>
