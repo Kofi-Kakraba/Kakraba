@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/navigation';
+import Link from 'next/link'; // <-- FIXED: Changed from 'next/navigation' to 'next/link'
 import Image from 'next/image';
 import { 
   ShoppingBag, Tag, Trash2, Plus, Minus, ArrowRight, 
@@ -244,7 +244,6 @@ export default function ShopPage() {
     }
   };
 
-  // Helper to dynamically style cards based on flavor string matching
   const getFlavorTheme = (productName) => {
     const name = productName.toLowerCase();
     if (name.includes('sobolo')) return { bg: 'bg-rose-50/30', border: 'border-rose-100', text: 'text-rose-600', shadow: 'shadow-rose-100/50' };
