@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link'; // <-- FIXED: Changed from 'next/navigation' to 'next/link'
+import Link from 'next/link';
 import Image from 'next/image';
 import { 
   ShoppingBag, Tag, Trash2, Plus, Minus, ArrowRight, 
@@ -259,11 +259,11 @@ export default function ShopPage() {
       <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 py-3 px-6 sticky top-0 z-40 shadow-sm flex justify-between items-center h-20">
         <div className="flex items-center h-full">
           <Link href="/">
-            <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={180} height={70} className="h-14 sm:h-16 w-auto object-contain cursor-pointer" />
+            <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={220} height={90} className="h-16 sm:h-20 w-auto object-contain cursor-pointer" />
           </Link>
           {appliedCoupon && (
             <span className="text-[10px] bg-stone-900 text-emerald-400 font-mono font-bold px-3 py-1 rounded-full ml-4 hidden sm:inline-block shadow-sm">
-              VIP Link Active: {appliedCoupon.profile.code}
+              Promo Link Active: {appliedCoupon.profile.code}
             </span>
           )}
         </div>
@@ -365,7 +365,7 @@ export default function ShopPage() {
                       {appliedCoupon ? (
                         <div className="space-y-1">
                           <div className="flex justify-between text-stone-400 line-through"><span>Standard Retail:</span><span>₵{Number(variant.retail_price).toFixed(2)}</span></div>
-                          <div className="flex justify-between text-emerald-600 font-black text-sm"><span>VIP Access Rate:</span><span>₵{displayedCostPaidPerBottle.toFixed(2)}</span></div>
+                          <div className="flex justify-between text-emerald-600 font-black text-sm"><span>Promo Access Rate:</span><span>₵{displayedCostPaidPerBottle.toFixed(2)}</span></div>
                         </div>
                       ) : (
                         <div className="space-y-1">
@@ -546,7 +546,7 @@ export default function ShopPage() {
                       {appliedCoupon && (
                         <div className="text-[10px] text-emerald-400 bg-emerald-950/50 p-3 border border-emerald-900/50 rounded-xl flex gap-2 leading-snug font-bold relative z-10">
                           <Zap className="h-4 w-4 shrink-0 text-emerald-400" />
-                          <span>VIP Link Active. Applying exclusive rates.</span>
+                          <span>Promo Link Active. Applying exclusive rates.</span>
                         </div>
                       )}
                       
@@ -570,7 +570,7 @@ export default function ShopPage() {
         </div>
       )}
 
-      {/* VIP GATEWAY MODAL */}
+      {/* PROMO GATEWAY MODAL */}
       {gatewayStage !== 'unlocked' && (
         <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-xl z-50 flex justify-center items-center p-4">
           <div className="w-full max-w-md bg-[#FDFBF7] rounded-[40px] p-8 shadow-2xl border border-stone-200 text-center space-y-8 relative overflow-hidden">
@@ -582,7 +582,7 @@ export default function ShopPage() {
                 <Lock className="h-3 w-3" /> Exclusive Access
               </div>
               <h2 className="text-3xl font-black tracking-tighter text-stone-950 uppercase">Unlock The Drop.</h2>
-              <p className="text-sm text-stone-500 font-medium px-4">Do you have a VIP or Ambassador referral code for exclusive rates?</p>
+              <p className="text-sm text-stone-500 font-medium px-4">Do you have a Promo or Ambassador referral code for exclusive rates?</p>
             </div>
 
             {gatewayStage === 'question' && (
@@ -612,7 +612,7 @@ export default function ShopPage() {
                     <input 
                       type="text" required autoFocus value={gatewayInput} 
                       onChange={(e) => setGatewayInput(e.target.value.toUpperCase())} 
-                      placeholder="ENTER VIP CODE" 
+                      placeholder="ENTER PROMO CODE" 
                       className="w-full bg-white border-2 border-stone-200 focus:border-rose-500 rounded-2xl pl-12 pr-4 py-4 outline-none text-stone-950 font-black tracking-widest text-center text-lg uppercase transition-colors placeholder:text-stone-300" 
                     />
                   </div>
