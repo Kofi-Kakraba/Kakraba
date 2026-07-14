@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Sparkles, ShoppingBag, ChevronRight, UserPlus } from 'lucide-react';
+import { ArrowRight, Zap, ShoppingBag, ChevronRight, UserPlus, Flame } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../lib/supabaseClient';
 
 export default function BrandWelcomeHomePage() {
@@ -20,49 +20,50 @@ export default function BrandWelcomeHomePage() {
     loadWebpageContent();
   }, []);
 
+  // UPDATED: High-energy youth/campus fallback copy!
   const cms = content || {
-    hero_title: "Crafted for Flavors, Branded for Your Memories.",
-    hero_subtitle: "From cold-pressed premium hibiscus blends to custom-tailored branding architectures for weddings and milestones. Explore refreshing authenticity made entirely to order.",
+    hero_title: "Premium Taste. Zero Boring.",
+    hero_subtitle: "Bold flavors packed in grab-and-go pouches. Whether you're rushing to class, stocking the dorm fridge, or fueling a study session, Sparkle has your back.",
     hero_image: "/SPARKLE DRINK Banner.jpg",
-    story_title: "A Recipe Born from Pure Authenticity.",
-    story_p1: "Sparkle Beverages began with a simple observation: refreshments at celebrations often lacked raw local flavor and personalized soul. Our founders stepped in to change that loop, formulating organic hibiscus, zesty lemonade, and tropical pineapple expressions that taste homemade because they are slow-cooked to perfection.",
-    story_p2: "We do not settle for mass-market chemical rules. Every pouch is packed with natural extracts, striking a pristine balance between tartness, crispness, and refreshing energy.",
-    team_m1_name: "Chief Executive Founder", "team_m1_role": "Vision & Recipe Formulation", "team_m1_img": "",
-    team_m2_name: "Head of Brand Architecture", "team_m2_role": "Custom Label & Event Aesthetics", "team_m2_img": "",
-    team_m3_name: "Director of Operations", "team_m3_role": "Logistics & Supply Fulfillment", "team_m3_img": "",
+    story_title: "The Sparkle Vibe.",
+    story_p1: "We got tired of the same old boring campus drinks. Sparkle was born to bring high-energy, authentic fruit flavors in a pouch that actually keeps up with your lifestyle. Slow-cooked, locally sourced, and packed with real vibes.",
+    story_p2: "No mass-market chemical rules here. Just pure, striking balances of tartness and crispness. Grab a pouch, crack the cap, and upgrade your day.",
+    team_m1_name: "Chief Executive Founder", "team_m1_role": "Vision & Vibe Architect", "team_m1_img": "",
+    team_m2_name: "Head of Brand Architecture", "team_m2_role": "Aesthetics & Culture", "team_m2_img": "",
+    team_m3_name: "Director of Operations", "team_m3_role": "Logistics & Drops", "team_m3_img": "",
     gallery_1_title: "Signature Flavors", "gallery_1_img": "/SPARKLE DRINK Banner.jpg",
-    gallery_2_title: "Michael & Naa Custom Pouch", "gallery_2_img": "/M&N 2.jpg",
-    gallery_3_title: "Corporate Gala Catering", "gallery_3_img": "/SPARKLE DRINK Banner.jpg",
-    gallery_4_title: "Community Water Donation", "gallery_4_img": "/SPARKLE DRINK Banner.jpg"
+    gallery_2_title: "Campus Hangouts", "gallery_2_img": "/M&N 2.jpg",
+    gallery_3_title: "Study Session Fuel", "gallery_3_img": "/SPARKLE DRINK Banner.jpg",
+    gallery_4_title: "Community Impact", "gallery_4_img": "/SPARKLE DRINK Banner.jpg"
   };
 
   const galleryItems = [
-    { id: 1, title: cms.gallery_1_title, src: cms.gallery_1_img, tag: "Products" },
-    { id: 2, title: cms.gallery_2_title, src: cms.gallery_2_img, tag: "Weddings" },
+    { id: 1, title: cms.gallery_1_title, src: cms.gallery_1_img, tag: "The Drop" },
+    { id: 2, title: cms.gallery_2_title, src: cms.gallery_2_img, tag: "Lifestyle" },
     { id: 3, title: cms.gallery_3_title, src: cms.gallery_3_img, tag: "Events" },
-    { id: 4, title: cms.gallery_4_title, src: cms.gallery_4_img, tag: "Social Impact" },
+    { id: 4, title: cms.gallery_4_title, src: cms.gallery_4_img, tag: "Culture" },
   ];
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] font-sans text-stone-800 antialiased selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-stone-50 font-sans text-stone-950 antialiased selection:bg-emerald-500 selection:text-white">
       
-      {/* BRAND NAVIGATION HEADER */}
-      <nav className="bg-stone-900 text-white py-2 px-6 sticky top-0 z-50 shadow-md flex justify-between items-center h-24">
+      {/* MODERN BRIGHT NAVIGATION */}
+      <nav className="bg-white/80 backdrop-blur-md border-b border-stone-200 text-stone-900 py-2 px-6 sticky top-0 z-50 flex justify-between items-center h-20 shadow-sm">
         <div className="flex items-center h-full">
-          <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={200} height={80} className="h-16 sm:h-20 w-auto object-contain" />
+          <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={180} height={70} className="h-14 sm:h-16 w-auto object-contain" />
         </div>
         <div className="flex items-center gap-4 sm:gap-6">
-          <Link href="/referrer" className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors hidden sm:inline-block">Become an Ambassador 🌟</Link>
-          <Link href="/shop" className="text-xs font-semibold text-stone-300 hover:text-white transition-colors">Retail Shop</Link>
-          <Link href="/custom" className="bg-[#15803D] hover:bg-[#166534] text-white px-4 py-2 rounded-full font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm">
-            <Sparkles className="h-3.5 w-3.5" /> <span>Custom Packages</span>
+          <Link href="/referrer" className="text-[11px] font-black uppercase tracking-wide text-emerald-600 hover:text-emerald-500 transition-colors hidden sm:inline-block">Become an Ambassador 🌟</Link>
+          <Link href="/shop" className="text-xs font-bold text-stone-500 hover:text-stone-900 transition-colors uppercase tracking-wide">Shop Now</Link>
+          <Link href="/custom" className="bg-stone-950 hover:bg-stone-800 text-white px-5 py-2.5 rounded-full font-bold text-xs flex items-center gap-1.5 transition-all shadow-md">
+            <Flame className="h-3.5 w-3.5 text-amber-400" /> <span>Custom Drops</span>
           </Link>
         </div>
       </nav>
 
-      {/* COVER HERO */}
-      <header className="relative bg-stone-950 text-white overflow-hidden py-24 px-4 md:px-8 min-h-[75vh] flex items-center">
-        <div className="absolute inset-0 z-0 opacity-40 mix-blend-luminosity">
+      {/* HIGH-ENERGY BRIGHT HERO */}
+      <header className="relative bg-white text-stone-900 overflow-hidden py-24 px-4 md:px-8 min-h-[85vh] flex items-center border-b border-stone-200">
+        <div className="absolute inset-0 z-0 opacity-20 mix-blend-multiply">
           <Image 
             src={cms.hero_image} 
             alt="Cover Banner Graphic" 
@@ -72,129 +73,143 @@ export default function BrandWelcomeHomePage() {
             className="w-full h-full object-cover" 
           />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-stone-950 via-stone-950/80 to-transparent z-10" />
+        {/* Bright gradient overlay instead of dark */}
+        <div className="absolute inset-0 bg-gradient-to-r from-stone-50 via-stone-50/90 to-transparent z-10" />
 
-        <div className="max-w-4xl mx-auto w-full z-20 space-y-6 relative">
-          <div className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
-            <Sparkles className="h-3.5 w-3.5" /> Premium Organic Refreshments
+        <div className="max-w-5xl mx-auto w-full z-20 space-y-8 relative">
+          <div className="inline-flex items-center gap-1.5 bg-emerald-100 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
+            <Zap className="h-3.5 w-3.5 fill-emerald-500" /> The Campus Favorite
           </div>
-          <h1 className="text-4xl md:text-6xl font-serif font-black tracking-tight leading-tight max-w-2xl text-white">
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[1.05] max-w-3xl text-stone-950 uppercase">
             {cms.hero_title}
           </h1>
-          <p className="text-stone-300 text-sm md:text-base max-w-xl leading-relaxed font-light">
+          <p className="text-stone-500 text-sm md:text-lg max-w-xl leading-relaxed font-medium">
             {cms.hero_subtitle}
           </p>
           
-          {/* UPDATED ACTION BUTTON ROW WITH AMBASSADOR HUB PATHWAY */}
+          {/* POUCH-COLORED ACTION BUTTONS */}
           <div className="flex flex-col sm:flex-row flex-wrap gap-4 pt-4">
-            <Link href="/shop" className="bg-white hover:bg-stone-100 text-stone-950 text-xs font-bold px-6 py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform hover:-translate-y-0.5">
-              <ShoppingBag className="h-4 w-4" /> <span>Order Retail Batches</span> <ChevronRight className="h-4 w-4 text-stone-400" />
+            {/* Sobolo Red Button */}
+            <Link href="/shop" className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-wide px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_8px_30px_rgb(225,29,72,0.3)] transition-transform hover:-translate-y-1">
+              <ShoppingBag className="h-4 w-4" /> <span>Grab a Pouch</span> <ChevronRight className="h-4 w-4" />
             </Link>
-            <Link href="/custom" className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-6 py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform hover:-translate-y-0.5">
-              <Sparkles className="h-4 w-4" /> <span>Explore Custom Event Packages</span> <ArrowRight className="h-4 w-4" />
+            
+            {/* PineZest Green Button */}
+            <Link href="/custom" className="bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-black uppercase tracking-wide px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_8px_30px_rgb(16,185,129,0.3)] transition-transform hover:-translate-y-1">
+              <Flame className="h-4 w-4" /> <span>Event Packages</span> <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="/referrer" className="bg-stone-900 hover:bg-stone-850 text-emerald-400 border border-emerald-500/30 text-xs font-extrabold px-6 py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-transform hover:-translate-y-0.5">
-              <UserPlus className="h-4 w-4 text-emerald-400" /> <span>Become an Ambassador 🌟</span>
+
+            {/* Lemonade Yellow Outline Button */}
+            <Link href="/referrer" className="bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-200 hover:border-amber-400 text-xs font-black uppercase tracking-wide px-8 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-sm transition-all hover:-translate-y-1">
+              <UserPlus className="h-4 w-4 text-amber-500" /> <span>Join the Squad</span>
             </Link>
           </div>
         </div>
       </header>
 
-      {/* BRAND STORY */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 py-20 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-        <div className="space-y-6">
-          <div className="text-[10px] font-bold tracking-widest text-emerald-600 font-mono uppercase">01 / Our Story</div>
-          <h2 className="text-3xl font-serif font-black tracking-tight text-stone-900">{cms.story_title}</h2>
-          <div className="space-y-4 text-stone-600 text-xs md:text-sm leading-relaxed font-light">
+      {/* BRAND STORY - STREETWEAR MINIMALISM */}
+      <section className="max-w-7xl mx-auto px-4 md:px-8 py-24 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+        <div className="space-y-8">
+          <div className="text-[11px] font-black tracking-widest text-emerald-500 uppercase flex items-center gap-2">
+            <span className="w-8 h-0.5 bg-emerald-500"></span> 01 / Vibe Check
+          </div>
+          <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-stone-950 uppercase">{cms.story_title}</h2>
+          <div className="space-y-6 text-stone-500 text-sm md:text-base leading-relaxed font-medium">
             <p>{cms.story_p1}</p>
-            <p>{cms.story_p2}</p>
+            <p className="border-l-4 border-amber-400 pl-4 text-stone-900 font-bold italic">{cms.story_p2}</p>
           </div>
         </div>
-        <div className="relative rounded-[32px] overflow-hidden bg-stone-100 p-8 h-[420px] border border-stone-200 flex items-center justify-center shadow-sm">
-          <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Branding Graphic" width={300} height={300} className="max-h-64 object-contain" />
+        <div className="relative rounded-[40px] overflow-hidden bg-stone-100 p-8 h-[480px] flex items-center justify-center shadow-[inset_0_-2px_20px_rgba(0,0,0,0.05)] border-4 border-white">
+          <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Branding Graphic" width={400} height={400} className="max-h-80 object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-700" />
         </div>
       </section>
 
-      {/* MEDIA GALLERY */}
-      <section className="bg-stone-900 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-12">
-          <div className="text-center space-y-2 max-w-xl mx-auto">
-            <div className="text-[10px] font-bold tracking-widest text-emerald-400 font-mono uppercase">02 / Media Gallery</div>
-            <h2 className="text-3xl font-serif font-black tracking-tight text-white">Sparkle in the Wild</h2>
+      {/* MEDIA GALLERY - HIGH CONTRAST DARK MODE FOR POP */}
+      <section className="bg-stone-950 text-white py-24">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-16">
+          <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-stone-800 pb-8">
+            <div className="space-y-3">
+              <div className="text-[11px] font-black tracking-widest text-emerald-400 uppercase flex items-center gap-2">
+                <span className="w-8 h-0.5 bg-emerald-400"></span> 02 / The Gallery
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-white uppercase">Sparkle in the Wild</h2>
+            </div>
+            <Link href="/shop" className="text-xs font-bold text-stone-400 hover:text-white uppercase tracking-widest flex items-center gap-2 pb-2">
+              See All <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {galleryItems.map(item => (
-              <div key={item.id} className="bg-stone-955 border border-stone-800 rounded-2xl overflow-hidden flex flex-col group transition-all duration-300 hover:border-emerald-500/30 shadow-xl">
-                <div className="aspect-[3/4] w-full relative overflow-hidden bg-stone-900 flex items-center justify-center">
+              <div key={item.id} className="group cursor-pointer">
+                <div className="aspect-[4/5] w-full relative overflow-hidden rounded-[32px] bg-stone-900 flex items-center justify-center border-2 border-stone-800 group-hover:border-emerald-500 transition-colors duration-500">
                   {item.src ? (
                     <Image 
                       src={item.src} 
                       alt={item.title} 
                       width={400} 
-                      height={533} 
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-103" 
+                      height={500} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 group-hover:opacity-100" 
                     />
                   ) : (
-                    <div className="w-full h-full bg-stone-900 flex items-center justify-center text-[10px] text-stone-600 font-mono font-bold uppercase">No Asset Uploaded</div>
+                    <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-700 font-black uppercase">No Asset Uploaded</div>
                   )}
-                  <span className="absolute top-3 left-3 bg-stone-900/90 backdrop-blur-sm text-emerald-400 font-mono text-[9px] font-bold uppercase px-2 py-0.5 rounded-md border border-stone-800 z-10">{item.tag}</span>
+                  {/* Streetwear style badge */}
+                  <span className="absolute top-4 right-4 bg-white text-stone-950 font-black text-[9px] uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg z-10 scale-95 group-hover:scale-100 transition-transform">
+                    {item.tag}
+                  </span>
                 </div>
-                <div className="p-4 bg-stone-900/60">
-                  <h3 className="font-serif font-bold text-sm text-stone-100 group-hover:text-emerald-400 transition-colors line-clamp-1">{item.title}</h3>
-                </div>
+                <h3 className="font-black text-sm text-stone-300 group-hover:text-white mt-4 uppercase tracking-wide transition-colors">{item.title}</h3>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* LEADERSHIP SQUAD */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 py-20 space-y-12">
-        <div className="border-b border-stone-200 pb-4">
-          <div className="text-[10px] font-bold tracking-widest text-emerald-600 font-mono uppercase">03 / Leadership</div>
-          <h2 className="text-3xl font-serif font-black tracking-tight text-stone-900">Meet Our Team</h2>
+      {/* LEADERSHIP SQUAD - STREETWEAR STYLE */}
+      <section className="max-w-7xl mx-auto px-4 md:px-8 py-24 space-y-16">
+        <div className="space-y-3 text-center max-w-2xl mx-auto">
+          <div className="text-[11px] font-black tracking-widest text-emerald-500 uppercase justify-center flex items-center gap-2">
+            03 / The Architects
+          </div>
+          <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-stone-950 uppercase">Meet The Squad</h2>
         </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-          <div className="space-y-2 group">
-            <div className="aspect-[3/4] w-full bg-stone-200 rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex items-center justify-center">
-              {cms.team_m1_img ? (
-                <Image src={cms.team_m1_img} alt={cms.team_m1_name} width={400} height={533} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
-              ) : (
-                <div className="text-stone-400 font-mono text-[11px] font-bold flex items-center gap-1">👤 Awaiting Portrait</div>
-              )}
+          {[
+            { img: cms.team_m1_img, name: cms.team_m1_name, role: cms.team_m1_role, color: "bg-rose-100", text: "text-rose-600" },
+            { img: cms.team_m2_img, name: cms.team_m2_name, role: cms.team_m2_role, color: "bg-amber-100", text: "text-amber-600" },
+            { img: cms.team_m3_img, name: cms.team_m3_name, role: cms.team_m3_role, color: "bg-emerald-100", text: "text-emerald-600" },
+          ].map((member, idx) => (
+            <div key={idx} className="flex flex-col items-center group text-center space-y-4">
+              {/* Circular, vibrant portrait frames instead of formal squares */}
+              <div className={`w-64 h-64 sm:w-full sm:h-auto sm:aspect-square ${member.color} rounded-full overflow-hidden border-4 border-white shadow-xl flex items-center justify-center p-2 transition-transform duration-500 group-hover:-translate-y-2`}>
+                <div className="w-full h-full rounded-full overflow-hidden bg-white relative">
+                  {member.img ? (
+                    <Image src={member.img} alt={member.name} width={400} height={400} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 font-black uppercase text-[10px] tracking-widest bg-stone-100">
+                      <UserPlus className="h-6 w-6 mb-2 opacity-50" />
+                      Awaiting Pic
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="font-black text-lg text-stone-950 uppercase tracking-tight">{member.name}</h4>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${member.text} mt-1`}>{member.role}</p>
+              </div>
             </div>
-            <h4 className="font-serif font-bold text-base text-stone-900 mt-3">{cms.team_m1_name}</h4>
-            <p className="text-xs text-stone-400 font-mono uppercase tracking-wide">{cms.team_m1_role}</p>
-          </div>
-
-          <div className="space-y-2 group">
-            <div className="aspect-[3/4] w-full bg-stone-200 rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex items-center justify-center">
-              {cms.team_m2_img ? (
-                <Image src={cms.team_m2_img} alt={cms.team_m2_name} width={400} height={533} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
-              ) : (
-                <div className="text-stone-400 font-mono text-[11px] font-bold flex items-center gap-1">👤 Awaiting Portrait</div>
-              )}
-            </div>
-            <h4 className="font-serif font-bold text-base text-stone-900 mt-3">{cms.team_m2_name}</h4>
-            <p className="text-xs text-stone-400 font-mono uppercase tracking-wide">{cms.team_m2_role}</p>
-          </div>
-
-          <div className="space-y-2 group">
-            <div className="aspect-[3/4] w-full bg-stone-200 rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex items-center justify-center">
-              {cms.team_m3_img ? (
-                <Image src={cms.team_m3_img} alt={cms.team_m3_name} width={400} height={533} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
-              ) : (
-                <div className="text-stone-400 font-mono text-[11px] font-bold flex items-center gap-1">👤 Awaiting Portrait</div>
-              )}
-            </div>
-            <h4 className="font-serif font-bold text-base text-stone-900 mt-3">{cms.team_m3_name}</h4>
-            <p className="text-xs text-stone-400 font-mono uppercase tracking-wide">{cms.team_m3_role}</p>
-          </div>
+          ))}
         </div>
       </section>
 
-      <footer className="bg-stone-950 text-stone-400 text-center py-8 text-[11px] font-medium border-t border-stone-900">
-        © 2026 Sparkle Beverages Ltd. All rights reserved. • Empowering authentic hydration across Ghana.
+      {/* BOLD MINIMALIST FOOTER */}
+      <footer className="bg-stone-950 text-white text-center py-12 px-4 border-t-4 border-emerald-500">
+        <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={100} height={40} className="mx-auto h-8 object-contain mb-6 opacity-50 hover:opacity-100 transition-opacity" />
+        <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">
+          © 2026 Sparkle Beverages Ltd. • Fueling Authentic Hustles Across Ghana.
+        </p>
       </footer>
     </div>
   );
