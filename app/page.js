@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, Zap, ShoppingBag, ChevronRight, ChevronLeft, UserPlus, Flame } from 'lucide-react';
+import { Zap, ShoppingBag, ChevronRight, ChevronLeft, UserPlus, Flame } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../lib/supabaseClient';
 
 export default function BrandWelcomeHomePage() {
@@ -37,6 +37,7 @@ export default function BrandWelcomeHomePage() {
     gallery_4_title: "Community Impact", "gallery_4_img": ""
   };
 
+  // Adjusted heights (h-40, h-52, h-64, h-76) for clearer size differentiation
   const quickProducts = {
     sobolo: {
       name: "Hibiscus Drink (Sobolo)",
@@ -46,10 +47,10 @@ export default function BrandWelcomeHomePage() {
       accentText: "text-rose-600",
       border: "border-rose-200",
       sizes: [
-        { volume: "300ml", slang: "Solo", img: "/sobolo-300.png", height: "h-44" },
+        { volume: "300ml", slang: "Solo", img: "/sobolo-300.png", height: "h-40" },
         { volume: "500ml", slang: "Gee", img: "/sobolo-500.png", height: "h-52" },
         { volume: "1.5L", slang: "Paddy", img: "/sobolo-1500.png", height: "h-64" },
-        { volume: "5L", slang: "Link-Up", img: "/sobolo-5000.png", height: "h-72" }
+        { volume: "5L", slang: "Link-Up", img: "/sobolo-5000.png", height: "h-76" }
       ]
     },
     lemonade: {
@@ -60,10 +61,10 @@ export default function BrandWelcomeHomePage() {
       accentText: "text-amber-600",
       border: "border-amber-200",
       sizes: [
-        { volume: "300ml", slang: "Solo", img: "/lemonade-300.png", height: "h-44" },
+        { volume: "300ml", slang: "Solo", img: "/lemonade-300.png", height: "h-40" },
         { volume: "500ml", slang: "Gee", img: "/lemonade-500.png", height: "h-52" },
         { volume: "1.5L", slang: "Paddy", img: "/lemonade-1500.png", height: "h-64" },
-        { volume: "5L", slang: "Link-Up", img: "/lemonade-5000.png", height: "h-72" }
+        { volume: "5L", slang: "Link-Up", img: "/lemonade-5000.png", height: "h-76" }
       ]
     },
     pinezest: {
@@ -74,15 +75,14 @@ export default function BrandWelcomeHomePage() {
       accentText: "text-emerald-600",
       border: "border-emerald-200",
       sizes: [
-        { volume: "300ml", slang: "Solo", img: "/pinezest-300.png", height: "h-44" },
+        { volume: "300ml", slang: "Solo", img: "/pinezest-300.png", height: "h-40" },
         { volume: "500ml", slang: "Gee", img: "/pinezest-500.png", height: "h-52" },
         { volume: "1.5L", slang: "Paddy", img: "/pinezest-1500.png", height: "h-64" },
-        { volume: "5L", slang: "Link-Up", img: "/pinezest-5000.png", height: "h-72" }
+        { volume: "5L", slang: "Link-Up", img: "/pinezest-5000.png", height: "h-76" }
       ]
     }
   };
 
-  // ADDED BACK: The missing gallery items array that caused the crash!
   const galleryItems = [
     { id: 1, title: cms.gallery_1_title, src: cms.gallery_1_img, tag: "The Drop" },
     { id: 2, title: cms.gallery_2_title, src: cms.gallery_2_img, tag: "Lifestyle" },
@@ -173,8 +173,15 @@ export default function BrandWelcomeHomePage() {
           </div>
 
           {/* RIGHT SIDE: HERO PRODUCT PRESENTATION & CONTROLS */}
-          <div className="lg:col-span-5 w-full flex flex-col items-center justify-center relative space-y-6">
+          <div className="lg:col-span-5 w-full flex flex-col items-center justify-center relative space-y-4">
             
+            {/* FLAVOR SWAPPER MOVED ABOVE THE CARD */}
+            <div className="bg-white/80 backdrop-blur-md p-3 rounded-[24px] border border-white/50 shadow-xl flex gap-2 justify-center w-full max-w-sm transform transition-all hover:scale-[1.02]">
+              <button onClick={() => handleFlavorChange('sobolo')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'sobolo' ? 'bg-rose-600 border-rose-600 text-white shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-rose-400 hover:bg-rose-50'}`}>Sobolo 🍓</button>
+              <button onClick={() => handleFlavorChange('lemonade')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'lemonade' ? 'bg-amber-400 border-amber-400 text-stone-950 shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-amber-400 hover:bg-amber-50'}`}>Lemonade 🍋</button>
+              <button onClick={() => handleFlavorChange('pinezest')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'pinezest' ? 'bg-emerald-500 border-emerald-500 text-white shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-emerald-400 hover:bg-emerald-50'}`}>PineZest 🍍</button>
+            </div>
+
             {/* The Glass Product Card */}
             <div className={`w-full max-w-sm rounded-[40px] ${quickProducts[selectedFlavor].bgLight} border-2 ${quickProducts[selectedFlavor].border} p-6 shadow-2xl transition-all duration-500 flex flex-col justify-between relative overflow-hidden group min-h-[500px]`}>
               
@@ -197,14 +204,16 @@ export default function BrandWelcomeHomePage() {
                 </div>
               </div>
 
-              {/* Dynamic Image with Fixed Container Height */}
-              <div className="h-72 w-full relative flex items-end justify-center transition-all duration-500 z-10 pb-4">
+              {/* Dynamic Image with Realistic Floor Shadow */}
+              <div className="h-80 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 pb-6">
                 <img 
                   key={activeSize.img} 
                   src={activeSize.img} 
                   alt={`${quickProducts[selectedFlavor].name} ${activeSize.volume}`}
-                  className={`object-contain transition-all duration-500 transform group-hover:scale-105 drop-shadow-[0_30px_30px_rgba(0,0,0,0.5)] ${activeSize.height}`}
+                  className={`object-contain transition-all duration-500 transform group-hover:-translate-y-2 group-hover:scale-105 z-10 ${activeSize.height}`}
                 />
+                {/* The "Blue Skies" style detached floor shadow */}
+                <div className="w-1/2 h-3 bg-black/40 blur-md rounded-[50%] absolute bottom-2 transition-all duration-500 group-hover:w-2/3 group-hover:opacity-60"></div>
               </div>
 
               {/* Badges */}
@@ -215,16 +224,6 @@ export default function BrandWelcomeHomePage() {
 
               {/* Color Bloom Effect */}
               <div className={`absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-gradient-to-br ${quickProducts[selectedFlavor].color} opacity-20 blur-2xl pointer-events-none`} />
-            </div>
-
-            {/* FLAVOR SWAPPER MOVED UNDER THE CARD */}
-            <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl border border-white/50 shadow-xl flex flex-col items-center space-y-3 w-full max-w-sm transform transition-all hover:scale-[1.02]">
-              <span className="text-[10px] font-black uppercase tracking-widest text-stone-700">Tap to Switch Flavor:</span>
-              <div className="flex gap-2 justify-center w-full">
-                <button onClick={() => handleFlavorChange('sobolo')} className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'sobolo' ? 'bg-rose-600 border-rose-600 text-white shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-rose-400 hover:bg-rose-50'}`}>Sobolo 🍓</button>
-                <button onClick={() => handleFlavorChange('lemonade')} className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'lemonade' ? 'bg-amber-400 border-amber-400 text-stone-950 shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-amber-400 hover:bg-amber-50'}`}>Lemonade 🍋</button>
-                <button onClick={() => handleFlavorChange('pinezest')} className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'pinezest' ? 'bg-emerald-500 border-emerald-500 text-white shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-emerald-400 hover:bg-emerald-50'}`}>PineZest 🍍</button>
-              </div>
             </div>
 
           </div>
@@ -243,8 +242,9 @@ export default function BrandWelcomeHomePage() {
             <p className="border-l-4 border-amber-400 pl-4 text-stone-900 font-bold italic">{cms.story_p2}</p>
           </div>
         </div>
-        <div className="relative rounded-[40px] overflow-hidden bg-white p-8 h-[480px] flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-100">
-          <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Branding Graphic" width={400} height={400} className="max-h-80 object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-700" />
+        {/* Replaced logo with Banner Image */}
+        <div className="relative rounded-[40px] overflow-hidden bg-stone-100 p-2 h-[480px] flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-200 group">
+          <Image src="/SPARKLE DRINK Banner.jpg" alt="Sparkle Branding Graphic" layout="fill" objectFit="cover" className="rounded-[36px] transition-transform duration-700 group-hover:scale-105" />
         </div>
       </section>
 
@@ -258,9 +258,6 @@ export default function BrandWelcomeHomePage() {
               </div>
               <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-white uppercase">Sparkle in the Wild</h2>
             </div>
-            <Link href="/shop" className="text-xs font-bold text-stone-400 hover:text-white uppercase tracking-widest flex items-center gap-2 pb-2">
-              See All <ArrowRight className="h-4 w-4" />
-            </Link>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
