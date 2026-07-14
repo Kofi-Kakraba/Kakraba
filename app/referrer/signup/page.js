@@ -14,6 +14,7 @@ export default function ReferrerSignupPage() {
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState(null);
   const [successMode, setSuccessMode] = useState(false);
+  const [assignedCode, setAssignedCode] = useState('');
 
   // Form States
   const [legalName, setLegalName] = useState('');
@@ -22,7 +23,6 @@ export default function ReferrerSignupPage() {
   const [momoNumber, setMomoNumber] = useState('');
   const [momoNetwork, setMomoNetwork] = useState('MTN');
   const [ghanaCardNumber, setGhanaCardNumber] = useState('');
-  const [desiredCode, setDesiredCode] = useState('');
   const [password, setPassword] = useState('');
   
   // File States
@@ -66,21 +66,39 @@ export default function ReferrerSignupPage() {
     setLoading(true);
 
     try {
-      // 1. Check if the code already exists
-      const cleanCode = desiredCode.trim().toUpperCase();
-      const { data: existingCode } = await supabase.from('referral_codes').select('id').eq('code', cleanCode).maybeSingle();
-      
-      if (existingCode) {
-        throw new Error(`The tracking code "${cleanCode}" is already taken. Please choose another.`);
+      // 1. SYSTEM AUTO-GENERATE UNIQUE TRACKING CODE TO PREVENT DUPLICATES
+      let finalGeneratedCode = '';
+      let isUnique = false;
+      let safetyCounter = 0;
+
+      while (!isUnique && safetyCounter < 10) {
+        const randomString = Math.random().toString(36).substring(2, 7).toUpperCase();
+        const candidateCode = `SPK-${randomString}`;
+        
+        const { data: checkCode } = await supabase
+          .from('referral_codes')
+          .select('id')
+          .eq('code', candidateCode)
+          .maybeSingle();
+          
+        if (!checkCode) {
+          finalGeneratedCode = candidateCode;
+          isUnique = true;
+        }
+        safetyCounter++;
       }
 
-      // 2. Upload KYC Documents
-      const selfieUrl = await uploadFileToSupabase(selfieFile, `kyc_selfie_${cleanCode}`);
-      const cardUrl = await uploadFileToSupabase(cardFile, `kyc_card_${cleanCode}`);
+      if (!finalGeneratedCode) {
+        throw new Error("System code routing collision. Please press submit again.");
+      }
 
-      // 3. Insert Application into Database (Pending State)
+      // 2. Upload KYC Documents to public bucket
+      const selfieUrl = await uploadFileToSupabase(selfieFile, `kyc_selfie_${finalGeneratedCode}`);
+      const cardUrl = await uploadFileToSupabase(cardFile, `kyc_card_${finalGeneratedCode}`);
+
+      // 3. Insert Application into Database under 'pending_review' lockdown
       const { error: insertError } = await supabase.from('referral_codes').insert([{
-        code: cleanCode,
+        code: finalGeneratedCode,
         campaign_name: `${legalName.trim()} [Ambassador]`,
         legal_name: legalName.trim(),
         phone_number: phone.trim(),
@@ -91,7 +109,7 @@ export default function ReferrerSignupPage() {
         portrait_url: selfieUrl,
         ghana_card_url: cardUrl,
         total_earnings: 0.00,
-        is_active: false, // Must be approved by admin
+        is_active: false, 
         is_verified: false,
         status: 'pending_review',
         password: password.trim()
@@ -99,7 +117,7 @@ export default function ReferrerSignupPage() {
 
       if (insertError) throw insertError;
 
-      // Show success screen
+      setAssignedCode(finalGeneratedCode);
       setSuccessMode(true);
 
     } catch (err) {
@@ -116,13 +134,15 @@ export default function ReferrerSignupPage() {
           <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Zap className="h-10 w-10 text-emerald-500" />
           </div>
-          <h2 className="text-3xl font-black text-stone-950 uppercase tracking-tight">Application Received.</h2>
+          <h2 className="text-3xl font-black text-stone-950 uppercase tracking-tight">Profile Staged.</h2>
+          <div className="bg-stone-50 border-2 border-stone-100 rounded-2xl p-4 font-mono">
+            <span className="text-[10px] text-stone-400 font-black uppercase tracking-widest block mb-1">Your Allocated Tracking Code</span>
+            <strong className="text-2xl text-emerald-600 font-black tracking-wider block">{assignedCode}</strong>
+          </div>
           <p className="text-stone-500 font-bold text-sm leading-relaxed">
-            Your Ambassador Registry profile has been securely submitted to the Sparkle Admin Team for KYC verification. 
-            <br/><br/>
-            You will receive an SMS notification once your account is approved and activated.
+            Your profile details and KYC uploads are locked into our verification queue. You will receive an email advisory and an SMS broadcast details string as soon as an administrator confirms your credentials node!
           </p>
-          <Link href="/" className="inline-block mt-4 bg-stone-950 text-white font-black uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl hover:-translate-y-1 transition-all">
+          <Link href="/" className="inline-block mt-4 bg-stone-950 text-white font-black uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl hover:-translate-y-1 transition-all text-xs">
             Return to Storefront
           </Link>
         </div>
@@ -134,7 +154,7 @@ export default function ReferrerSignupPage() {
     <div className="min-h-screen font-sans antialiased flex flex-col justify-center items-center px-4 py-16 selection:bg-rose-500 selection:text-white relative overflow-hidden">
       
       {/* SQUAD LIFESTYLE BACKGROUND IMAGE */}
-      <div className="absolute inset-0 z-0 fixed">
+      <div className="absolute inset-0 z-0">
         <Image 
           src="/sparkle-drinks.png" 
           alt="Sparkle Squad Lifestyle" 
@@ -160,7 +180,7 @@ export default function ReferrerSignupPage() {
           </div>
           <h2 className="text-3xl font-black text-stone-950 uppercase tracking-tighter leading-tight">Join The Squad.</h2>
           <p className="text-sm text-stone-500 font-bold max-w-sm mx-auto leading-relaxed">
-            Submit your KYC details to become an official Sparkle Ambassador.
+            Submit your personal data and identity verification to let the system generate your tracking keys.
           </p>
         </div>
 
@@ -218,7 +238,7 @@ export default function ReferrerSignupPage() {
 
           {/* SECTION 3: KYC VERIFICATION */}
           <div className="space-y-4">
-            <h3 className="font-black text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200 pb-2">3. KYC Verification</h3>
+            <h3 className="font-black text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200 pb-2">3. KYC Identity Audit</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-stone-500 uppercase font-black text-[10px] mb-2 tracking-widest">Ghana Card ID Number</label>
@@ -233,8 +253,8 @@ export default function ReferrerSignupPage() {
                 <div className="bg-[#FDFBF7] border-2 border-dashed border-stone-200 rounded-2xl p-4 text-center hover:border-rose-400 transition-colors">
                   <Camera className="h-6 w-6 text-stone-400 mx-auto mb-2" />
                   <label className="cursor-pointer block">
-                    <span className="text-xs font-black uppercase tracking-widest text-rose-600 block mb-1">Live Selfie Image</span>
-                    <span className="text-[10px] text-stone-500 font-bold block mb-3 truncate px-2">{selfieFile ? selfieFile.name : 'Upload clear face photo'}</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-rose-600 block mb-1">Live Face Selfie</span>
+                    <span className="text-[10px] text-stone-500 font-bold block mb-3 truncate px-2">{selfieFile ? selfieFile.name : 'Upload clear profile photo'}</span>
                     <div className="bg-white border border-stone-200 text-stone-600 text-[10px] font-black uppercase tracking-widest py-2 rounded-xl shadow-sm inline-flex items-center gap-1.5 px-4">
                       <Upload className="h-3 w-3" /> Select File
                     </div>
@@ -246,8 +266,8 @@ export default function ReferrerSignupPage() {
                 <div className="bg-[#FDFBF7] border-2 border-dashed border-stone-200 rounded-2xl p-4 text-center hover:border-rose-400 transition-colors">
                   <CreditCard className="h-6 w-6 text-stone-400 mx-auto mb-2" />
                   <label className="cursor-pointer block">
-                    <span className="text-xs font-black uppercase tracking-widest text-rose-600 block mb-1">Ghana Card Snapshot</span>
-                    <span className="text-[10px] text-stone-500 font-bold block mb-3 truncate px-2">{cardFile ? cardFile.name : 'Upload clear ID picture'}</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-rose-600 block mb-1">Ghana Card Front Photo</span>
+                    <span className="text-[10px] text-stone-500 font-bold block mb-3 truncate px-2">{cardFile ? cardFile.name : 'Upload clear card image'}</span>
                     <div className="bg-white border border-stone-200 text-stone-600 text-[10px] font-black uppercase tracking-widest py-2 rounded-xl shadow-sm inline-flex items-center gap-1.5 px-4">
                       <Upload className="h-3 w-3" /> Select File
                     </div>
@@ -258,29 +278,20 @@ export default function ReferrerSignupPage() {
             </div>
           </div>
 
-          {/* SECTION 4: ACCOUNT SETUP */}
+          {/* SECTION 4: SECURITY PASSPHRASE */}
           <div className="space-y-4">
-            <h3 className="font-black text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200 pb-2">4. Account Setup</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-stone-500 uppercase font-black text-[10px] mb-2 tracking-widest">Desired Tracking Code</label>
-                <div className="relative">
-                  <Zap className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-                  <input type="text" required value={desiredCode} onChange={(e) => setDesiredCode(e.target.value)} placeholder="e.g. SPK-YOURNAME" className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl pl-11 pr-4 py-3 text-stone-900 font-black uppercase tracking-widest outline-none focus:border-rose-500 transition-colors" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-stone-500 uppercase font-black text-[10px] mb-2 tracking-widest">Create Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-                  <input type="password" required minLength="6" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl pl-11 pr-4 py-3 text-stone-900 font-bold outline-none focus:border-rose-500 transition-colors" />
-                </div>
+            <h3 className="font-black text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200 pb-2">4. Access Security</h3>
+            <div>
+              <label className="block text-stone-500 uppercase font-black text-[10px] mb-2 tracking-widest">Create Private Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                <input type="password" required minLength="6" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimum 6 characters..." className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl pl-11 pr-4 py-3 text-stone-900 font-bold outline-none focus:border-rose-500 transition-colors" />
               </div>
             </div>
           </div>
 
-          {/* AGREEMENT CHECKBOX */}
-          <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex items-start gap-3">
+          {/* COMPREHENSIVE TERMS AND CONDITIONS BOX */}
+          <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 flex items-start gap-4 shadow-inner">
             <input 
               type="checkbox" 
               id="terms"
@@ -288,8 +299,13 @@ export default function ReferrerSignupPage() {
               onChange={(e) => setAgreedToTerms(e.target.checked)}
               className="mt-1 h-4 w-4 rounded border-stone-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
             />
-            <label htmlFor="terms" className="text-[11px] text-stone-600 font-bold leading-relaxed cursor-pointer">
-              I acknowledge the Sparkle Ambassador terms. I understand that the minimum cashout threshold is <strong>₵100.00</strong> per withdrawal, and that all payouts are subject to a mandatory <strong>10% WHT (Withholding Tax)</strong> deduction and standard mobile money gateway fees.
+            <label htmlFor="terms" className="text-[11px] text-stone-600 font-bold leading-relaxed cursor-pointer uppercase tracking-wide space-y-2 block">
+              <span className="text-stone-900 block font-black border-b border-stone-200 pb-1 text-[10px]">Ambassador Commission & Operational Agreement</span>
+              <span className="block normal-case font-bold text-stone-500">
+                1. I understand that my unique tracking parameters are system auto-allocated to guarantee routing uniqueness across the entire beverage network database nodes.<br/>
+                2. I explicitly acknowledge that the minimum structural threshold to initiate a disbursal pipeline payout request is <strong>₵100.00</strong> per week.<br/>
+                3. I accept that all gross tracking conversions calculations are legally bounded under Ghanaian fiscal rules, triggering an automated <strong>10% WHT (Withholding Tax)</strong> deduction alongside standard third-party Paystack Mobile Money API railway rail platform execution fees.
+              </span>
             </label>
           </div>
 
@@ -300,7 +316,7 @@ export default function ReferrerSignupPage() {
           )}
 
           <button type="submit" disabled={loading} className="w-full bg-rose-600 hover:bg-rose-500 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest disabled:opacity-40 transition-all shadow-[0_8px_30px_rgb(225,29,72,0.3)] hover:-translate-y-1 mt-2">
-            <span>{loading ? 'Uploading Securely...' : 'Submit Application'}</span> <ArrowRight className="h-4 w-4" />
+            <span>{loading ? 'Processing System Registration...' : 'Complete Registry & Auto-Generate Code'}</span> <ArrowRight className="h-4 w-4" />
           </button>
 
           <div className="text-center pt-6 border-t border-stone-100 text-xs text-stone-500 font-bold">
