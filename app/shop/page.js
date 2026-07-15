@@ -7,7 +7,7 @@ import {
   ArrowLeft, ShoppingBag, Trash2, Plus, Minus, CheckCircle, 
   Sparkles, Flame, ShieldCheck, Truck, MapPin, Tag, Phone, Mail, MessageCircle 
 } from 'lucide-react';
-import { createBrowserSupabaseClient } from '../lib/supabaseClient';
+import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 
 export default function ShopStorefrontPage() {
   const supabase = createBrowserSupabaseClient();
