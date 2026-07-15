@@ -82,8 +82,8 @@ export default function CustomDropsPage() {
   ];
 
   // Replace with your actual WhatsApp Number
-  const whatsappNumber = "233540000000"; 
-  const whatsappLink = `https://wa.me/${whatsappNumber}?text=Hey!%20I'm%20interested%20in%20booking%20a%20Custom%20Sparkle%20Drop%20for%20my%20event.`;
+  const whatsappNumber = "233533527192"; 
+  const whatsappLink = `https://wa.me/${233533527192}?text=Hey!%20I'm%20interested%20in%20booking%20a%20Custom%20Sparkle%20Drop%20for%20my%20event.`;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-900 antialiased font-sans pb-24 selection:bg-rose-500 selection:text-white relative">
