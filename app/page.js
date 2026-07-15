@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Zap, ShoppingBag, ChevronRight, ChevronLeft, UserPlus, Flame } from 'lucide-react';
+import { Zap, ShoppingBag, ChevronRight, ChevronLeft, UserPlus, Flame, Phone, Mail, MessageCircle } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../lib/supabaseClient';
 
 export default function BrandWelcomeHomePage() {
@@ -82,7 +82,6 @@ export default function BrandWelcomeHomePage() {
     }
   };
 
-  // SMART ROUTING LOGIC: Assigns link dynamically based on the title keywords
   const getSmartLink = (title) => {
     const lower = title.toLowerCase();
     if (lower.includes('custom') || lower.includes('gala') || lower.includes('service') || lower.includes('event')) {
@@ -118,7 +117,7 @@ export default function BrandWelcomeHomePage() {
   const activeSize = quickProducts[selectedFlavor].sizes[currentSizeIndex];
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] font-sans text-stone-950 antialiased selection:bg-rose-500 selection:text-white">
+    <div className="min-h-screen bg-[#FDFBF7] font-sans text-stone-950 antialiased selection:bg-rose-500 selection:text-white pb-1 relative">
       
       {/* MODERN BRIGHT NAVIGATION */}
       <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 text-stone-900 py-2 px-6 sticky top-0 z-50 flex justify-between items-center h-20 shadow-sm">
@@ -342,13 +341,70 @@ export default function BrandWelcomeHomePage() {
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="bg-stone-950 text-white text-center py-12 px-4 border-t-4 border-emerald-500">
-        <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={100} height={40} className="mx-auto h-8 object-contain mb-6 opacity-50 hover:opacity-100 transition-opacity" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">
-          © 2026 Sparkle Beverages Ltd. • Fueling Authentic Hustles Across Ghana.
-        </p>
+      {/* =========================================
+          THE BRAND CONTACT FOOTER
+      ========================================= */}
+      <footer className="bg-stone-950 text-white border-t-4 border-emerald-500 pt-16 pb-12 px-6 sm:px-12">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 border-b border-stone-900 pb-12 mb-12">
+          
+          <div className="md:col-span-5 space-y-4 text-left">
+            <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={140} height={50} className="h-10 w-auto object-contain brightness-110" />
+            <p className="text-stone-400 text-xs font-bold leading-relaxed max-w-sm">
+              Crafting premium-grade local fruit infusions wrapped in modern, spouted hustle pouches. Disbursing hydration drops and cultural statements from Accra to the rest of the wild.
+            </p>
+          </div>
+
+          <div className="md:col-span-4 space-y-4 text-left font-mono">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Hit Us Up Directly</h4>
+            <div className="space-y-3 text-xs">
+              <a href="tel:0533527192" className="flex items-center gap-2 text-stone-300 hover:text-white transition-colors">
+                <Phone className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span>+233 533 527 192</span>
+              </a>
+              <a href="mailto:sparklebeverages@outlook.com" className="flex items-center gap-2 text-stone-300 hover:text-white transition-colors truncate">
+                <Mail className="h-4 w-4 text-rose-500 shrink-0" />
+                <span>sparklebeverages@outlook.com</span>
+              </a>
+            </div>
+          </div>
+
+          <div className="md:col-span-3 space-y-4 text-left text-xs font-bold font-mono">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-stone-500">Directory Grid</h4>
+            <div className="grid grid-cols-1 gap-2">
+              <Link href="/shop" className="text-stone-400 hover:text-white transition-colors uppercase tracking-wider text-[10px]">01 // Shop Storefront</Link>
+              <Link href="/custom" className="text-stone-400 hover:text-white transition-colors uppercase tracking-wider text-[10px]">02 // Book Custom Drops</Link>
+              <Link href="/referrer" className="text-stone-400 hover:text-white transition-colors uppercase tracking-wider text-[10px]">03 // Ambassador Hub</Link>
+            </div>
+          </div>
+
+        </div>
+
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
+          <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">
+            © 2026 Sparkle Beverages Ltd. • Fueling Authentic Hustles Across Ghana.
+          </p>
+          <div className="flex gap-4 text-[9px] font-bold font-mono uppercase tracking-widest text-stone-600">
+            <span>Minimum Cashout: ₵100</span>
+            <span>•</span>
+            <span>10% WHT Compliant</span>
+          </div>
+        </div>
       </footer>
+
+      {/* =========================================
+          PULSING FLOATING WHATSAPP BUTTON
+      ========================================= */}
+      <a 
+        href="https://wa.me/233533527192?text=Hey%20Sparkle!%20I'm%20reaching%20out%20from%20the%20homepage.%20Could%20you%20help%20me%20with%20something?" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#20ba5a] text-white p-4 rounded-full shadow-[0_8px_30px_rgba(37,211,102,0.4)] transition-all duration-300 hover:scale-110 flex items-center justify-center hover:-translate-y-1 group"
+        aria-label="Contact Sparkle on WhatsApp"
+      >
+        <div className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-35 group-hover:opacity-0 transition-opacity" />
+        <MessageCircle className="h-6 w-6 relative z-10 fill-white text-[#25D366]" />
+      </a>
+
     </div>
   );
 }

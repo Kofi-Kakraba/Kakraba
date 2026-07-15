@@ -1,527 +1,697 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
-  ArrowLeft, ShoppingBag, Trash2, Plus, Minus, CheckCircle, 
-  Sparkles, Flame, ShieldCheck, Truck, MapPin, Tag, Phone, Mail, MessageCircle 
+  ShoppingBag, Tag, Trash2, Plus, Minus, ArrowRight, 
+  Leaf, Sparkles, CheckCircle2, AlertCircle, Loader2, Info, Lock, ArrowLeft, X, Zap, Key, Phone, Mail, MessageCircle
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
+import { createCustomerOrderServerAction } from '../actions/orders';
 
-export default function ShopStorefrontPage() {
+export default function ShopPage() {
   const supabase = createBrowserSupabaseClient();
 
-  // Inventory & UI State
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  const [gatewayStage, setGatewayStage] = useState('question');
+  const [gatewayInput, setGatewayInput] = useState('');
+  const [gatewayError, setGatewayError] = useState(null);
+
   const [cart, setCart] = useState([]);
-  const [checkoutStep, setCheckoutStep] = useState(false); // false = browsing, true = checkout form
-  const [orderPlaced, setOrderPlaced] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null); 
 
-  // Discount & Code States
-  const [discountCode, setDiscountCode] = useState('');
-  const [appliedCodeRecord, setAppliedCodeRecord] = useState(null);
-  const [codeMessage, setCodeMessage] = useState('');
-  const [manualClientDiscountMap, setManualClientDiscountMap] = useState({});
+  const [localQuantities, setLocalQuantities] = useState({});
+  const [buttonStatuses, setButtonStatuses] = useState({});
 
-  // Checkout Form States
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [deliveryType, setDeliveryType] = useState('delivery'); // delivery or pickup
+  const [deliveryType, setDeliveryType] = useState('delivery'); 
   const [landmark, setLandmark] = useState('');
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
-  // Load live products and variants from Supabase
   useEffect(() => {
-    async function loadShopInventory() {
+    async function fetchStoreCatalog() {
       try {
         const { data, error } = await supabase
           .from('products')
           .select(`
             id, name, description, is_active,
-            product_variants (
-              id, sku, size, retail_price, wholesale_price, 
-              stock_quantity, is_in_stock, size_moq_floor, 
-              moq_floor, client_discount, image_url
-            )
+            product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, size_moq_floor, moq_floor, client_discount, referrer_earnings, image_url )
           `)
           .eq('is_active', true)
           .order('name', { ascending: true });
 
-        if (!error && data) {
-          setProducts(data);
-        }
+        if (error) throw error;
+        setProducts(data || []);
       } catch (err) {
-        console.error('Failed to load shop inventory:', err);
+        setErrorMessage(err.message);
       } finally {
         setLoading(false);
       }
     }
-    loadShopInventory();
+    fetchStoreCatalog();
   }, []);
 
-  // Sync local storage cart if it exists
-  useEffect(() => {
-    const savedCart = localStorage.getItem('SPARKLE_STORE_CART');
-    if (savedCart) {
-      try {
-        setCart(JSON.parse(savedCart));
-      } catch (e) {
-        setCart([]);
-      }
-    }
-  }, []);
-
-  const saveCartToStorage = (updatedCart) => {
-    setCart(updatedCart);
-    localStorage.setItem('SPARKLE_STORE_CART', JSON.stringify(updatedCart));
-  };
-
-  // Add to Cart Logic
-  const handleAddToCart = (product, variant) => {
-    const existingIndex = cart.findIndex(item => item.variantId === variant.id);
-    const updatedCart = [...cart];
-
-    if (existingIndex > -1) {
-      updatedCart[existingIndex].quantity += 1;
-    } else {
-      updatedCart.push({
-        variantId: variant.id,
-        sku: variant.sku,
-        name: product.name,
-        size: variant.size,
-        price: Number(variant.retail_price),
-        wholesalePrice: Number(variant.wholesale_price),
-        moqFloor: Number(variant.moq_floor || 50),
-        defaultDiscount: Number(variant.client_discount || 0),
-        imageUrl: variant.image_url,
-        quantity: 1
-      });
-    }
-    saveCartToStorage(updatedCart);
-  };
-
-  const handleUpdateQuantity = (variantId, amount) => {
-    const updatedCart = cart.map(item => {
-      if (item.variantId === variantId) {
-        const newQty = item.quantity + amount;
-        return { ...item, quantity: newQty > 0 ? newQty : 1 };
-      }
-      return item;
-    }).filter(item => item.quantity > 0);
-    saveCartToStorage(updatedCart);
-  };
-
-  const handleRemoveItem = (variantId) => {
-    const updatedCart = cart.filter(item => item.variantId !== variantId);
-    saveCartToStorage(updatedCart);
-  };
-
-  // Check and Apply Discount Codes (Promo / Ambassador codes)
-  const handleApplyDiscountCode = async (e) => {
+  const handleVerifyGatewayCode = async (e) => {
     e.preventDefault();
-    setCodeMessage('');
-    setAppliedCodeRecord(null);
-    setManualClientDiscountMap({});
+    if (!gatewayInput) return;
 
-    if (!discountCode.trim()) return;
-
-    const targetCode = discountCode.trim().toUpperCase();
+    setLoading(true);
+    setGatewayError(null);
 
     try {
-      // 1. Look up the code in Supabase
-      const { data: codeData, error } = await supabase
+      const cleanInputCode = gatewayInput.trim().toUpperCase();
+
+      const { data: couponProfile, error: queryError } = await supabase
         .from('referral_codes')
-        .select('*')
-        .eq('code', targetCode)
-        .eq('is_active', true)
-        .maybeSingle();
+        .select('id, code, is_active, is_verified, campaign_name')
+        .eq('code', cleanInputCode)
+        .single();
 
-      if (error || !codeData) {
-        setCodeMessage('❌ Invalid or inactive code.');
-        return;
+      if (queryError || !couponProfile) {
+        throw new Error("Invalid Code: Code spelling mismatched or unrecognized.");
       }
 
-      setAppliedCodeRecord(codeData);
-      setCodeMessage(`✅ Code ${targetCode} applied!`);
+      if (!couponProfile.is_active || !couponProfile.is_verified) {
+        throw new Error("Suspended Link: This promotional campaign matrix is currently offline.");
+      }
 
-      // 2. Fetch custom discount rules if this is a custom promo code
-      const { data: discountRules } = await supabase
+      const { data: customDiscountRules } = await supabase
         .from('referral_discounts')
-        .select('*')
-        .eq('referral_code_id', codeData.id);
+        .select('size, client_discount')
+        .eq('referral_code_id', couponProfile.id);
 
-      if (discountRules && discountRules.length > 0) {
-        const ruleMap = {};
-        discountRules.forEach(rule => {
-          ruleMap[rule.size.toLowerCase()] = Number(rule.client_discount);
-        });
-        setManualClientDiscountMap(ruleMap);
-      }
+      const ruleMappingDictionary = {};
+      customDiscountRules?.forEach(rule => {
+        ruleMappingDictionary[rule.size] = Number(rule.client_discount || 0);
+      });
+
+      setAppliedCoupon({ 
+        profile: couponProfile,
+        customDiscountsMap: ruleMappingDictionary
+      });
+      setGatewayStage('unlocked'); 
 
     } catch (err) {
-      setCodeMessage('❌ Failed to verify code.');
+      setGatewayError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Helper calculation values
-  const totalItemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const handleAddItemToCartChannel = (product, variant, continuousQuantity) => {
+    if (continuousQuantity <= 0) return;
 
-  // Calculate prices per item dynamically
-  const getCalculatedPriceDetails = (item) => {
-    const isWholesaleActive = item.quantity >= item.moqFloor;
-    const basePrice = isWholesaleActive ? item.wholesalePrice : item.price;
-    
-    // Calculate discounts
-    let discountPerUnit = 0;
-    if (appliedCodeRecord) {
-      const sizeKey = item.size.toLowerCase();
-      if (manualClientDiscountMap[sizeKey] !== undefined) {
-        discountPerUnit = manualClientDiscountMap[sizeKey];
-      } else {
-        discountPerUnit = item.defaultDiscount;
+    setButtonStatuses(prev => ({ ...prev, [variant.id]: 'adding' }));
+
+    setTimeout(() => {
+      setCart(prevCart => {
+        const existingLineIndex = prevCart.findIndex(item => item.variant.id === variant.id);
+        if (existingLineIndex > -1) {
+          const updatedCart = [...prevCart];
+          updatedCart[existingLineIndex].quantity += continuousQuantity;
+          return updatedCart;
+        }
+        return [...prevCart, { product, variant, quantity: continuousQuantity }];
+      });
+
+      setButtonStatuses(prev => ({ ...prev, [variant.id]: 'added' }));
+
+      setTimeout(() => {
+        setButtonStatuses(prev => ({ ...prev, [variant.id]: 'idle' }));
+      }, 1200);
+
+    }, 600);
+  };
+
+  const handleAdjustCartQuantityIndex = (variantId, adjustmentFactor) => {
+    setCart(prevCart => {
+      return prevCart.map(item => {
+        if (item.variant.id === variantId) {
+          const calculatedNewQty = item.quantity + adjustmentFactor;
+          return calculatedNewQty > 0 ? { ...item, quantity: calculatedNewQty } : null;
+        }
+        return item;
+      }).filter(Boolean);
+    });
+  };
+
+  const handleRemoveLineItemFromCart = (variantId) => {
+    setCart(prevCart => prevCart.filter(item => item.variant.id !== variantId));
+  };
+
+  const computeItemizedCartSummaryValues = () => {
+    let orderGrossSubtotal = 0;
+    const combinedQuantityMapBySizeGroup = {};
+
+    cart.forEach(item => {
+      const sizeKey = item.variant.size;
+      combinedQuantityMapBySizeGroup[sizeKey] = (combinedQuantityMapBySizeGroup[sizeKey] || 0) + Number(item.quantity);
+    });
+
+    const formattedListOutput = cart.map(item => {
+      const quantityCount = Number(item.quantity);
+      const sizeKey = item.variant.size;
+
+      const runningSizeMoqFloorLimit = parseInt(item.variant.size_moq_floor) || 1;
+      const singleItemWholesaleTriggerLimit = parseInt(item.variant.moq_floor) || 50;
+
+      const isWholesalePriceTriggered = quantityCount >= singleItemWholesaleTriggerLimit;
+      const isMixedMoqSatisfiedForThisSize = (combinedQuantityMapBySizeGroup[sizeKey] || 0) >= runningSizeMoqFloorLimit;
+      
+      let baseUnitPriceToCalculate = Number(item.variant.retail_price);
+      let discountAllowedPerUnit = 0;
+
+      if (appliedCoupon) {
+        baseUnitPriceToCalculate = Number(item.variant.retail_price);
+        const hasCustomOverrideVal = appliedCoupon.customDiscountsMap && appliedCoupon.customDiscountsMap[sizeKey] !== undefined;
+        discountAllowedPerUnit = hasCustomOverrideVal 
+          ? Number(appliedCoupon.customDiscountsMap[sizeKey]) 
+          : Number(item.variant.client_discount || 0);
+      } else if (isWholesalePriceTriggered) {
+        baseUnitPriceToCalculate = Number(item.variant.wholesale_price);
+        discountAllowedPerUnit = 0;
       }
-    }
 
-    const finalUnitPrice = Math.max(0, basePrice - discountPerUnit);
+      const computedLineUnitCost = baseUnitPriceToCalculate - discountAllowedPerUnit;
+      const computedLineTotalAmount = computedLineUnitCost * quantityCount;
+
+      orderGrossSubtotal += computedLineTotalAmount;
+
+      return {
+        ...item,
+        isWholesaleTierTriggered: isWholesalePriceTriggered,
+        isMixedMoqSatisfiedForThisSize,
+        requiredMoqSizeFloorValue: runningSizeMoqFloorLimit,
+        currentTotalUnitsInThisSizeGroup: combinedQuantityMapBySizeGroup[sizeKey] || 0,
+        singleUnitCost: computedLineUnitCost,
+        discountAllowedPerUnit,
+        lineTotal: computedLineTotalAmount
+      };
+    });
+
     return {
-      isWholesaleActive,
-      finalUnitPrice,
-      subtotal: finalUnitPrice * item.quantity
+      compiledItemsList: formattedListOutput,
+      finalOrderBillTotal: orderGrossSubtotal,
+      combinedQuantityMapBySizeGroup
     };
   };
 
-  const grandTotalBill = cart.reduce((acc, item) => {
-    const { subtotal } = getCalculatedPriceDetails(item);
-    return acc + subtotal;
-  }, 0);
+  const { compiledItemsList, finalOrderBillTotal, combinedQuantityMapBySizeGroup } = computeItemizedCartSummaryValues();
+  const globalTotalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Place Order Action
-  const handlePlaceOrderSubmit = async (e) => {
+  const handleLaunchPaystackPaymentPortalGateway = async (e) => {
     e.preventDefault();
-    if (cart.length === 0 || isSubmittingOrder) return;
+    if (cart.length === 0) return alert("Checkout Halted: Your shopping cart container lines are empty.");
+    if (!customerName || !customerPhone) return alert("Checkout Halted: Please fill out your contact details sheets.");
+
+    for (const line of compiledItemsList) {
+      if (!line.isMixedMoqSatisfiedForThisSize) {
+        alert(`Almost there! You need at least ${line.requiredMoqSizeFloorValue} packs of the ${line.variant.size} size to checkout.\n\nYou have ${line.currentTotalUnitsInThisSizeGroup} in your cart now. Please add ${line.requiredMoqSizeFloorValue - line.currentTotalUnitsInThisSizeGroup} more!`);
+        return;
+      }
+    }
 
     setIsSubmittingOrder(true);
 
-    try {
-      // 1. Create the base order record
-      const orderPayload = {
-        customer_name: customerName.trim(),
-        customer_phone: customerPhone.trim(),
-        delivery_type: deliveryType,
-        landmark: deliveryType === 'delivery' ? landmark.trim() : 'HQ Self-Pickup Depot',
-        total_amount: grandTotalBill,
-        payment_status: 'pending',
-        status: 'pending',
-        metadata: {
-          applied_code: appliedCodeRecord ? appliedCodeRecord.code : null,
-          code_id: appliedCodeRecord ? appliedCodeRecord.id : null,
-          payout_processed: false
-        }
-      };
-
-      const { data: newOrder, error: orderErr } = await supabase
-        .from('orders')
-        .insert([orderPayload])
-        .select('*')
-        .single();
-
-      if (orderErr || !newOrder) throw orderErr;
-
-      // 2. Insert order line items
-      const orderItemsPayload = cart.map(item => {
-        const { finalUnitPrice } = getCalculatedPriceDetails(item);
-        return {
-          order_id: newOrder.id,
-          variant_id: item.variantId,
-          quantity: item.quantity,
-          unit_price: finalUnitPrice,
-          size: item.size
-        };
-      });
-
-      const { error: itemsErr } = await supabase.from('order_items').insert(orderItemsPayload);
-      if (itemsErr) throw itemsErr;
-
-      // 3. Clear cart
-      saveCartToStorage([]);
-      setOrderPlaced(true);
-
-    } catch (err) {
-      alert(`Order placement failed: ${err.message}`);
-    } finally {
+    const orderPayload = {
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      deliveryType: deliveryType,
+      landmark: landmark.trim(),
+      totalAmount: finalOrderBillTotal,
+      metadata: {
+        applied_code: appliedCoupon?.profile?.code || null,
+        code_id: appliedCoupon?.profile?.id || null,
+        payout_processed: false,
+        calculated_payout_amount: 0
+      }
+    };
+    
+    const response = await createCustomerOrderServerAction(orderPayload, compiledItemsList);
+    
+    if (response.success && response.authorizationUrl) {
+      window.location.href = response.authorizationUrl; 
+    } else {
+      alert(`Transaction Refusal: ${response.error || 'Gateway connection error'}`);
       setIsSubmittingOrder(false);
     }
   };
 
-  if (orderPlaced) {
-    return (
-      <div className="min-h-screen bg-[#FDFBF7] flex flex-col justify-center items-center px-4">
-        <div className="max-w-md bg-white border-2 border-stone-200 rounded-[40px] p-10 text-center shadow-2xl space-y-6">
-          <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle className="h-10 w-10 text-emerald-500" />
-          </div>
-          <h2 className="text-3xl font-black text-stone-950 uppercase tracking-tight">Order Placed!</h2>
-          <p className="text-stone-500 font-bold text-sm leading-relaxed">
-            Your order has been staged in our fulfillment database. Our logistical dispatch team will call or WhatsApp your contact number shortly to confirm payment and delivery coordinates!
-          </p>
-          <Link href="/" className="inline-block bg-stone-950 text-white font-black uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl hover:-translate-y-1 transition-all text-xs">
-            Return to Homepage
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const getFlavorTheme = (productName) => {
+    const name = productName.toLowerCase();
+    if (name.includes('sobolo')) return { bg: 'bg-rose-50/30', border: 'border-rose-100', text: 'text-rose-600', shadow: 'shadow-rose-100/50' };
+    if (name.includes('lemonade')) return { bg: 'bg-amber-50/30', border: 'border-amber-100', text: 'text-amber-500', shadow: 'shadow-amber-100/50' };
+    if (name.includes('pinezest')) return { bg: 'bg-emerald-50/30', border: 'border-emerald-100', text: 'text-emerald-500', shadow: 'shadow-emerald-100/50' };
+    return { bg: 'bg-stone-50', border: 'border-stone-200', text: 'text-stone-600', shadow: 'shadow-stone-200/50' };
+  };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] font-sans text-stone-950 antialiased selection:bg-rose-500 selection:text-white relative">
+    <div className="min-h-screen bg-[#FDFBF7] text-stone-900 antialiased font-sans pb-1 selection:bg-rose-500 selection:text-white relative">
       
-      {/* NAVIGATION */}
-      <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 text-stone-900 py-2 px-6 sticky top-0 z-50 flex justify-between items-center h-20 shadow-sm">
+      {/* BRAND NAVIGATION */}
+      <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 py-3 px-6 sticky top-0 z-40 shadow-sm flex justify-between items-center h-20">
         <div className="flex items-center h-full">
           <Link href="/">
-            <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={180} height={70} className="h-14 sm:h-16 w-auto object-contain cursor-pointer" />
+            <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={220} height={90} className="h-16 sm:h-20 w-auto object-contain cursor-pointer" priority />
           </Link>
+          {appliedCoupon && (
+            <span className="text-[10px] bg-stone-900 text-emerald-400 font-mono font-bold px-3 py-1 rounded-full ml-4 hidden sm:inline-block shadow-sm">
+              Promo Link Active: {appliedCoupon.profile.code}
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-4 sm:gap-6">
-          <Link href="/" className="text-xs font-bold text-stone-500 hover:text-stone-900 transition-colors uppercase tracking-wide flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" /> Back to Storefront
-          </Link>
+        
+        <div className="flex items-center gap-3 sm:gap-6">
+          <button 
+            type="button" 
+            onClick={() => { setAppliedCoupon(null); setGatewayInput(''); setGatewayStage('question'); setCart([]); }} 
+            className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors flex items-center gap-1"
+          >
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Reset Access</span>
+          </button>
+
+          <button 
+            onClick={() => setIsCartOpen(true)}
+            className="flex items-center gap-2 bg-stone-950 text-white px-5 py-2.5 rounded-full hover:bg-stone-800 transition-all shadow-xl group relative"
+          >
+            <div className="relative flex items-center">
+              <ShoppingBag className="h-4 w-4 text-stone-100 group-hover:scale-105 transition-transform" />
+              <span className="absolute -bottom-2 -right-2 bg-rose-500 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center border border-stone-900">
+                {globalTotalItemsCount}
+              </span>
+            </div>
+            <span className="text-xs font-black ml-1 tracking-wide">
+              ₵{finalOrderBillTotal.toFixed(2)}
+            </span>
+          </button>
         </div>
       </nav>
 
-      {/* HEADER HERO */}
-      <div className="bg-stone-950 text-white py-16 px-6 text-center border-b-8 border-emerald-500 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px]" />
-        <div className="max-w-3xl mx-auto space-y-4 relative z-10">
-          <span className="inline-flex items-center gap-1 bg-emerald-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">
-            <ShoppingBag className="h-3 w-3" /> Digital Storefront
-          </span>
-          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none">The Official Store</h1>
-          <p className="text-stone-400 text-sm md:text-base font-bold max-w-xl mx-auto leading-relaxed">
-            Order fresh batches of our high-vibe fruit pouches. Free pickup from our HQ depot or direct door-to-door courier dispatch straight to your location.
-          </p>
+      {/* DROP ZONE HEADER */}
+      <header className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20 text-center space-y-4">
+        <div className="inline-flex items-center gap-1.5 bg-stone-100 border border-stone-200 text-stone-600 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
+          <Sparkles className="h-3.5 w-3.5" /> Official Storefront
         </div>
-      </div>
+        <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase text-stone-950">
+          The Drop <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-amber-500">Zone.</span>
+        </h1>
+        <p className="text-stone-500 font-medium max-w-xl mx-auto">Secure your batches. Real fruit flavors packed for the daily hustle.</p>
+      </header>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-8 py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* LEFT COLUMN: PRODUCT INVENTORY LISTING (8 Cols) */}
-        <div className="lg:col-span-7 space-y-8">
-          {loading ? (
-            <div className="text-center py-16 text-xs uppercase font-black tracking-widest text-stone-400">Loading shop list...</div>
-          ) : (
-            products.map((product) => (
-              <div key={product.id} className="bg-white border-2 border-stone-200 rounded-[32px] p-6 space-y-6 shadow-sm text-left">
-                <div className="border-b border-stone-100 pb-3">
-                  <h2 className="text-xl font-black text-stone-950 uppercase tracking-tight">{product.name}</h2>
-                  <p className="text-stone-500 text-xs mt-1 font-bold">{product.description}</p>
-                </div>
+      {/* SNEAKER-STORE PRODUCT GRID */}
+      <main className="max-w-7xl mx-auto px-4 md:px-8 pb-20">
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {products.map((product) => 
+            product.product_variants?.map((variant) => {
+              const isOutOfStock = !variant.is_in_stock || variant.stock_quantity <= 0;
+              const theme = getFlavorTheme(product.name);
+              
+              const activeUnitDiscount = appliedCoupon 
+                ? (appliedCoupon.customDiscountsMap[variant.size] !== undefined ? Number(appliedCoupon.customDiscountsMap[variant.size]) : Number(variant.client_discount || 0))
+                : 0;
+              const displayedCostPaidPerBottle = Number(variant.retail_price) - activeUnitDiscount;
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {product.product_variants?.map((variant) => (
-                    <div key={variant.id} className="bg-[#FDFBF7] border border-stone-200 p-4 rounded-2xl flex flex-col justify-between space-y-4 hover:border-emerald-500 transition-colors">
-                      <div className="flex justify-between items-start">
-                        <span className="text-[10px] bg-stone-950 text-white px-2.5 py-1 rounded-full font-black uppercase tracking-widest">{variant.size}</span>
-                        {variant.stock_quantity <= 0 ? (
-                          <span className="text-[9px] text-stone-400 border border-stone-200 px-2 py-0.5 rounded font-black uppercase tracking-widest">Out of stock</span>
-                        ) : (
-                          <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded font-black uppercase tracking-widest">In Stock</span>
-                        )}
+              const cartItem = cart.find(item => item.variant.id === variant.id);
+              const currentPickerCount = cartItem ? cartItem.quantity : (localQuantities[variant.id] || 1);
+              
+              const handleMinusClick = () => {
+                if (cartItem) {
+                  handleAdjustCartQuantityIndex(variant.id, -1);
+                } else {
+                  setLocalQuantities(prev => ({ ...prev, [variant.id]: Math.max(1, currentPickerCount - 1) }));
+                }
+              };
+
+              const handlePlusClick = () => {
+                if (cartItem) {
+                  handleAdjustCartQuantityIndex(variant.id, 1);
+                } else {
+                  setLocalQuantities(prev => ({ ...prev, [variant.id]: currentPickerCount + 1 }));
+                }
+              };
+
+              const cumulativeUnitsInThisSizeGroup = combinedQuantityMapBySizeGroup[variant.size] || 0;
+              const requiredMoqSizeLimit = parseInt(variant.size_moq_floor) || 1;
+              const isCardGroupMoqSatisfied = cumulativeUnitsInThisSizeGroup >= requiredMoqSizeLimit;
+
+              const activeBtnStatus = buttonStatuses[variant.id] || 'idle';
+
+              return (
+                <div key={variant.id} className={`bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} hover:-translate-y-1 transition-transform duration-300 relative overflow-hidden group`}>
+                  
+                  {/* Subtle Background Glow */}
+                  <div className={`absolute top-0 right-0 w-64 h-64 ${theme.bg} rounded-full blur-3xl opacity-50 pointer-events-none -mr-20 -mt-20`} />
+
+                  {/* Header: Title & Stock */}
+                  <div className="flex justify-between items-start relative z-10">
+                    <div>
+                      <h4 className="font-black text-stone-950 uppercase text-lg leading-tight tracking-tight pr-2">{product.name}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${theme.text}`}>{variant.size}</span>
                       </div>
+                    </div>
+                    <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${isOutOfStock ? 'bg-stone-100 text-stone-400' : 'bg-stone-950 text-white'}`}>
+                      {isOutOfStock ? 'Sold Out' : 'In Stock'}
+                    </span>
+                  </div>
 
-                      {variant.image_url && (
-                        <div className="h-32 w-full relative flex items-center justify-center p-1 bg-white rounded-xl border border-stone-100 shadow-inner">
-                          <img src={variant.image_url} alt={variant.sku} className="h-full object-contain" />
+                  {/* Giant Floating Image */}
+                  {variant.image_url && (
+                    <div className="h-64 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 py-4">
+                      <Image 
+                        src={variant.image_url} 
+                        alt={variant.sku} 
+                        width={400} 
+                        height={400} 
+                        priority={true} 
+                        className="h-full object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transform transition-transform duration-500 group-hover:scale-105 group-hover:-translate-y-2 z-10" 
+                      />
+                      {/* Floor Shadow */}
+                      <div className="w-1/2 h-2.5 bg-black/20 blur-md rounded-[50%] absolute bottom-2 transition-all duration-500 group-hover:w-2/3 group-hover:opacity-40"></div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4 relative z-10 mt-auto">
+                    {/* Pricing Block */}
+                    <div className="bg-[#FDFBF7] border border-stone-200 p-4 rounded-2xl text-xs font-medium space-y-1.5 text-stone-500">
+                      {appliedCoupon ? (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-stone-400 line-through"><span>Standard Retail:</span><span>₵{Number(variant.retail_price).toFixed(2)}</span></div>
+                          <div className="flex justify-between text-emerald-600 font-black text-sm"><span>Promo Access Rate:</span><span>₵{displayedCostPaidPerBottle.toFixed(2)}</span></div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-stone-600"><span>Standard Retail:</span><strong className="text-stone-950 font-black">₵{Number(variant.retail_price).toFixed(2)}</strong></div>
+                          <div className="flex justify-between text-emerald-600 font-bold"><span>Wholesale Trigger:</span><span>₵{Number(variant.wholesale_price).toFixed(2)}</span></div>
                         </div>
                       )}
-
-                      <div className="space-y-1 font-mono text-[11px] font-bold text-stone-500 uppercase tracking-wider">
-                        <div className="flex justify-between"><span>Retail Price:</span><strong className="text-stone-900">₵{Number(variant.retail_price).toFixed(2)}</strong></div>
-                        <div className="flex justify-between text-blue-600"><span>Wholesale Rate:</span><strong>₵{Number(variant.wholesale_price).toFixed(2)}</strong></div>
-                        <div className="flex justify-between text-stone-400 text-[10px]"><span>MOQ wholesale:</span><span>{variant.moq_floor || 50} units</span></div>
-                      </div>
-
-                      <button 
-                        onClick={() => handleAddToCart(product, variant)}
-                        disabled={variant.stock_quantity <= 0}
-                        className="w-full bg-stone-950 hover:bg-stone-850 text-white font-black py-2.5 rounded-xl uppercase text-[10px] tracking-widest disabled:opacity-30 transition-all shadow-md"
-                      >
-                        Add To Basket
-                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
 
-        {/* RIGHT COLUMN: BASKET & CHECKOUT GATE (5 Cols) */}
-        <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
-          
-          <div className="bg-white border-2 border-stone-200 rounded-[32px] p-6 md:p-8 shadow-xl space-y-6 text-left">
-            <h3 className="text-sm font-black text-stone-950 uppercase tracking-widest flex items-center gap-2 border-b border-stone-100 pb-4">
-              <ShoppingBag className="h-4 w-4 text-emerald-500" /> 
-              <span>Your Basket ({totalItemsCount})</span>
-            </h3>
-
-            {cart.length === 0 ? (
-              <div className="text-center py-12 text-stone-400 font-bold text-xs uppercase tracking-widest bg-stone-50 rounded-[24px]">
-                Your basket is empty
-              </div>
-            ) : (
-              <>
-                {/* Cart list */}
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                  {cart.map((item) => {
-                    const { isWholesaleActive, finalUnitPrice, subtotal } = getCalculatedPriceDetails(item);
-                    return (
-                      <div key={item.variantId} className="bg-[#FDFBF7] p-3 rounded-2xl border border-stone-200 flex justify-between items-center gap-4">
-                        <div className="flex items-center gap-3">
-                          {item.imageUrl && (
-                            <div className="h-12 w-12 bg-white rounded-lg border p-0.5 shrink-0 flex items-center justify-center">
-                              <img src={item.imageUrl} alt={item.name} className="h-full object-contain" />
-                            </div>
-                          )}
-                          <div>
-                            <h4 className="font-black text-[12px] text-stone-900 leading-tight uppercase">{item.name}</h4>
-                            <span className="text-[10px] text-stone-400 font-black uppercase tracking-widest">{item.size}</span>
-                            {isWholesaleActive && (
-                              <span className="text-[8px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.2 rounded font-black uppercase ml-1.5 tracking-wider">Wholesale Tier</span>
-                            )}
-                          </div>
+                    {/* MOQ Alerts */}
+                    {requiredMoqSizeLimit > 1 && (
+                      <div className={`p-3 rounded-2xl border flex items-start gap-2 text-[10px] leading-snug font-bold uppercase tracking-wide transition-colors ${
+                        isCardGroupMoqSatisfied 
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                          : 'bg-amber-50 border-amber-200 text-amber-700'
+                      }`}>
+                        <AlertCircle className={`h-4 w-4 shrink-0 ${!isCardGroupMoqSatisfied && 'text-amber-500'}`} />
+                        <div>
+                          {isCardGroupMoqSatisfied 
+                            ? `✓ Minimum reached for ${variant.size} batch.` 
+                            : `Add ${requiredMoqSizeLimit - cumulativeUnitsInThisSizeGroup} more ${variant.size} to unlock checkout.`}
                         </div>
-
-                        <div className="flex items-center gap-4 shrink-0 font-mono text-xs">
-                          <div className="flex items-center gap-1.5 bg-white border border-stone-200 rounded-lg p-0.5">
-                            <button onClick={() => handleUpdateQuantity(item.variantId, -1)} className="p-1 hover:bg-stone-50 rounded text-stone-400"><Minus className="h-3 w-3" /></button>
-                            <span className="min-w-6 text-center font-black">{item.quantity}</span>
-                            <button onClick={() => handleUpdateQuantity(item.variantId, 1)} className="p-1 hover:bg-stone-50 rounded text-stone-400"><Plus className="h-3 w-3" /></button>
-                          </div>
-                          
-                          <div className="text-right">
-                            <strong className="text-stone-950 block">₵{subtotal.toFixed(2)}</strong>
-                            <span className="text-[9px] text-stone-400 block font-bold">₵{finalUnitPrice.toFixed(2)} ea</span>
-                          </div>
-
-                          <button onClick={() => handleRemoveItem(item.variantId)} className="text-stone-300 hover:text-rose-500 transition-colors p-1"><Trash2 className="h-4 w-4" /></button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Apply Code Form */}
-                <form onSubmit={handleApplyDiscountCode} className="pt-2 border-t border-stone-100 font-mono text-xs">
-                  <label className="block text-stone-500 uppercase font-black text-[9px] mb-2 tracking-widest">Apply Ambassador Code / Promo Key</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={discountCode} 
-                      onChange={(e) => setDiscountCode(e.target.value)} 
-                      placeholder="e.g. SPK-6J5R6" 
-                      className="flex-1 bg-[#FDFBF7] border border-stone-200 rounded-xl px-3 py-2 text-stone-900 font-black uppercase tracking-widest outline-none focus:border-emerald-500" 
-                    />
-                    <button type="submit" className="bg-stone-950 text-white font-black uppercase tracking-widest text-[9px] px-4 py-2 rounded-xl">Apply</button>
-                  </div>
-                  {codeMessage && <div className="text-[10px] font-black uppercase tracking-wider mt-2">{codeMessage}</div>}
-                </form>
-
-                {/* Total Billing */}
-                <div className="bg-[#FDFBF7] p-4 rounded-2xl border border-stone-200 font-mono text-xs text-stone-500 font-bold space-y-1.5">
-                  <div className="flex justify-between items-center"><span>Standard Items:</span><span className="text-stone-900 font-black">{totalItemsCount} units</span></div>
-                  <div className="flex justify-between items-center border-t border-stone-200 pt-3 mt-2 font-black text-emerald-600 text-sm uppercase tracking-widest">
-                    <span>Grand Total:</span>
-                    <span>GHS {grandTotalBill.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Next Step Control */}
-                {!checkoutStep ? (
-                  <button 
-                    onClick={() => setCheckoutStep(true)}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl text-center transition-all uppercase text-xs tracking-widest shadow-lg"
-                  >
-                    Proceed To Checkout
-                  </button>
-                ) : (
-                  <form onSubmit={handlePlaceOrderSubmit} className="pt-4 border-t border-stone-100 space-y-4 font-mono text-xs text-left">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-stone-400">Checkout Dispatch Information</h4>
-                    
-                    <div>
-                      <label className="block text-stone-500 uppercase font-black text-[9px] mb-1.5 tracking-widest">Your Full Name</label>
-                      <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Kwame Mensah" className="w-full bg-[#FDFBF7] border border-stone-200 rounded-xl px-3 py-2 text-stone-900 font-bold outline-none" />
-                    </div>
-
-                    <div>
-                      <label className="block text-stone-500 uppercase font-black text-[9px] mb-1.5 tracking-widest">Active Mobile Line</label>
-                      <input type="tel" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="0540000000" className="w-full bg-[#FDFBF7] border border-stone-200 rounded-xl px-3 py-2 text-stone-900 font-bold outline-none" />
-                    </div>
-
-                    <div>
-                      <label className="block text-stone-500 uppercase font-black text-[9px] mb-1.5 tracking-widest">Fulfillment Class</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button 
-                          type="button" 
-                          onClick={() => setDeliveryType('delivery')}
-                          className={`py-2 border-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${deliveryType === 'delivery' ? 'bg-stone-950 border-stone-950 text-white shadow-md' : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'}`}
-                        >
-                          Courier Delivery
-                        </button>
-                        <button 
-                          type="button" 
-                          onClick={() => setDeliveryType('pickup')}
-                          className={`py-2 border-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${deliveryType === 'pickup' ? 'bg-stone-950 border-stone-950 text-white shadow-md' : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'}`}
-                        >
-                          HQ Self-Pickup
-                        </button>
-                      </div>
-                    </div>
-
-                    {deliveryType === 'delivery' ? (
-                      <div>
-                        <label className="block text-stone-500 uppercase font-black text-[9px] mb-1.5 tracking-widest">Delivery Address / Landmark</label>
-                        <input type="text" required value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="e.g. Airport Shell, Accra" className="w-full bg-[#FDFBF7] border border-stone-200 rounded-xl px-3 py-2 text-stone-900 font-bold outline-none" />
-                      </div>
-                    ) : (
-                      <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl text-[9px] text-emerald-800 font-sans leading-relaxed">
-                        Pickup from our HQ depot is completely free. We will prepare your spouted pouch batches and contact you once they are ready for pickup at our facility.
                       </div>
                     )}
 
-                    <div className="flex gap-2 pt-2">
+                    {/* Action Row */}
+                    <div className="flex items-center gap-3">
+                      <div className={`flex items-center border-2 rounded-2xl overflow-hidden h-14 shadow-sm shrink-0 w-28 transition-colors ${cartItem ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-stone-200'}`}>
+                        <button 
+                          type="button"
+                          disabled={activeBtnStatus !== 'idle'}
+                          onClick={handleMinusClick}
+                          className={`flex-1 h-full transition-colors flex items-center justify-center disabled:opacity-20 ${cartItem ? 'text-emerald-700 hover:bg-emerald-100' : 'text-stone-500 hover:bg-stone-50'}`}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <span className={`font-black text-sm w-8 text-center ${cartItem ? 'text-emerald-950' : 'text-stone-950'}`}>{currentPickerCount}</span>
+                        <button 
+                          type="button"
+                          disabled={activeBtnStatus !== 'idle'}
+                          onClick={handlePlusClick}
+                          className={`flex-1 h-full transition-colors flex items-center justify-center disabled:opacity-20 ${cartItem ? 'text-emerald-700 hover:bg-emerald-100' : 'text-stone-500 hover:bg-stone-50'}`}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+
                       <button 
                         type="button" 
-                        onClick={() => setCheckoutStep(false)}
-                        className="bg-stone-100 hover:bg-stone-200 text-stone-600 font-black uppercase tracking-widest text-[10px] px-4 py-3 rounded-xl transition-colors"
+                        disabled={isOutOfStock || activeBtnStatus !== 'idle' || !!cartItem}
+                        onClick={() => handleAddItemToCartChannel(product, variant, currentPickerCount)}
+                        className={`flex-1 font-black text-xs h-14 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest transition-all duration-300 shadow-lg ${
+                          isOutOfStock 
+                            ? 'bg-stone-100 text-stone-400 cursor-not-allowed shadow-none' 
+                            : !!cartItem
+                              ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-200 shadow-none'
+                              : activeBtnStatus === 'adding'
+                                ? 'bg-stone-800 text-stone-300 cursor-wait'
+                                : activeBtnStatus === 'added'
+                                  ? 'bg-emerald-500 text-white animate-pulse'
+                                  : 'bg-stone-950 hover:bg-stone-800 text-white hover:-translate-y-0.5'
+                        }`}
                       >
-                        Back
-                      </button>
-                      <button 
-                        type="submit" 
-                        disabled={isSubmittingOrder}
-                        className="flex-1 bg-stone-950 hover:bg-stone-850 text-white font-black py-3 rounded-xl uppercase text-[10px] tracking-widest shadow-xl disabled:opacity-40"
-                      >
-                        {isSubmittingOrder ? 'Placing Order...' : 'Confirm Order placement'}
+                        {!!cartItem ? (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            <span>In Your Drop</span>
+                          </>
+                        ) : activeBtnStatus === 'idle' ? (
+                          <span>Add To Cart</span>
+                        ) : activeBtnStatus === 'adding' ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+                        ) : (
+                          <CheckCircle2 className="h-5 w-5 text-white animate-bounce" />
+                        )}
                       </button>
                     </div>
-                  </form>
-                )}
-              </>
-            )}
-          </div>
-
-        </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </section>
       </main>
 
+      {/* CART DRAWER */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden font-sans">
+          <div className="absolute inset-0 bg-stone-950/60 backdrop-blur-sm transition-opacity duration-300" onClick={() => setIsCartOpen(false)} />
+          
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col h-full transform transition-all duration-300 ease-in-out">
+              
+              <div className="p-6 border-b border-stone-100 flex items-center justify-between bg-stone-50">
+                <div className="flex items-center gap-3 text-stone-950 font-black uppercase text-lg tracking-tight">
+                  <ShoppingBag className="h-5 w-5 text-rose-500" />
+                  <h3>Your Drop ({globalTotalItemsCount})</h3>
+                </div>
+                <button 
+                  onClick={() => setIsCartOpen(false)} 
+                  className="bg-white border border-stone-200 hover:border-stone-400 p-2 rounded-full text-stone-500 transition-all"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-white">
+                {cart.length === 0 ? (
+                  <div className="text-center py-20 bg-[#FDFBF7] rounded-[32px] font-medium text-stone-400 text-xs space-y-3">
+                    <ShoppingBag className="h-10 w-10 mx-auto text-stone-300" />
+                    <p className="uppercase tracking-widest font-black">Your bag is empty.</p>
+                  </div>
+                ) : (
+                  compiledItemsList.map((item) => (
+                    <div key={item.variant.id} className="bg-[#FDFBF7] p-4 rounded-[24px] border border-stone-200 flex flex-col justify-between space-y-4">
+                      <div className="flex justify-between items-start gap-2">
+                        <div>
+                          <h5 className="font-black text-stone-950 uppercase text-sm leading-tight tracking-tight">{item.product.name}</h5>
+                          <div className="flex gap-2 mt-1.5">
+                            <span className="text-[10px] bg-stone-200/50 text-stone-600 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">{item.variant.size}</span>
+                            {item.isWholesaleTierTriggered && !appliedCoupon && (
+                              <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Wholesale</span>
+                            )}
+                          </div>
+                        </div>
+                        <button onClick={() => handleRemoveLineItemFromCart(item.variant.id)} className="text-stone-400 hover:text-red-500 bg-white p-2 rounded-full shadow-sm border border-stone-100"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-3 border-t border-stone-200/50">
+                        <div className="flex items-center bg-white border border-stone-200 rounded-xl h-10 shadow-sm overflow-hidden">
+                          <button onClick={() => handleAdjustCartQuantityIndex(item.variant.id, -1)} className="px-3 text-stone-500 hover:bg-stone-50 h-full"><Minus className="h-3 w-3" /></button>
+                          <span className="w-6 text-center font-black text-xs text-stone-950">{item.quantity}</span>
+                          <button onClick={() => handleAdjustCartQuantityIndex(item.variant.id, 1)} className="px-3 text-stone-500 hover:bg-stone-50 h-full"><Plus className="h-3 w-3" /></button>
+                        </div>
+                        <span className="font-black text-stone-950 text-lg">₵{item.lineTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {cart.length > 0 && (
+                  <form onSubmit={handleLaunchPaystackPaymentPortalGateway} className="space-y-5 pt-6 border-t border-stone-200">
+                    <span className="text-[11px] uppercase font-black tracking-widest text-stone-400 block mb-2">Checkout Details</span>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full legal name" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
+                      </div>
+                      <div>
+                        <input type="tel" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Mobile Money Number (e.g. 054...)" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 bg-[#FDFBF7] p-1.5 border-2 border-stone-200 rounded-2xl text-center">
+                        <button type="button" onClick={() => setDeliveryType('delivery')} className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all ${deliveryType === 'delivery' ? 'bg-white text-stone-950 shadow-sm border border-stone-200' : 'text-stone-400 hover:text-stone-600'}`}>Dispatch</button>
+                        <button type="button" onClick={() => setDeliveryType('pickup')} className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all ${deliveryType === 'pickup' ? 'bg-white text-stone-950 shadow-sm border border-stone-200' : 'text-stone-400 hover:text-stone-600'}`}>HQ Pickup</button>
+                      </div>
+                      
+                      {deliveryType === 'delivery' && (
+                        <div>
+                          <input type="text" required value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="Delivery Landmark / Address" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-stone-950 p-5 rounded-[24px] space-y-3 text-stone-400 text-xs shadow-xl mt-6 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500 rounded-full blur-3xl opacity-20 -mr-10 -mt-10 pointer-events-none"></div>
+                      
+                      <div className="flex justify-between items-center relative z-10">
+                        <span className="font-bold">Subtotal:</span>
+                        <span className="text-white font-black">₵{finalOrderBillTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-emerald-400 relative z-10">
+                        <span className="font-bold">Delivery Fee:</span>
+                        <span className="font-black uppercase">Calculated Post-Checkout</span>
+                      </div>
+                      
+                      {compiledItemsList.map(line => {
+                        if (!line.isMixedMoqSatisfiedForThisSize) {
+                          return (
+                            <div key={`moq-alert-${line.variant.id}`} className="text-[10px] text-amber-400 bg-amber-950/50 p-3 border border-amber-900/50 rounded-xl flex gap-2 leading-tight font-bold relative z-10">
+                              <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
+                              <span>Missing: Add {line.requiredMoqSizeFloorValue - line.currentTotalUnitsInThisSizeGroup} more {line.variant.size} packs to checkout.</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })}
+
+                      {appliedCoupon && (
+                        <div className="text-[10px] text-emerald-400 bg-emerald-950/50 p-3 border border-emerald-900/50 rounded-xl flex gap-2 leading-snug font-bold relative z-10">
+                          <Zap className="h-4 w-4 shrink-0 text-emerald-400" />
+                          <span>Promo Link Active. Applying exclusive rates.</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between items-end border-t border-stone-800 pt-4 mt-2 text-white relative z-10">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-stone-500">Total</span>
+                        <span className="text-2xl font-black">₵{finalOrderBillTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <button 
+                      type="submit" disabled={isSubmittingOrder || cart.length === 0}
+                      className="w-full bg-rose-600 hover:bg-rose-500 disabled:bg-stone-200 text-white disabled:text-stone-400 font-black text-sm py-4 rounded-2xl transition-all uppercase tracking-widest shadow-[0_8px_30px_rgb(225,29,72,0.3)] disabled:shadow-none"
+                    >
+                      <span>{isSubmittingOrder ? 'Processing...' : 'Secure Order'}</span>
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROMO GATEWAY MODAL */}
+      {gatewayStage !== 'unlocked' && (
+        <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-xl z-50 flex justify-center items-center p-4">
+          <div className="w-full max-w-md bg-[#FDFBF7] rounded-[40px] p-8 shadow-2xl border border-stone-200 text-center space-y-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500 rounded-full blur-3xl opacity-10 -mr-20 -mt-20 pointer-events-none"></div>
+
+            <div className="space-y-3 relative z-10">
+              
+              {/* GIANT, INTERACTIVE, CLICKABLE LOGO */}
+              <Link href="/" className="block transform transition-all duration-300 hover:scale-105 hover:-translate-y-1">
+                <Image 
+                  src="/SPARKLE BEV. LOGO A No BG.png" 
+                  alt="Sparkle Logo" 
+                  width={320} 
+                  height={180} 
+                  className="h-32 mx-auto object-contain drop-shadow-xl mb-6" 
+                  priority 
+                />
+              </Link>
+
+              <div className="inline-flex items-center gap-1.5 bg-stone-900 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">
+                <Key className="h-3 w-3" /> Promo Access
+              </div>
+              <h2 className="text-3xl font-black tracking-tighter text-stone-950 uppercase">Unlock The Drop.</h2>
+              <p className="text-sm text-stone-500 font-medium px-4">Got a promo code? Drop it here to score a sweet discount on your batch.</p>
+            </div>
+
+            {gatewayStage === 'question' && (
+              <div className="grid grid-cols-2 gap-3 relative z-10">
+                <button 
+                  type="button" 
+                  onClick={() => setGatewayStage('input_form')}
+                  className="bg-stone-950 hover:bg-stone-800 text-white py-4 rounded-2xl shadow-xl transition-all font-black text-xs uppercase tracking-widest"
+                >
+                  Yes, I Do
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setGatewayStage('unlocked')}
+                  className="bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-200 py-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest"
+                >
+                  No, Skip
+                </button>
+              </div>
+            )}
+
+            {gatewayStage === 'input_form' && (
+              <form onSubmit={handleVerifyGatewayCode} className="space-y-5 text-left relative z-10">
+                <div>
+                  <div className="relative">
+                    <Tag className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                    <input 
+                      type="text" required autoFocus value={gatewayInput} 
+                      onChange={(e) => setGatewayInput(e.target.value.toUpperCase())} 
+                      placeholder="ENTER PROMO CODE" 
+                      className="w-full bg-white border-2 border-stone-200 focus:border-rose-500 rounded-2xl pl-12 pr-4 py-4 outline-none text-stone-950 font-black tracking-widest text-center text-lg uppercase transition-colors placeholder:text-stone-300" 
+                    />
+                  </div>
+                </div>
+
+                {gatewayError && (
+                  <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl text-xs font-bold text-rose-700 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
+                    <span>{gatewayError}</span>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button 
+                    type="button" 
+                    onClick={() => { setGatewayStage('question'); setGatewayError(null); }}
+                    className="w-1/3 bg-white hover:bg-stone-50 border-2 border-stone-200 text-stone-600 font-black rounded-2xl transition-all text-center uppercase text-[10px] tracking-widest py-4"
+                  >
+                    Back
+                  </button>
+                  <button type="submit" className="w-2/3 bg-rose-600 hover:bg-rose-500 text-white font-black py-4 rounded-2xl transition-all shadow-[0_8px_30px_rgb(225,29,72,0.3)] flex items-center justify-center gap-2 uppercase text-xs tracking-widest">
+                    <span>Verify Code</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* =========================================
-          THE BRAND CONTACT FOOTER
+          🆕 THE BRAND CONTACT FOOTER
       ========================================= */}
       <footer className="bg-stone-950 text-white border-t-4 border-emerald-500 pt-16 pb-12 px-6 sm:px-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 border-b border-stone-900 pb-12 mb-12">
           
+          {/* Brand Vision Side */}
           <div className="md:col-span-5 space-y-4 text-left">
             <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={140} height={50} className="h-10 w-auto object-contain brightness-110" />
             <p className="text-stone-400 text-xs font-bold leading-relaxed max-w-sm font-sans">
@@ -529,6 +699,7 @@ export default function ShopStorefrontPage() {
             </p>
           </div>
 
+          {/* Hit Us Up / Contact Details Column */}
           <div className="md:col-span-4 space-y-4 text-left font-mono">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Hit Us Up Directly</h4>
             <div className="space-y-3 text-xs">
@@ -543,6 +714,7 @@ export default function ShopStorefrontPage() {
             </div>
           </div>
 
+          {/* Quick Platform Directory Links */}
           <div className="md:col-span-3 space-y-4 text-left text-xs font-bold font-mono">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-stone-500">Directory Grid</h4>
             <div className="grid grid-cols-1 gap-2">
@@ -554,6 +726,7 @@ export default function ShopStorefrontPage() {
 
         </div>
 
+        {/* Legal & Final Copy Block */}
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
           <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">
             © 2026 Sparkle Beverages Ltd. • Fueling Authentic Hustles Across Ghana.
@@ -567,7 +740,7 @@ export default function ShopStorefrontPage() {
       </footer>
 
       {/* =========================================
-          PULSING FLOATING WHATSAPP BUTTON
+          🆕 PULSING FLOATING WHATSAPP BUTTON
       ========================================= */}
       <a 
         href="https://wa.me/233533527192?text=Hey%20Sparkle!%20I'm%20reaching%20out%20from%20the%20shop%20page.%20Could%20you%20help%20me%20with%20something?" 
@@ -576,7 +749,9 @@ export default function ShopStorefrontPage() {
         className="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#20ba5a] text-white p-4 rounded-full shadow-[0_8px_30px_rgba(37,211,102,0.4)] transition-all duration-300 hover:scale-110 flex items-center justify-center hover:-translate-y-1 group"
         aria-label="Contact Sparkle on WhatsApp"
       >
+        {/* Pulsing Backlight Ring animation */}
         <div className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-35 group-hover:opacity-0 transition-opacity" />
+        
         <MessageCircle className="h-6 w-6 relative z-10 fill-white text-[#25D366]" />
       </a>
 
