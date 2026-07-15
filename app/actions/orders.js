@@ -222,12 +222,12 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
     }
 
     // =========================================================================
-    // 📧 NEW: DISPATCH ADMIN EMAIL NOTIFICATION VIA RESEND
+    // 📧 UPDATED: TARGETS YOUR NEW SPARKLE OPERATIONS INBOX
     // =========================================================================
     try {
       await resend.emails.send({
-        from: 'Sparkle Storefront <onboarding@resend.dev>', // Resend's free tier testing domain
-        to: ['benjamin.amoakwa@gmail.com'], // <--- CHANGE THIS TO YOUR ACTUAL EMAIL ADDRESS
+        from: 'Sparkle Storefront <onboarding@resend.dev>', // Resend's default sandbox domain
+        to: ['sparklebeverages@outlook.com'],               // 👈 FIX: Redirects exactly to your updated active inbox
         subject: `🚨 New PAID Sparkle Order: ₵${Number(updatedOrder.total_amount).toFixed(2)}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px; border-radius: 10px; background-color: #FAFAFA; border: 1px solid #E5E7EB;">
