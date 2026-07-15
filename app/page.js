@@ -32,9 +32,9 @@ export default function BrandWelcomeHomePage() {
     team_m2_name: "Head of Brand Architecture", "team_m2_role": "Aesthetics & Culture", "team_m2_img": "",
     team_m3_name: "Director of Operations", "team_m3_role": "Logistics & Drops", "team_m3_img": "",
     gallery_1_title: "Signature Flavors", "gallery_1_img": "",
-    gallery_2_title: "Campus Hangouts", "gallery_2_img": "",
-    gallery_3_title: "Study Session Fuel", "gallery_3_img": "",
-    gallery_4_title: "Community Impact", "gallery_4_img": ""
+    gallery_2_title: "Custom Matrimony Drop", "gallery_2_img": "",
+    gallery_3_title: "Executive Gala Service", "gallery_3_img": "",
+    gallery_4_title: "The Community Giveback", "gallery_4_img": ""
   };
 
   const quickProducts = {
@@ -82,11 +82,20 @@ export default function BrandWelcomeHomePage() {
     }
   };
 
+  // SMART ROUTING LOGIC: Assigns link dynamically based on the title keywords
+  const getSmartLink = (title) => {
+    const lower = title.toLowerCase();
+    if (lower.includes('custom') || lower.includes('gala') || lower.includes('service') || lower.includes('event')) {
+      return '/custom';
+    }
+    return '/shop';
+  };
+
   const galleryItems = [
-    { id: 1, title: cms.gallery_1_title, src: cms.gallery_1_img, tag: "The Drop" },
-    { id: 2, title: cms.gallery_2_title, src: cms.gallery_2_img, tag: "Lifestyle" },
-    { id: 3, title: cms.gallery_3_title, src: cms.gallery_3_img, tag: "Events" },
-    { id: 4, title: cms.gallery_4_title, src: cms.gallery_4_img, tag: "Culture" },
+    { id: 1, title: cms.gallery_1_title || "Signature Flavors", src: cms.gallery_1_img, tag: "The Drop" },
+    { id: 2, title: cms.gallery_2_title || "Custom Matrimony Drop", src: cms.gallery_2_img, tag: "Lifestyle" },
+    { id: 3, title: cms.gallery_3_title || "Executive Gala Service", src: cms.gallery_3_img, tag: "Events" },
+    { id: 4, title: cms.gallery_4_title || "The Community Giveback", src: cms.gallery_4_img, tag: "Culture" },
   ];
 
   const handleFlavorChange = (flavorKey) => {
@@ -251,37 +260,46 @@ export default function BrandWelcomeHomePage() {
       </section>
 
       {/* MEDIA GALLERY */}
-      <section className="bg-stone-950 text-white py-24">
+      <section className="bg-[#111111] text-white py-24 border-t border-stone-900">
         <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-16">
-          <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-stone-800 pb-8">
-            <div className="space-y-3">
-              <div className="text-[11px] font-black tracking-widest text-rose-500 uppercase flex items-center gap-2">
-                <span className="w-8 h-0.5 bg-rose-500"></span> 02 / The Gallery
-              </div>
-              <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-white uppercase">Sparkle in the Wild</h2>
+          <div className="flex flex-col justify-between items-start gap-4 border-b border-stone-800 pb-8">
+            <div className="text-[11px] font-black tracking-widest text-rose-500 uppercase flex items-center gap-2">
+              <span className="w-8 h-0.5 bg-rose-500"></span> 02 / The Gallery
             </div>
+            <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-white uppercase">Sparkle In The Wild</h2>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {galleryItems.map(item => (
-              <div key={item.id} className="group cursor-pointer">
-                <div className="aspect-[4/5] w-full relative overflow-hidden rounded-[32px] bg-stone-900 flex items-center justify-center border-2 border-stone-800 group-hover:border-amber-400 transition-colors duration-500">
+              <Link href={getSmartLink(item.title)} key={item.id} className="group block cursor-pointer">
+                {/* Image Card Container */}
+                <div className="aspect-[4/5] w-full relative overflow-hidden rounded-[32px] bg-stone-900 mb-4 border-2 border-transparent group-hover:border-rose-500 shadow-lg transition-colors duration-500">
                   {item.src ? (
                     <Image 
                       src={item.src} 
                       alt={item.title} 
                       layout="fill"
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 group-hover:opacity-100" 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-700 font-black uppercase">No Asset Uploaded</div>
+                    <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-700 font-black uppercase bg-stone-900">
+                      No Image Uploaded
+                    </div>
                   )}
-                  <span className="absolute top-4 right-4 bg-white text-stone-950 font-black text-[9px] uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg z-10 scale-95 group-hover:scale-100 transition-transform">
-                    {item.tag}
-                  </span>
+                  
+                  {/* White Tag Pill (Top Right) */}
+                  <div className="absolute top-4 right-4 bg-white px-3 py-1.5 rounded-full shadow-md z-10">
+                    <span className="text-[10px] font-black text-stone-950 uppercase tracking-widest">
+                      {item.tag}
+                    </span>
+                  </div>
                 </div>
-                <h3 className="font-black text-sm text-stone-300 group-hover:text-white mt-4 uppercase tracking-wide transition-colors">{item.title}</h3>
-              </div>
+                
+                {/* Title Text Below Image */}
+                <h3 className="text-white font-black uppercase text-xs tracking-widest group-hover:text-rose-500 transition-colors">
+                  {item.title}
+                </h3>
+              </Link>
             ))}
           </div>
         </div>
