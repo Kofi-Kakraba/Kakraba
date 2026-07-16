@@ -363,7 +363,6 @@ export default function ShopPage() {
                     <div>
                       <h4 className="font-black text-stone-950 uppercase text-lg leading-tight tracking-tight pr-2">{product.name}</h4>
                       <div className="flex items-center gap-2 mt-1">
-                        {/* Upgraded layout displays both container volume and culture slang name */}
                         <span className={`text-[10px] font-black uppercase tracking-widest ${theme.text}`}>
                           {variant.size} {getSizeSlang(variant.size) && `// ${getSizeSlang(variant.size)}`}
                         </span>
@@ -516,7 +515,6 @@ export default function ShopPage() {
                         <div>
                           <h5 className="font-black text-stone-950 uppercase text-sm leading-tight tracking-tight">{item.product.name}</h5>
                           <div className="flex gap-2 mt-1.5">
-                            {/* Drawer list item size badges updated with matching slang names */}
                             <span className="text-[10px] bg-stone-200/50 text-stone-600 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
                               {item.variant.size} {getSizeSlang(item.variant.size) && `// ${getSizeSlang(item.variant.size)}`}
                             </span>
@@ -549,7 +547,17 @@ export default function ShopPage() {
                         <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full legal name" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
                       </div>
                       <div>
-                        <input type="tel" required value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Mobile Money Number (e.g. 054...)" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
+                        {/* 🛠️ UPGRADED SAFEGUARD FIELD: Enforces exact 10-digit formats beginning with a 0 */}
+                        <input 
+                          type="tel" 
+                          required 
+                          pattern="0[0-9]{9}" 
+                          title="Please enter a valid 10-digit Ghanaian phone number starting with 0 (e.g., 0547664422)"
+                          value={customerPhone} 
+                          onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').substring(0, 10))} 
+                          placeholder="Mobile Money Number (e.g. 054...)" 
+                          className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" 
+                        />
                       </div>
                       
                       <div className="grid grid-cols-2 gap-2 bg-[#FDFBF7] p-1.5 border-2 border-stone-200 rounded-2xl text-center">

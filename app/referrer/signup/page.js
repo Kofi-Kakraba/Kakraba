@@ -201,7 +201,17 @@ export default function ReferrerSignupPage() {
                 <label className="block text-stone-500 uppercase font-black text-[10px] mb-2 tracking-widest">Contact Phone</label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-                  <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0540000000" className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl pl-11 pr-4 py-3 text-stone-900 font-bold outline-none focus:border-rose-500 transition-colors" />
+                  {/* 🛠️ UPGRADED CEILING SAFEGUARD FIELD: Enforces exact 10-digit formats starting with 0 */}
+                  <input 
+                    type="tel" 
+                    required 
+                    pattern="0[0-9]{9}"
+                    title="Please enter a valid 10-digit Ghanaian phone number starting with 0 (e.g., 0547664422)"
+                    value={phone} 
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').substring(0, 10))} 
+                    placeholder="e.g. 0547664422" 
+                    className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl pl-11 pr-4 py-3 text-stone-900 font-bold outline-none focus:border-rose-500 transition-colors" 
+                  />
                 </div>
               </div>
               <div className="md:col-span-2">
@@ -230,7 +240,17 @@ export default function ReferrerSignupPage() {
                 <label className="block text-stone-500 uppercase font-black text-[10px] mb-2 tracking-widest">MoMo Wallet Number</label>
                 <div className="relative">
                   <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-                  <input type="tel" required value={momoNumber} onChange={(e) => setMomoNumber(e.target.value)} placeholder="Receiving Number" className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl pl-11 pr-4 py-3 text-stone-900 font-bold outline-none focus:border-rose-500 transition-colors" />
+                  {/* 🛠️ UPGRADED CEILING SAFEGUARD FIELD: Enforces exact 10-digit formats starting with 0 */}
+                  <input 
+                    type="tel" 
+                    required 
+                    pattern="0[0-9]{9}"
+                    title="Please enter a valid 10-digit Ghanaian mobile money wallet number starting with 0 (e.g., 0547664422)"
+                    value={momoNumber} 
+                    onChange={(e) => setMomoNumber(e.target.value.replace(/\D/g, '').substring(0, 10))} 
+                    placeholder="Receiving Number" 
+                    className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl pl-11 pr-4 py-3 text-stone-900 font-bold outline-none focus:border-rose-500 transition-colors" 
+                  />
                 </div>
               </div>
             </div>

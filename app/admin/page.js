@@ -179,6 +179,7 @@ export default function AdminDashboardPage() {
         });
         setPrintOrderItems(enrichedItems);
       }
+      document.body.classList.add('print-modal-active');
       setLoadingPrintItems(false);
     }
     pullChildInvoiceLineItems();
@@ -374,6 +375,14 @@ export default function AdminDashboardPage() {
       setNewCode(''); setNewAmbassadorName(''); setNewAmbassadorPhone(''); setNewAmbassadorEmail(''); setNewAmbassadorMomo(''); setNewAmbassadorPassword('');
       await loadDashboardData();
     } else { alert(`Database rejected entry: ${error.message}`); }
+    const handleToggleCodeFlag = async (id, field, currentVal) => {
+      setUpdatingId(id);
+      const { error } = await supabase.from('referral_codes').update({ [field]: !currentVal }).eq('id', id);
+      if (!error) {
+        setReferrals(prev => prev.map(r => r.id === id ? { ...r, [field]: !currentVal } : r));
+      } else { alert(`Toggle failed: ${error.message}`); }
+      setUpdatingId(null);
+    };
     setUpdatingId(null);
   };
 
@@ -621,6 +630,15 @@ export default function AdminDashboardPage() {
     return [];
   };
 
+  const handleToggleCodeFlag = async (id, field, currentVal) => {
+    setUpdatingId(id);
+    const { error } = await supabase.from('referral_codes').update({ [field]: !currentVal }).eq('id', id);
+    if (!error) {
+      setReferrals(prev => prev.map(r => r.id === id ? { ...r, [field]: !currentVal } : r));
+    } else { alert(`Toggle failed: ${error.message}`); }
+    setUpdatingId(null);
+  };
+
   return (
     <div className="min-h-screen bg-stone-955 text-stone-100 font-sans antialiased pb-12 print:bg-white print:text-stone-900">
       
@@ -782,7 +800,22 @@ export default function AdminDashboardPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Ambassador Name</label><input type="text" required placeholder="e.g. Benjamin Baah Amoakwa" value={newAmbassadorName} onChange={(e) => setNewAmbassadorName(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold outline-none" /></div>
                   <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Unique Code Handle</label><input type="text" required placeholder="e.g. SPK-BEN7" value={newCode} onChange={(e) => setNewCode(e.target.value.toUpperCase())} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold outline-none uppercase tracking-widest" /></div>
-                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Contact Phone Line</label><input type="tel" required placeholder="e.g. 0547664422" value={newAmbassadorPhone} onChange={(e) => setNewAmbassadorPhone(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" /></div>
+                  
+                  {/* 🛠️ UPGRADED CEILING SAFEGUARD FIELD: Enforces 10-digit formats inside partner listings */}
+                  <div>
+                    <label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Contact Phone Line</label>
+                    <input 
+                      type="tel" 
+                      required 
+                      pattern="0[0-9]{9}"
+                      title="Please enter a valid 10-digit Ghanaian phone number starting with 0 (e.g., 0547664422)"
+                      placeholder="e.g. 0547664422" 
+                      value={newAmbassadorPhone} 
+                      onChange={(e) => setNewAmbassadorPhone(e.target.value.replace(/\D/g, '').substring(0, 10))} 
+                      className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" 
+                    />
+                  </div>
+                  
                   <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Contact Email</label><input type="email" placeholder="e.g. email@example.com" value={newAmbassadorEmail} onChange={(e) => setNewAmbassadorEmail(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" /></div>
                   <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">MoMo Wallet Number</label><input type="tel" placeholder="e.g. 0547664422" value={newAmbassadorMomo} onChange={(e) => setNewAmbassadorMomo(e.target.value)} className="w-full bg-stone-955 border border-stone-850 rounded-xl px-3 py-2 text-white outline-none" /></div>
                   <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Account Password</label><input type="text" placeholder="Leave blank to auto-generate" value={newAmbassadorPassword} onChange={(e) => setNewAmbassadorPassword(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" /></div>
@@ -857,7 +890,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <div>
                     <label className="block text-stone-500 mb-1 font-bold uppercase text-[9px]">Campaign Context Brief</label>
-                    <input type="text" required placeholder="e.g. Valentine Day 2026 Special Pool" value={newCampaign} onChange={(e) => setNewCampaign(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white text-stone-200 outline-none" />
+                    <input type="text" required placeholder="e.g. Valentine Day 2026 Special Pool" value={newCampaign} onChange={(e) => setNewCampaign(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
                   </div>
                 </div>
 
@@ -909,7 +942,7 @@ export default function AdminDashboardPage() {
                               <div>300ml: <input type="number" step="0.01" value={editPromo300ml} onChange={(e)=>setEditPromo300ml(e.target.value)} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
                               <div>500ml: <input type="number" step="0.01" value={editPromo500ml} onChange={(e)=>setEditPromo500ml(e.target.value)} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
                               <div>1.5L: <input type="number" step="0.01" value={editPromo15L} onChange={(e)=>setEditPromo15L(e.target.value)} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
-                              <div>5L: <input type="number" step="0.01" value={editPromo5L} onChange={(e)=>setEditPromo5L(e.target.value)} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
+                              <div>5L: <input type="number" step="0.01" value={editPromo5xl} onChange={(e)=>setEditPromo5L(e.target.value)} className="w-16 bg-stone-900 border rounded text-center text-white" /></div>
                             </div>
                             <button type="button" onClick={() => handleSavePromoCodeOverride(ref.id)} className="w-full bg-cyan-600 text-white font-bold py-1 rounded flex items-center justify-center gap-1 shadow-md uppercase text-[9px] tracking-wider"><Save className="h-3 w-3" /> Save Changes</button>
                           </div>
@@ -923,7 +956,7 @@ export default function AdminDashboardPage() {
                         )}
                       </div>
                     </div>
-                    <div className="border-t border-stone-800 pt-3 flex justify-between items-center text-[10px] font-mono text-stone-500">
+                    <div className="border-t border-stone-800 pt-3 flex items-center justify-between gap-2">
                       <span>Linked Campaign Node</span>
                       <button onClick={() => handleMasterDeleteReferrerRecord(ref.id, ref.code)} className="text-stone-600 hover:text-red-400 p-1"><Trash2 className="h-4 w-4" /></button>
                     </div>
@@ -1013,7 +1046,7 @@ export default function AdminDashboardPage() {
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
                   {lowStockAlertInventoryBin.map(variant => (
-                    <div key={`alert-card-${variant.id}`} className="bg-stone-950 border border-red-900/30 p-3 rounded-xl flex justify-between items-center text-[11px] font-bold">
+                    <div key={`alert-card-${variant.id}`} className="bg-stone-955 border border-red-900/30 p-3 rounded-xl flex justify-between items-center text-[11px] font-bold">
                       <div className="space-y-0.5">
                         <span className="text-white uppercase truncate block max-w-[120px]">{variant.flavorName}</span>
                         <span className="text-[9px] bg-stone-900 text-stone-455 border px-1.5 py-0.2 rounded uppercase inline-block">{variant.size}</span>
@@ -1042,7 +1075,7 @@ export default function AdminDashboardPage() {
             <div className="space-y-6">
               {products.map((product) => (
                 <div key={product.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4 shadow-lg">
-                  <div className="flex justify-between items-baseline border-b border-stone-800/60 pb-2"><h3 className="font-serif font-serif font-bold text-base text-white">{product.name}</h3></div>
+                  <div className="flex justify-between items-baseline border-b border-stone-800/60 pb-2"><h3 className="font-sans font-bold text-base text-white">{product.name}</h3></div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {product.product_variants?.map((variant) => {
                       const isEditing = editingVariantId === variant.id;
@@ -1076,7 +1109,7 @@ export default function AdminDashboardPage() {
                                 <div className="flex justify-between"><span>Stock Remaining:</span><strong className={isLowStock ? 'text-red-400 font-black' : 'text-white'}>{variant.stock_quantity} units</strong></div>
                                 <div className="flex justify-between text-cyan-400/90"><span>Base Size MOQ:</span><strong>{variant.size_moq_floor || 30} units</strong></div>
                                 <div className="flex justify-between text-blue-400/90"><span>Wholesale Trigger:</span><strong>{variant.moq_floor || 50} units</strong></div>
-                                <div className="flex justify-between text-red-400/90 border-t border-stone-900 pt-1"><span>Referral Discount:</span><strong>₵{Number(variant.client_discount || 0).toFixed(2)}</strong></div>
+                                <div className="flex justify-between text-red-400/90 border-t border-stone-900 pt-1"><span>Referral Discount:</span><th>₵{Number(variant.client_discount || 0).toFixed(2)}</th></div>
                                 <div className="flex justify-between text-purple-400/90"><span>Ambassador Bonus:</span><strong>₵{Number(variant.referrer_earnings || 0).toFixed(2)}</strong></div>
                                 <div className="flex justify-between border-t border-stone-900 pt-1"><span>Retail Cost:</span><strong className="text-emerald-400">₵{Number(variant.retail_price).toFixed(2)}</strong></div>
                                 <div className="flex justify-between"><span>Wholesale Cost:</span><strong className="text-amber-400">₵{Number(variant.wholesale_price).toFixed(2)}</strong></div>
@@ -1281,10 +1314,22 @@ export default function AdminDashboardPage() {
                     <label className="block text-stone-500 font-bold uppercase text-[9px] mb-1">Rider Full Name</label>
                     <input type="text" required value={riderName} onChange={(e) => setRiderName(e.target.value)} placeholder="e.g. Samuel Osei" className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500" />
                   </div>
+                  
+                  {/* 🛠️ UPGRADED CEILING SAFEGUARD FIELD: Enforces 10-digit formats inside fulfillment manifests */}
                   <div>
                     <label className="block text-stone-500 font-bold uppercase text-[9px] mb-1">Rider Contact Line</label>
-                    <input type="tel" required value={riderPhone} onChange={(e) => setRiderPhone(e.target.value)} placeholder="e.g. 0244123456" className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500" />
+                    <input 
+                      type="tel" 
+                      required 
+                      pattern="0[0-9]{9}"
+                      title="Please enter a valid 10-digit Ghanaian phone number starting with 0 (e.g., 0244123456)"
+                      value={riderPhone} 
+                      onChange={(e) => setRiderPhone(e.target.value.replace(/\D/g, '').substring(0, 10))} 
+                      placeholder="e.g. 0244123456" 
+                      className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500" 
+                    />
                   </div>
+                  
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-stone-500 font-bold uppercase text-[9px] mb-1">Vehicle Type</label>
