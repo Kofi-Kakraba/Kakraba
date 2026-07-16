@@ -57,6 +57,16 @@ export default function ShopPage() {
     fetchStoreCatalog();
   }, []);
 
+  // Dynamic brand slang dictionary helper
+  const getSizeSlang = (size) => {
+    const cleanSize = size.toLowerCase().trim();
+    if (cleanSize.includes('300ml')) return 'Solo ⚡';
+    if (cleanSize.includes('500ml')) return 'Gee ✊';
+    if (cleanSize.includes('1.5l')) return 'Paddy 🤝';
+    if (cleanSize.includes('5l')) return 'Link-Up 🔊';
+    return '';
+  };
+
   const handleVerifyGatewayCode = async (e) => {
     e.preventDefault();
     if (!gatewayInput) return;
@@ -353,7 +363,10 @@ export default function ShopPage() {
                     <div>
                       <h4 className="font-black text-stone-950 uppercase text-lg leading-tight tracking-tight pr-2">{product.name}</h4>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${theme.text}`}>{variant.size}</span>
+                        {/* Upgraded layout displays both container volume and culture slang name */}
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${theme.text}`}>
+                          {variant.size} {getSizeSlang(variant.size) && `// ${getSizeSlang(variant.size)}`}
+                        </span>
                       </div>
                     </div>
                     <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${isOutOfStock ? 'bg-stone-100 text-stone-400' : 'bg-stone-950 text-white'}`}>
@@ -503,7 +516,10 @@ export default function ShopPage() {
                         <div>
                           <h5 className="font-black text-stone-950 uppercase text-sm leading-tight tracking-tight">{item.product.name}</h5>
                           <div className="flex gap-2 mt-1.5">
-                            <span className="text-[10px] bg-stone-200/50 text-stone-600 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">{item.variant.size}</span>
+                            {/* Drawer list item size badges updated with matching slang names */}
+                            <span className="text-[10px] bg-stone-200/50 text-stone-600 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
+                              {item.variant.size} {getSizeSlang(item.variant.size) && `// ${getSizeSlang(item.variant.size)}`}
+                            </span>
                             {item.isWholesaleTierTriggered && !appliedCoupon && (
                               <span className="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">Wholesale</span>
                             )}
@@ -685,9 +701,7 @@ export default function ShopPage() {
         </div>
       )}
 
-      {/* =========================================
-          🆕 THE BRAND CONTACT FOOTER
-      ========================================= */}
+      {/* THE BRAND CONTACT FOOTER */}
       <footer className="bg-stone-950 text-white border-t-4 border-emerald-500 pt-16 pb-12 px-6 sm:px-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 border-b border-stone-900 pb-12 mb-12">
           
@@ -739,9 +753,7 @@ export default function ShopPage() {
         </div>
       </footer>
 
-      {/* =========================================
-          🆕 PULSING FLOATING WHATSAPP BUTTON
-      ========================================= */}
+      {/* PULSING FLOATING WHATSAPP BUTTON */}
       <a 
         href="https://wa.me/233533527192?text=Hey%20Sparkle!%20I'm%20reaching%20out%20from%20the%20shop%20page.%20Could%20you%20help%20me%20with%20something?" 
         target="_blank" 
@@ -749,9 +761,7 @@ export default function ShopPage() {
         className="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#20ba5a] text-white p-4 rounded-full shadow-[0_8px_30px_rgba(37,211,102,0.4)] transition-all duration-300 hover:scale-110 flex items-center justify-center hover:-translate-y-1 group"
         aria-label="Contact Sparkle on WhatsApp"
       >
-        {/* Pulsing Backlight Ring animation */}
         <div className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-35 group-hover:opacity-0 transition-opacity" />
-        
         <MessageCircle className="h-6 w-6 relative z-10 fill-white text-[#25D366]" />
       </a>
 
