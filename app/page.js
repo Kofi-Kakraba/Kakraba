@@ -23,7 +23,7 @@ export default function BrandWelcomeHomePage() {
   }, []);
 
   const cms = content || {
-    hero_title: "Chill Sip. Sparkle.",
+    hero_title: "Chill. Sip. Sparkle.",
     hero_subtitle: "Bold fruit flavors packed in grab-and-go spouted pouches. Made for the daily hustle.",
     story_title: "The Sparkle Vibe.",
     story_p1: "We got tired of the same old boring drinks. Sparkle was born to bring high-energy, authentic fruit flavors in a pouch that actually keeps up with your lifestyle. Slow-cooked, locally sourced, and packed with real vibes.",
@@ -159,7 +159,7 @@ export default function BrandWelcomeHomePage() {
             
             <h1 className="text-5xl md:text-7xl lg:text-[5.5rem] font-black tracking-tighter leading-[0.95] uppercase">
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-rose-600 via-amber-500 to-emerald-500">
-                Chill Sip.
+                Chill. Sip.
               </span>
               <br />
               <span className="text-stone-900">Sparkle.</span>
