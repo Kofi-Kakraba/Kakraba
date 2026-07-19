@@ -102,11 +102,13 @@ export default function AdminDashboardPage() {
     const locationMatch = orderLocationText.trim() === '' ||
       (order.landmark && order.landmark.toLowerCase().includes(orderLocationText.toLowerCase()));
 
+    // 🚨 NEW: Added dedicated 'cancelled' status match
     const statusMatch = filterStatus === 'all' || 
-      (filterStatus === 'active' && order.status !== 'completed') ||
+      (filterStatus === 'active' && order.status !== 'completed' && order.status !== 'cancelled') ||
       (filterStatus === 'paid' && order.payment_status === 'paid') ||
       (filterStatus === 'processing' && order.status === 'processing') ||
-      (filterStatus === 'completed' && order.status === 'completed');
+      (filterStatus === 'completed' && order.status === 'completed') ||
+      (filterStatus === 'cancelled' && order.status === 'cancelled');
 
     return textMatch && dateMatch && locationMatch && statusMatch;
   });
@@ -686,8 +688,10 @@ export default function AdminDashboardPage() {
               </div>
               <div>
                 <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1"><ListFilter className="h-3 w-3" /> Fulfill State Group</label>
-                <div className="bg-stone-955 p-0.5 rounded-xl border border-stone-800 grid grid-cols-5 gap-0.5 text-[9px] font-bold text-center h-9 items-center">
-                  {['active', 'all', 'paid', 'processing', 'completed'].map((st) => (
+                
+                {/* 🚨 NEW: Grid changed to grid-cols-6 to make room for Cancelled tab */}
+                <div className="bg-stone-955 p-0.5 rounded-xl border border-stone-800 grid grid-cols-6 gap-0.5 text-[9px] font-bold text-center h-9 items-center">
+                  {['active', 'all', 'paid', 'processing', 'completed', 'cancelled'].map((st) => (
                     <button key={st} onClick={() => setFilterStatus(st)} className={`py-1.5 rounded-lg capitalize ${filterStatus === st ? 'bg-emerald-600 text-white' : 'text-stone-400'}`}>{st}</button>
                   ))}
                 </div>
@@ -696,7 +700,11 @@ export default function AdminDashboardPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredOrders.map((order) => {
-                const isPaid = order.payment_status === 'paid'; const isProcessing = order.status === 'processing'; const isCompleted = order.status === 'completed'; const referralTrack = order.metadata?.applied_code;
+                const isPaid = order.payment_status === 'paid'; 
+                const isProcessing = order.status === 'processing'; 
+                const isCompleted = order.status === 'completed'; 
+                const isCancelled = order.status === 'cancelled'; 
+                const referralTrack = order.metadata?.applied_code;
                 const manifestLines = resolveItemManifestLines(order);
                 const hasRiderAssigned = order.metadata?.rider_name;
                 
@@ -766,8 +774,7 @@ export default function AdminDashboardPage() {
                           <span>Print Slip</span>
                         </button>
                         
-                        {/* 🚨 NEW: Cancel Button (Only shows if the order is NOT paid and NOT completed) */}
-                        {!isCompleted && !isPaid && (
+                        {!isCompleted && !isPaid && !isCancelled && (
                           <button
                             type="button"
                             disabled={updatingId === order.id}
@@ -785,7 +792,7 @@ export default function AdminDashboardPage() {
                       </div>
                       
                       {/* Right Side: Dispatch / Fulfillment Actions */}
-                      {!isCompleted && isPaid && (
+                      {!isCompleted && isPaid && !isCancelled && (
                         <button 
                           type="button" 
                           disabled={updatingId === order.id} 
