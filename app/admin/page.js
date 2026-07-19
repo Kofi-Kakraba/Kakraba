@@ -759,8 +759,32 @@ export default function AdminDashboardPage() {
                     </div>
                     
                     <div className="border-t border-stone-800 pt-3 flex items-center justify-between gap-2">
-                      <button type="button" onClick={() => setSelectedPrintOrder(order)} className="bg-stone-955 hover:bg-stone-800 border border-stone-800 text-stone-300 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1"><Printer className="h-3.5 w-3.5 text-cyan-400" /> <span>Print Slip</span></button>
+                      {/* Left Side: Print and Cancel Actions */}
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setSelectedPrintOrder(order)} className="bg-stone-955 hover:bg-stone-800 border border-stone-800 text-stone-300 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1">
+                          <Printer className="h-3.5 w-3.5 text-cyan-400" /> 
+                          <span>Print Slip</span>
+                        </button>
+                        
+                        {/* 🚨 NEW: Cancel Button (Only shows if the order is NOT paid and NOT completed) */}
+                        {!isCompleted && !isPaid && (
+                          <button
+                            type="button"
+                            disabled={updatingId === order.id}
+                            onClick={() => {
+                              if (confirm("Are you sure you want to cancel this unpaid order?")) {
+                                handleUpdateFulfillmentState(order.id, 'cancelled');
+                              }
+                            }}
+                            className="bg-red-955/20 hover:bg-red-900/40 border border-red-900/30 text-red-400 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1 transition-colors"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            <span>Cancel</span>
+                          </button>
+                        )}
+                      </div>
                       
+                      {/* Right Side: Dispatch / Fulfillment Actions */}
                       {!isCompleted && isPaid && (
                         <button 
                           type="button" 
