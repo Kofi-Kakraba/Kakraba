@@ -361,9 +361,9 @@ export default function BrandWelcomeHomePage() {
                 <Phone className="h-4 w-4 text-emerald-500 shrink-0" />
                 <span>+233 533 527 192</span>
               </a>
-              <a href="mailto:sparklebeverages@outlook.com" className="flex items-center gap-2 text-stone-300 hover:text-white transition-colors truncate">
+              <a href="mailto:info@sparklebeverages.com" className="flex items-center gap-2 text-stone-300 hover:text-white transition-colors truncate">
                 <Mail className="h-4 w-4 text-rose-500 shrink-0" />
-                <span>sparklebeverages@outlook.com</span>
+                <span>info@sparklebeverages.com</span>
               </a>
             </div>
           </div>
