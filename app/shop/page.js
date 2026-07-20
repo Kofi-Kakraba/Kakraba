@@ -132,6 +132,11 @@ function ShopStorefront() {
       const cleanPromo = urlPromo.trim().toUpperCase();
       localStorage.setItem('sparkle_active_promo', cleanPromo);
       verifyAndApplyCode(cleanPromo, true);
+
+      // 🚨 THE SILENT PING: Log this scan to our tracking database!
+      // We don't await this because we want it to happen invisibly in the background
+      supabase.from('campaign_scans').insert([{ promo_code: cleanPromo }]).then();
+
     } else {
       const savedPromo = localStorage.getItem('sparkle_active_promo');
       if (savedPromo) {
