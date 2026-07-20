@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { 
   CheckCircle2, Clock, Truck, MapPin, Phone, User, Search, Calendar, ToggleLeft, ToggleRight,
   ShieldAlert, PackageCheck, RefreshCw, AlertCircle, Download, FileSpreadsheet, Camera, CreditCard,
@@ -32,10 +32,14 @@ export default function AdminDashboardPage() {
   
   // 🚨 ORDER FILTERS
   const [filterStatus, setFilterStatus] = useState('active'); 
-  const [deliveryFilter, setDeliveryFilter] = useState('all'); // NEW: For sorting Delivery vs Pickup
+  const [deliveryFilter, setDeliveryFilter] = useState('all'); 
   const [orderSearchText, setOrderSearchText] = useState('');
   const [orderDateText, setOrderDateText] = useState('');
   const [orderLocationText, setOrderLocationText] = useState(''); 
+
+  // CUSTOM DROPDOWN STATE & REF
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef(null);
 
   const [selectedAmbassadorDetails, setSelectedAmbassadorDetails] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -93,7 +97,26 @@ export default function AdminDashboardPage() {
   const humanAmbassadorsList = referrals.filter(r => r.legal_name && r.legal_name.trim() !== '');
   const purePromoCodesList = referrals.filter(r => !r.legal_name || r.legal_name.trim() === '');
   
-  // 🚨 CORRECT SCOPE: filteredOrders is safely inside the component function
+  const statusOptions = [
+    { value: 'active', label: 'Active Queue' },
+    { value: 'all', label: 'All Orders' },
+    { value: 'paid', label: 'Paid Only' },
+    { value: 'processing', label: 'Processing' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' }
+  ];
+
+  // Close custom dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+        setIsStatusDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const filteredOrders = orders.filter(order => {
     const textMatch = orderSearchText.trim() === '' || 
       order.customer_name.toLowerCase().includes(orderSearchText.toLowerCase()) ||
@@ -112,7 +135,6 @@ export default function AdminDashboardPage() {
       (filterStatus === 'completed' && order.status === 'completed') ||
       (filterStatus === 'cancelled' && order.status === 'cancelled');
 
-    // NEW: Delivery sorting logic
     const deliveryMatch = deliveryFilter === 'all' || order.delivery_type === deliveryFilter;
 
     return textMatch && dateMatch && locationMatch && statusMatch && deliveryMatch;
@@ -670,7 +692,7 @@ export default function AdminDashboardPage() {
         {/* TAB 1: ORDERS */}
         {activeTab === 'orders' && (
           <div className="space-y-6 print:hidden">
-            {/* 🚨 FILTER BAR UPDATED TO 5 COLUMNS */}
+            {/* FILTER BAR - 5 COLUMNS */}
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 font-mono text-xs shadow-md">
               <div>
                 <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1"><Search className="h-3 w-3" /> Search Customer / Ref ID</label>
@@ -685,23 +707,43 @@ export default function AdminDashboardPage() {
                 <input type="text" value={orderLocationText} onChange={(e) => setOrderLocationText(e.target.value)} placeholder="e.g. Airport Shell" className="w-full bg-stone-955 border border-cyan-900/40 rounded-xl px-3 py-2 text-cyan-400 outline-none" />
               </div>
               
-              {/* STATUS FILTER - FIXED: Converted to a Dropdown to prevent text overlap */}
-              <div>
+              {/* STATUS FILTER - PIXEL PERFECT CUSTOM DROPDOWN */}
+              <div className="relative" ref={statusDropdownRef}>
                 <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1">
                   <ListFilter className="h-3 w-3" /> Fulfill State Group
                 </label>
-                <select 
-                  value={filterStatus} 
-                  onChange={(e) => setFilterStatus(e.target.value)} 
-                  className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-1.5 h-9 text-[10px] text-stone-300 font-bold outline-none focus:border-emerald-500 cursor-pointer"
+                <button
+                  type="button"
+                  onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                  className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-1.5 h-9 text-[10px] text-stone-300 font-bold outline-none flex items-center justify-between transition-colors hover:border-emerald-500"
                 >
-                  <option value="active">Active Queue</option>
-                  <option value="all">All Orders</option>
-                  <option value="paid">Paid Only</option>
-                  <option value="processing">Processing</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+                  <span>{statusOptions.find(o => o.value === filterStatus)?.label}</span>
+                  <span className="text-[8px] opacity-70">▼</span>
+                </button>
+
+                {isStatusDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-full bg-stone-900 border border-stone-800 rounded-xl shadow-2xl overflow-hidden z-50">
+                    {statusOptions.map((option) => {
+                      const isSelected = filterStatus === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setFilterStatus(option.value);
+                            setIsStatusDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2.5 text-[10px] font-bold transition-all ${
+                            isSelected 
+                              ? 'bg-white text-black' 
+                              : 'text-stone-300 hover:bg-stone-800 hover:text-white'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* NEW: DELIVERY VS PICKUP TOGGLE */}
