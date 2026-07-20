@@ -685,14 +685,23 @@ export default function AdminDashboardPage() {
                 <input type="text" value={orderLocationText} onChange={(e) => setOrderLocationText(e.target.value)} placeholder="e.g. Airport Shell" className="w-full bg-stone-955 border border-cyan-900/40 rounded-xl px-3 py-2 text-cyan-400 outline-none" />
               </div>
               
-              {/* STATUS FILTER */}
+              {/* STATUS FILTER - FIXED: Converted to a Dropdown to prevent text overlap */}
               <div>
-                <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1"><ListFilter className="h-3 w-3" /> Fulfill State Group</label>
-                <div className="bg-stone-955 p-0.5 rounded-xl border border-stone-800 grid grid-cols-6 gap-0.5 text-[9px] font-bold text-center h-9 items-center">
-                  {['active', 'all', 'paid', 'processing', 'completed', 'cancelled'].map((st) => (
-                    <button key={st} onClick={() => setFilterStatus(st)} className={`py-1.5 rounded-lg capitalize ${filterStatus === st ? 'bg-emerald-600 text-white' : 'text-stone-400'}`}>{st}</button>
-                  ))}
-                </div>
+                <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1">
+                  <ListFilter className="h-3 w-3" /> Fulfill State Group
+                </label>
+                <select 
+                  value={filterStatus} 
+                  onChange={(e) => setFilterStatus(e.target.value)} 
+                  className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-1.5 h-9 text-[10px] text-stone-300 font-bold outline-none focus:border-emerald-500 cursor-pointer"
+                >
+                  <option value="active">Active Queue</option>
+                  <option value="all">All Orders</option>
+                  <option value="paid">Paid Only</option>
+                  <option value="processing">Processing</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
               </div>
 
               {/* NEW: DELIVERY VS PICKUP TOGGLE */}
