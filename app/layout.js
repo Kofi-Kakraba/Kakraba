@@ -13,7 +13,7 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata = {
   title: "Sparkle Beverages | Premium Taste. Zero Boring.",
-  description: "Your ultimate campus fuel. Bold flavors packed in grab-and-go pouches.",
+  description: "Must be Chill. Sip. Sparkle. Your ultimate campus fuel packed in grab-and-go pouches.",
 };
 
 export default function RootLayout({ children }) {
