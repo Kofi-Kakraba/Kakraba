@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { 
   CheckCircle2, Clock, Truck, MapPin, Phone, User, Search, Calendar, ToggleLeft, ToggleRight,
   ShieldAlert, PackageCheck, RefreshCw, AlertCircle, Download, FileSpreadsheet, Camera, CreditCard,
-  Tag, PlusCircle, ListFilter, Landmark, Layers, Edit3, Save, LayoutGrid, FileText, Upload, ShieldCheck, Eye, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Lock, Mail
+  Tag, PlusCircle, ListFilter, Landmark, Layers, Edit3, Save, LayoutGrid, FileText, Upload, ShieldCheck, Eye, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Lock, Mail, TrendingUp, Activity
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 import { 
@@ -27,6 +27,7 @@ export default function AdminDashboardPage() {
   const [cashouts, setCashouts] = useState([]);
   const [products, setProducts] = useState([]);
   const [cmsContent, setCmsContent] = useState({});
+  const [campaignScans, setCampaignScans] = useState([]); // 🚨 NEW: Analytics State
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   
@@ -223,6 +224,9 @@ export default function AdminDashboardPage() {
       const inventoryRes = await getStoreInventoryAdmin();
       const cmsRes = await getSiteSettingsAdmin();
 
+      // 🚨 Fetch the newly deployed analytics data!
+      const { data: scansLog, error: scansErr } = await supabase.from('campaign_scans').select('*');
+
       const { data: discountRows } = await supabase.from('referral_discounts').select('*');
       if (discountRows) {
         const builtPromoMap = {};
@@ -246,6 +250,10 @@ export default function AdminDashboardPage() {
         setProducts(inventoryRes.data || []);
         setCmsContent(cmsRes.data || {});
         
+        if (!scansErr && scansLog) {
+          setCampaignScans(scansLog);
+        }
+
         if (!directQueryErr && directClientCashoutsLog) {
           setCashouts(directClientCashoutsLog);
         } else {
@@ -677,6 +685,7 @@ export default function AdminDashboardPage() {
             <button onClick={() => setActiveTab('orders')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'orders' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Orders ({orders.length})</button>
             <button onClick={() => setActiveTab('ambassadors')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'ambassadors' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Ambassadors ({humanAmbassadorsList.length})</button>
             <button onClick={() => setActiveTab('promocodes')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'promocodes' ? 'bg-stone-800 text-white text-cyan-400' : 'text-stone-400'}`}>Promo Codes ({purePromoCodesList.length})</button>
+            <button onClick={() => setActiveTab('analytics')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'analytics' ? 'bg-stone-800 text-white text-purple-400' : 'text-stone-400'}`}>Analytics</button>
             <button onClick={() => setActiveTab('cashouts')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'cashouts' ? 'bg-stone-800 text-white text-emerald-400' : 'text-stone-400'}`}>Cashouts ({cashouts.filter(c => c.status === 'pending').length})</button>
             <button onClick={() => setActiveTab('inventory')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'inventory' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>
               Stock {lowStockAlertInventoryBin.length > 0 && <span className="ml-1 px-1.5 py-0.2 bg-red-600 text-white text-[9px] rounded-full animate-pulse">!</span>}
@@ -1059,6 +1068,56 @@ export default function AdminDashboardPage() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* 🚨 NEW TAB: CAMPAIGN ANALYTICS */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6 font-mono text-xs">
+            <div className="border-b border-stone-800 pb-2 flex items-center gap-2 text-purple-400">
+              <Activity className="h-5 w-5" />
+              <h2 className="text-sm font-bold uppercase tracking-wider">Campaign Analytics & Conversion Rates</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {referrals.map(ref => {
+                const scansCount = campaignScans.filter(s => s.promo_code.toUpperCase() === ref.code.toUpperCase()).length;
+                const conversionsCount = orders.filter(o => o.metadata?.applied_code?.toUpperCase() === ref.code.toUpperCase() && o.payment_status === 'paid').length;
+                const convRate = scansCount > 0 ? ((conversionsCount / scansCount) * 100).toFixed(1) : 0;
+                const isAmbassador = ref.legal_name && ref.legal_name.trim() !== '';
+
+                return (
+                  <div key={ref.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 shadow-xl space-y-4 hover:border-purple-900/50 transition-colors">
+                    <div className="flex justify-between items-start border-b border-stone-800 pb-3">
+                      <div>
+                        <span className={`text-[9px] font-bold uppercase block mb-1 ${isAmbassador ? 'text-emerald-500' : 'text-cyan-500'}`}>
+                          {isAmbassador ? 'Ambassador Node' : 'Promo Campaign'}
+                        </span>
+                        <h4 className="text-sm font-black text-white uppercase tracking-widest">{ref.code}</h4>
+                      </div>
+                      <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black tracking-wider border shadow-inner ${convRate > 0 ? 'bg-purple-900/20 text-purple-400 border-purple-900/30' : 'bg-stone-955 text-stone-500 border-stone-800'}`}>
+                        {convRate}% CVR
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-center">
+                      <div className="bg-stone-955 border border-stone-850 p-4 rounded-xl flex flex-col items-center justify-center space-y-1">
+                        <span className="text-[9px] text-stone-500 uppercase font-bold tracking-wider">Raw Scans</span>
+                        <span className="text-2xl font-black text-stone-200">{scansCount}</span>
+                      </div>
+                      <div className="bg-stone-955 border border-stone-850 p-4 rounded-xl flex flex-col items-center justify-center space-y-1">
+                        <span className="text-[9px] text-stone-500 uppercase font-bold tracking-wider">Paid Sales</span>
+                        <span className="text-2xl font-black text-purple-400">{conversionsCount}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {referrals.length === 0 && (
+               <div className="text-center py-16 border border-dashed border-stone-800 rounded-2xl bg-stone-900/10 text-stone-500">No active campaigns available to track.</div>
+            )}
           </div>
         )}
 
