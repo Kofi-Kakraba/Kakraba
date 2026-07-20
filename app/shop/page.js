@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { 
   ShoppingBag, Tag, Trash2, Plus, Minus, ArrowRight, 
   Leaf, Sparkles, CheckCircle2, AlertCircle, Loader2, Info, Lock, ArrowLeft, X, Zap, Key, Phone, Mail, MessageCircle
@@ -10,8 +11,9 @@ import {
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 import { createCustomerOrderServerAction } from '../actions/orders';
 
-export default function ShopPage() {
+function ShopStorefront() {
   const supabase = createBrowserSupabaseClient();
+  const searchParams = useSearchParams();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,7 @@ export default function ShopPage() {
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null); 
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
   const [localQuantities, setLocalQuantities] = useState({});
   const [buttonStatuses, setButtonStatuses] = useState({});
@@ -55,7 +58,7 @@ export default function ShopPage() {
       }
     }
     fetchStoreCatalog();
-  }, []);
+  }, [supabase]);
 
   // Dynamic brand slang dictionary helper
   const getSizeSlang = (size) => {
@@ -67,15 +70,13 @@ export default function ShopPage() {
     return '';
   };
 
-  const handleVerifyGatewayCode = async (e) => {
-    e.preventDefault();
-    if (!gatewayInput) return;
-
+  // 🚨 REUSABLE LOGIC: Verifies code and manages state regardless if it came from URL or Manual Entry
+  const verifyAndApplyCode = async (codeToVerify, isAutoFill = false) => {
     setLoading(true);
     setGatewayError(null);
 
     try {
-      const cleanInputCode = gatewayInput.trim().toUpperCase();
+      const cleanInputCode = codeToVerify.trim().toUpperCase();
 
       const { data: couponProfile, error: queryError } = await supabase
         .from('referral_codes')
@@ -105,13 +106,45 @@ export default function ShopPage() {
         profile: couponProfile,
         customDiscountsMap: ruleMappingDictionary
       });
+      
       setGatewayStage('unlocked'); 
+      
+      if (isAutoFill) {
+        setShowSuccessBanner(true);
+      }
 
     } catch (err) {
       setGatewayError(err.message);
+      if (isAutoFill) {
+        localStorage.removeItem('sparkle_active_promo');
+        setGatewayStage('question'); // Fallback to normal popup if URL code is dead
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  // 🚨 AUTO-FILL MEMORY ENGINE: Catches URL params and reads Local Storage
+  useEffect(() => {
+    const urlPromo = searchParams.get('promo');
+    
+    if (urlPromo) {
+      const cleanPromo = urlPromo.trim().toUpperCase();
+      localStorage.setItem('sparkle_active_promo', cleanPromo);
+      verifyAndApplyCode(cleanPromo, true);
+    } else {
+      const savedPromo = localStorage.getItem('sparkle_active_promo');
+      if (savedPromo) {
+        verifyAndApplyCode(savedPromo, true);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const handleVerifyGatewayCode = async (e) => {
+    e.preventDefault();
+    if (!gatewayInput) return;
+    await verifyAndApplyCode(gatewayInput, false);
   };
 
   const handleAddItemToCartChannel = (product, variant, continuousQuantity) => {
@@ -264,6 +297,19 @@ export default function ShopPage() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-900 antialiased font-sans pb-1 selection:bg-rose-500 selection:text-white relative">
       
+      {/* 🚨 VIP SUCCESS BANNER */}
+      {showSuccessBanner && appliedCoupon && (
+        <div className="bg-emerald-50 border-b border-emerald-100 py-3 px-4 flex justify-between items-center shadow-sm relative z-50 animate-in slide-in-from-top">
+          <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 w-full text-emerald-800 text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wide">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <span>🎉 VIP Promo <strong className="font-black text-emerald-950 px-1">{appliedCoupon.profile.code}</strong> Auto-Applied!</span>
+          </div>
+          <button onClick={() => setShowSuccessBanner(false)} className="text-emerald-600 hover:text-emerald-900 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* BRAND NAVIGATION */}
       <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 py-3 px-6 sticky top-0 z-40 shadow-sm flex justify-between items-center h-20">
         <div className="flex items-center h-full">
@@ -280,7 +326,14 @@ export default function ShopPage() {
         <div className="flex items-center gap-3 sm:gap-6">
           <button 
             type="button" 
-            onClick={() => { setAppliedCoupon(null); setGatewayInput(''); setGatewayStage('question'); setCart([]); }} 
+            onClick={() => { 
+              setAppliedCoupon(null); 
+              setGatewayInput(''); 
+              setGatewayStage('question'); 
+              setCart([]); 
+              setShowSuccessBanner(false);
+              localStorage.removeItem('sparkle_active_promo'); // 🚨 Clear memory on manual reset
+            }} 
             className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors flex items-center gap-1"
           >
             <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Reset Access</span>
@@ -547,7 +600,6 @@ export default function ShopPage() {
                         <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full legal name" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
                       </div>
                       <div>
-                        {/* 🛠️ UPGRADED SAFEGUARD FIELD: Enforces exact 10-digit formats beginning with a 0 */}
                         <input 
                           type="tel" 
                           required 
@@ -774,5 +826,14 @@ export default function ShopPage() {
       </a>
 
     </div>
+  );
+}
+
+// 🚨 NEXT.JS REQUIREMENT: Wrapping searchParams in Suspense
+export default function ShopPage() {
+  return (
+    <Suspense fallback={<div className="h-20 bg-stone-50 w-full animate-pulse border-b border-stone-200 flex items-center justify-center text-xs font-bold text-stone-400 uppercase tracking-widest">Loading Storefront...</div>}>
+      <ShopStorefront />
+    </Suspense>
   );
 }
