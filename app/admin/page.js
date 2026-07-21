@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { 
   CheckCircle2, Clock, Truck, MapPin, Phone, User, Search, Calendar, ToggleLeft, ToggleRight,
   ShieldAlert, PackageCheck, RefreshCw, AlertCircle, Download, FileSpreadsheet, Camera, CreditCard,
-  Tag, PlusCircle, ListFilter, Landmark, Layers, Edit3, Save, LayoutGrid, FileText, Upload, ShieldCheck, Eye, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Lock, Mail, TrendingUp, Activity
+  Tag, PlusCircle, ListFilter, Landmark, Layers, Edit3, Save, LayoutGrid, FileText, Upload, ShieldCheck, Eye, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Lock, Mail, TrendingUp, Activity, CheckSquare, Square
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 import { 
@@ -27,18 +27,20 @@ export default function AdminDashboardPage() {
   const [cashouts, setCashouts] = useState([]);
   const [products, setProducts] = useState([]);
   const [cmsContent, setCmsContent] = useState({});
-  const [campaignScans, setCampaignScans] = useState([]); // 🚨 NEW: Analytics State
+  const [campaignScans, setCampaignScans] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   
-  // 🚨 ORDER FILTERS
+  // 🚨 BULK DISPATCH STATE
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+
+  // ORDER FILTERS
   const [filterStatus, setFilterStatus] = useState('active'); 
   const [deliveryFilter, setDeliveryFilter] = useState('all'); 
   const [orderSearchText, setOrderSearchText] = useState('');
   const [orderDateText, setOrderDateText] = useState('');
   const [orderLocationText, setOrderLocationText] = useState(''); 
 
-  // CUSTOM DROPDOWN STATE & REF
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const statusDropdownRef = useRef(null);
 
@@ -51,7 +53,7 @@ export default function AdminDashboardPage() {
   const [loadingPrintItems, setLoadingPrintItems] = useState(false);
 
   // LOGISTICS DISPATCH MODAL STATES
-  const [dispatchOrder, setDispatchOrder] = useState(null);
+  const [dispatchOrder, setDispatchOrder] = useState(null); // Can now hold { isBulk: true, count: number }
   const [riderName, setRiderName] = useState('');
   const [riderPhone, setRiderPhone] = useState('');
   const [vehicleType, setVehicleType] = useState('Motorbike');
@@ -98,16 +100,18 @@ export default function AdminDashboardPage() {
   const humanAmbassadorsList = referrals.filter(r => r.legal_name && r.legal_name.trim() !== '');
   const purePromoCodesList = referrals.filter(r => !r.legal_name || r.legal_name.trim() === '');
   
+  // 🚨 UPDATED STATUS OPTIONS
   const statusOptions = [
     { value: 'active', label: 'Active Queue' },
     { value: 'all', label: 'All Orders' },
     { value: 'paid', label: 'Paid Only' },
     { value: 'processing', label: 'Processing' },
+    { value: 'ready', label: 'Ready (Pickup)' },
+    { value: 'dispatched', label: 'Out for Delivery' },
     { value: 'completed', label: 'Completed' },
     { value: 'cancelled', label: 'Cancelled' }
   ];
 
-  // Close custom dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
@@ -133,6 +137,8 @@ export default function AdminDashboardPage() {
       (filterStatus === 'active' && order.status !== 'completed' && order.status !== 'cancelled') ||
       (filterStatus === 'paid' && order.payment_status === 'paid') ||
       (filterStatus === 'processing' && order.status === 'processing') ||
+      (filterStatus === 'ready' && order.status === 'ready') ||
+      (filterStatus === 'dispatched' && order.status === 'dispatched') ||
       (filterStatus === 'completed' && order.status === 'completed') ||
       (filterStatus === 'cancelled' && order.status === 'cancelled');
 
@@ -224,10 +230,9 @@ export default function AdminDashboardPage() {
       const inventoryRes = await getStoreInventoryAdmin();
       const cmsRes = await getSiteSettingsAdmin();
 
-      // 🚨 Fetch the newly deployed analytics data!
       const { data: scansLog, error: scansErr } = await supabase.from('campaign_scans').select('*');
-
       const { data: discountRows } = await supabase.from('referral_discounts').select('*');
+      
       if (discountRows) {
         const builtPromoMap = {};
         discountRows.forEach(row => {
@@ -306,45 +311,56 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // 🚨 SMART BULK LOOP FOR DISPATCH
   const handleConfirmDispatchLogistics = async (e) => {
     e.preventDefault();
     if (!dispatchOrder) return;
     
-    const isDelivery = dispatchOrder.delivery_type === 'delivery';
-
-    if (isDelivery && (!riderName || !riderPhone || !vehicleColor || !plateNumber)) {
-      alert("Validation Error: Please fill out all vehicle and rider details sheets.");
-      return;
-    }
-
-    setUpdatingId(`dispatch-${dispatchOrder.id}`);
+    setUpdatingId('dispatching');
 
     try {
-      const jsonResult = await confirmDispatchLogisticsServerAction({
-        orderId: dispatchOrder.id,
-        deliveryType: dispatchOrder.delivery_type,
-        customerPhone: dispatchOrder.customer_phone,
-        customerName: dispatchOrder.customer_name,
-        riderName: riderName,
-        riderPhone: riderPhone,
-        vehicleType: vehicleType,
-        vehicleColor: vehicleColor,
-        plateNumber: plateNumber
-      });
+      // Determine if we are processing one order or a bulk array
+      const ordersToProcess = dispatchOrder.isBulk 
+        ? orders.filter(o => selectedOrderIds.includes(o.id)) 
+        : [dispatchOrder];
 
-      if (jsonResult.success) {
-        alert("🌟 LOGISTICS MANIFEST CONFIRMED AND NOTIFIED LIVE!");
-      } else {
-        alert(`Fulfillment Error: ${jsonResult.error || 'Server rejected processing actions.'}`);
+      for (const order of ordersToProcess) {
+        if (order.delivery_type === 'delivery') {
+          // Delivery -> Assign Rider and mark 'dispatched'
+          await confirmDispatchLogisticsServerAction({
+            orderId: order.id,
+            deliveryType: order.delivery_type,
+            customerPhone: order.customer_phone,
+            customerName: order.customer_name,
+            riderName: riderName,
+            riderPhone: riderPhone,
+            vehicleType: vehicleType,
+            vehicleColor: vehicleColor,
+            plateNumber: plateNumber
+          });
+          // Note: If your server action sets it to 'completed', we will override it to 'dispatched' here to maintain the 3-step flow.
+          await updateOrderStatusAdmin(order.id, 'dispatched');
+        } else {
+          // Pickup -> Smart Bulk simply marks them as handed over (completed)
+          await updateOrderStatusAdmin(order.id, 'completed');
+        }
       }
 
+      alert("🌟 LOGISTICS MANIFESTS PROCESSED SUCCESSFULLY!");
       setDispatchOrder(null);
+      setSelectedOrderIds([]); // Clear selection
       await loadDashboardData(); 
     } catch (err) {
       alert(`Network Error: ${err.message}`);
     } finally { 
       setUpdatingId(null);
     }
+  };
+
+  const toggleOrderSelection = (id) => {
+    setSelectedOrderIds(prev => 
+      prev.includes(id) ? prev.filter(orderId => orderId !== id) : [...prev, id]
+    );
   };
 
   const handleCreatePromoCodeManualSubmit = async (e) => {
@@ -701,6 +717,26 @@ export default function AdminDashboardPage() {
         {/* TAB 1: ORDERS */}
         {activeTab === 'orders' && (
           <div className="space-y-6 print:hidden">
+            
+            {/* 🚨 BULK ACTION BAR */}
+            {selectedOrderIds.length > 0 && (
+              <div className="bg-emerald-950/40 border border-emerald-900/50 p-4 rounded-2xl flex justify-between items-center shadow-lg">
+                <span className="font-mono text-emerald-400 font-bold text-xs">{selectedOrderIds.length} Orders Selected</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setSelectedOrderIds([])} className="px-4 py-2 bg-stone-900 text-stone-400 hover:text-white rounded-xl text-[10px] font-bold font-mono">Clear Selection</button>
+                  <button 
+                    onClick={() => {
+                      setRiderName(''); setRiderPhone(''); setVehicleColor(''); setPlateNumber('');
+                      setDispatchOrder({ isBulk: true, count: selectedOrderIds.length });
+                    }} 
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold font-mono flex items-center gap-1 shadow-md"
+                  >
+                    <PackageCheck className="h-3.5 w-3.5" /> Batch Process Selected
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* FILTER BAR - 5 COLUMNS */}
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 font-mono text-xs shadow-md">
               <div>
@@ -755,7 +791,6 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
-              {/* NEW: DELIVERY VS PICKUP TOGGLE */}
               <div>
                 <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1"><Truck className="h-3 w-3" /> Type</label>
                 <div className="bg-stone-955 p-0.5 rounded-xl border border-stone-800 grid grid-cols-3 gap-0.5 text-[9px] font-bold text-center h-9 items-center">
@@ -776,23 +811,43 @@ export default function AdminDashboardPage() {
               {filteredOrders.map((order) => {
                 const isPaid = order.payment_status === 'paid'; 
                 const isProcessing = order.status === 'processing'; 
+                const isReady = order.status === 'ready'; 
+                const isDispatched = order.status === 'dispatched'; 
                 const isCompleted = order.status === 'completed'; 
                 const isCancelled = order.status === 'cancelled'; 
                 const referralTrack = order.metadata?.applied_code;
                 const manifestLines = resolveItemManifestLines(order);
                 const hasRiderAssigned = order.metadata?.rider_name;
+                const isSelected = selectedOrderIds.includes(order.id);
+                const isDeliveryType = order.delivery_type === 'delivery';
                 
                 return (
-                  <div key={order.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-md">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-start gap-2">
+                  <div key={order.id} className={`bg-stone-900 border ${isSelected ? 'border-emerald-500 bg-emerald-950/10' : 'border-stone-800'} rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-md transition-colors relative`}>
+                    
+                    {/* 🚨 BULK CHECKBOX */}
+                    {!isCompleted && !isCancelled && (
+                      <div className="absolute top-4 left-4 cursor-pointer" onClick={() => toggleOrderSelection(order.id)}>
+                        {isSelected ? <CheckSquare className="h-5 w-5 text-emerald-500" /> : <Square className="h-5 w-5 text-stone-600" />}
+                      </div>
+                    )}
+
+                    <div className="space-y-3 pt-1">
+                      <div className="flex justify-between items-start gap-2 pl-7">
                         <div>
                           <h4 className="text-xs font-bold font-mono text-stone-200 flex items-center gap-1"><User className="h-3.5 w-3.5 text-stone-500" /> {order.customer_name}</h4>
                           <p className="text-[9px] text-stone-500 font-mono mt-0.5">Ref: {order.id.substring(0,8).toUpperCase()}... {referralTrack && <span className="text-emerald-400 bg-emerald-955 px-1 py-0.5 rounded ml-1 font-bold">Code: {referralTrack}</span>}</p>
                         </div>
                         <div className="text-right flex flex-col items-end gap-1">
                           <span className={`inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase ${isPaid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>{order.payment_status}</span>
-                          <span className={`inline-block text-[8px] font-mono font-bold px-1.5 py-0.2 rounded uppercase tracking-wider ${isCompleted ? 'bg-blue-500/10 text-blue-400 border border-blue-900/30' : isProcessing ? 'bg-amber-500/10 text-amber-400 border border-amber-900/30' : 'bg-stone-800 text-stone-400'}`}>
+                          
+                          {/* 🚨 DYNAMIC STATUS BADGE */}
+                          <span className={`inline-block text-[8px] font-mono font-bold px-1.5 py-0.2 rounded uppercase tracking-wider ${
+                            isCompleted ? 'bg-blue-500/10 text-blue-400 border border-blue-900/30' : 
+                            isReady ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-900/30' :
+                            isDispatched ? 'bg-purple-500/10 text-purple-400 border border-purple-900/30' :
+                            isProcessing ? 'bg-amber-500/10 text-amber-400 border border-amber-900/30' : 
+                            'bg-stone-800 text-stone-400'
+                          }`}>
                             {order.status}
                           </span>
                           <div className="text-sm font-bold font-mono text-emerald-400 mt-1">₵{Number(order.total_amount).toFixed(2)}</div>
@@ -806,7 +861,7 @@ export default function AdminDashboardPage() {
 
                       <div className="bg-stone-955 border border-stone-800/85 rounded-xl p-3 text-[11px] font-mono space-y-1.5 text-stone-300">
                         <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-stone-500" /><span>{order.customer_phone}</span></div>
-                        <div className="flex items-center gap-2">{order.delivery_type === 'delivery' ? <Truck className="h-3.5 w-3.5 text-blue-400" /> : <MapPin className="h-3.5 w-3.5 text-amber-400" />}<span>{order.delivery_type} Option</span></div>
+                        <div className="flex items-center gap-2">{isDeliveryType ? <Truck className="h-3.5 w-3.5 text-blue-400" /> : <MapPin className="h-3.5 w-3.5 text-amber-400" />}<span>{order.delivery_type} Option</span></div>
                         <div className="text-[10px] text-cyan-400/90 truncate pt-1 border-t border-stone-900 flex items-center gap-1"><MapPin className="h-3 w-3 text-cyan-500" /> <span>Dest: {order.landmark || 'HQ Self-Pickup Depot'}</span></div>
                       </div>
 
@@ -823,16 +878,17 @@ export default function AdminDashboardPage() {
                         )}
                       </div>
 
-                      {isCompleted && order.delivery_type === 'delivery' && hasRiderAssigned && (
-                        <div className="bg-emerald-950/20 border border-emerald-900/30 p-2.5 rounded-xl text-[10px] font-mono text-emerald-400 space-y-1 mt-2">
-                          <span className="uppercase font-bold tracking-wider border-b border-emerald-900/50 pb-0.5 block flex items-center gap-1"><Navigation className="h-3 w-3" /> Active Logistics Profile</span>
-                          <div className="flex justify-between text-emerald-300"><span>Rider:</span><strong>{order.metadata.rider_name}</strong></div>
-                          <div className="flex justify-between text-emerald-300"><span>Contact:</span><strong>{order.metadata.rider_phone}</strong></div>
-                          <div className="flex justify-between text-emerald-300"><span>Vehicle:</span><strong>{order.metadata.vehicle_color || ''} {order.metadata.vehicle_type || 'Vehicle'}</strong></div>
-                          <div className="flex justify-between text-emerald-300"><span>License Plate:</span><strong className="tracking-wider">{order.metadata.plate_number || 'N/A'}</strong></div>
+                      {/* Display Rider Info if Assigned */}
+                      {(isDispatched || isCompleted) && isDeliveryType && hasRiderAssigned && (
+                        <div className="bg-purple-950/20 border border-purple-900/30 p-2.5 rounded-xl text-[10px] font-mono text-purple-400 space-y-1 mt-2">
+                          <span className="uppercase font-bold tracking-wider border-b border-purple-900/50 pb-0.5 block flex items-center gap-1"><Navigation className="h-3 w-3" /> Assigned Dispatch Rider</span>
+                          <div className="flex justify-between text-purple-300"><span>Rider:</span><strong>{order.metadata.rider_name}</strong></div>
+                          <div className="flex justify-between text-purple-300"><span>Contact:</span><strong>{order.metadata.rider_phone}</strong></div>
+                          <div className="flex justify-between text-purple-300"><span>Vehicle:</span><strong>{order.metadata.vehicle_color || ''} {order.metadata.vehicle_type || 'Vehicle'}</strong></div>
                         </div>
                       )}
-                      {isCompleted && order.delivery_type === 'pickup' && (
+                      
+                      {isCompleted && !isDeliveryType && (
                         <div className="bg-blue-950/20 border border-blue-900/30 p-2.5 rounded-xl text-[10px] font-mono text-blue-400 space-y-1 mt-2 shadow-inner">
                           <span className="uppercase font-bold tracking-wider border-b border-blue-900/50 pb-0.5 block flex items-center gap-1"><MapPin className="h-3 w-3" /> HQ Pickup Complete</span>
                           <p className="text-blue-300 leading-tight">Order securely handed over to client at the depot.</p>
@@ -841,11 +897,10 @@ export default function AdminDashboardPage() {
                     </div>
                     
                     <div className="border-t border-stone-800 pt-3 flex items-center justify-between gap-2">
-                      {/* Left Side: Print and Cancel Actions */}
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setSelectedPrintOrder(order)} className="bg-stone-955 hover:bg-stone-800 border border-stone-800 text-stone-300 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1">
                           <Printer className="h-3.5 w-3.5 text-cyan-400" /> 
-                          <span>Print Slip</span>
+                          <span>Print</span>
                         </button>
                         
                         {!isCompleted && !isPaid && !isCancelled && (
@@ -865,28 +920,52 @@ export default function AdminDashboardPage() {
                         )}
                       </div>
                       
-                      {/* Right Side: Dispatch / Fulfillment Actions */}
+                      {/* 🚨 DYNAMIC FULFILLMENT BUTTONS */}
                       {!isCompleted && isPaid && !isCancelled && (
-                        <button 
-                          type="button" 
-                          disabled={updatingId === order.id} 
-                          onClick={() => {
-                            if (order.status === 'processing') {
-                              setDispatchOrder(order);
-                              setRiderName('');
-                              setRiderPhone('');
-                              setVehicleType('Motorbike');
-                              setVehicleColor('');
-                              setPlateNumber('');
-                            } else {
-                              handleUpdateFulfillmentState(order.id, 'processing');
-                            }
-                          }} 
-                          className="bg-stone-800 hover:bg-stone-700 text-white font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg border border-stone-700 flex items-center gap-1"
-                        >
-                          <PackageCheck className="h-3.5 w-3.5 text-emerald-400" />
-                          <span>{order.status === 'processing' ? 'Dispatch Cargo' : 'Verify Handshake'}</span>
-                        </button>
+                        <div className="flex gap-2">
+                          {isDeliveryType ? (
+                            <>
+                              {isProcessing && (
+                                <button 
+                                  onClick={() => {
+                                    setDispatchOrder(order);
+                                    setRiderName(''); setRiderPhone(''); setVehicleType('Motorbike'); setVehicleColor(''); setPlateNumber('');
+                                  }} 
+                                  className="bg-stone-800 hover:bg-stone-700 text-white font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg border border-stone-700 flex items-center gap-1"
+                                >
+                                  <PackageCheck className="h-3.5 w-3.5 text-purple-400" /> Assign Rider
+                                </button>
+                              )}
+                              {isDispatched && (
+                                <button 
+                                  onClick={() => handleUpdateFulfillmentState(order.id, 'completed')} 
+                                  className="bg-blue-900/40 hover:bg-blue-800 text-blue-300 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg border border-blue-800 flex items-center gap-1"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-400" /> Mark Delivered
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {isProcessing && (
+                                <button 
+                                  onClick={() => handleUpdateFulfillmentState(order.id, 'ready')} 
+                                  className="bg-stone-800 hover:bg-stone-700 text-yellow-400 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg border border-stone-700 flex items-center gap-1"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" /> Notify: Ready
+                                </button>
+                              )}
+                              {isReady && (
+                                <button 
+                                  onClick={() => handleUpdateFulfillmentState(order.id, 'completed')} 
+                                  className="bg-emerald-900/40 hover:bg-emerald-800 text-emerald-300 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg border border-emerald-800 flex items-center gap-1"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Hand Over
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1071,7 +1150,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* 🚨 NEW TAB: CAMPAIGN ANALYTICS */}
+        {/* TAB 4: CAMPAIGN ANALYTICS */}
         {activeTab === 'analytics' && (
           <div className="space-y-6 font-mono text-xs">
             <div className="border-b border-stone-800 pb-2 flex items-center gap-2 text-purple-400">
@@ -1121,7 +1200,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* TAB 4: CASHOUTS */}
+        {/* TAB 5: CASHOUTS */}
         {activeTab === 'cashouts' && (
           <div className="space-y-6 font-mono text-xs">
             <div className="border-b border-stone-800 pb-2 flex items-center justify-between text-emerald-400 flex-wrap gap-2">
@@ -1186,7 +1265,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* TAB 5: STOCK MATRIX */}
+        {/* TAB 6: STOCK MATRIX */}
         {activeTab === 'inventory' && (
           <div className="space-y-6">
             {lowStockAlertInventoryBin.length > 0 && (
@@ -1310,7 +1389,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* TAB 6: Web CMS */}
+        {/* TAB 7: Web CMS */}
         {activeTab === 'cms' && (
           <form onSubmit={(e) => { e.preventDefault(); updateSiteSettingsAdmin(cmsContent).then(() => alert("All Web CMS Content Published Live Successfully!")); }} className="space-y-8 max-w-4xl mx-auto font-mono text-xs text-left">
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4">
@@ -1447,7 +1526,7 @@ export default function AdminDashboardPage() {
         )}
       </main>
 
-      {/* RIDER DISPATCH MODAL OVERLAY */}
+      {/* RIDER DISPATCH & BULK LOGISTICS MODAL OVERLAY */}
       {dispatchOrder && (
         <div className="fixed inset-0 bg-stone-955/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-stone-900 border border-stone-800 text-stone-100 rounded-[32px] max-w-sm w-full p-6 space-y-6 shadow-2xl relative font-sans">
@@ -1455,14 +1534,19 @@ export default function AdminDashboardPage() {
             
             <div className="space-y-1">
               <h2 className="text-sm font-black uppercase text-emerald-400 tracking-wider">
-                {dispatchOrder.delivery_type === 'delivery' ? 'Assign Dispatch Logistics' : 'Complete HQ Handover'}
+                {dispatchOrder.isBulk ? 'Bulk Process Selected' : dispatchOrder.delivery_type === 'delivery' ? 'Assign Dispatch Logistics' : 'Complete HQ Handover'}
               </h2>
-              <p className="text-[10px] text-stone-400 font-mono">Ref: #{dispatchOrder.id.substring(0,8).toUpperCase()} • Client: {dispatchOrder.customer_name}</p>
+              {dispatchOrder.isBulk ? (
+                <p className="text-[10px] text-stone-400 font-mono">Processing {dispatchOrder.count} selected manifests via Smart Logic.</p>
+              ) : (
+                <p className="text-[10px] text-stone-400 font-mono">Ref: #{dispatchOrder.id.substring(0,8).toUpperCase()} • Client: {dispatchOrder.customer_name}</p>
+              )}
             </div>
 
             <form onSubmit={handleConfirmDispatchLogistics} className="space-y-4 font-mono text-xs">
               
-              {dispatchOrder.delivery_type === 'delivery' ? (
+              {/* Show Rider form if single delivery, OR if bulk selection includes ANY delivery orders */}
+              {(dispatchOrder.delivery_type === 'delivery' || (dispatchOrder.isBulk && orders.filter(o => selectedOrderIds.includes(o.id)).some(o => o.delivery_type === 'delivery'))) ? (
                 <>
                   <div>
                     <label className="block text-stone-500 font-bold uppercase text-[9px] mb-1">Rider Full Name</label>
@@ -1504,19 +1588,19 @@ export default function AdminDashboardPage() {
 
                   <div className="bg-emerald-950/30 p-3 rounded-xl border border-emerald-900/40 text-[9px] text-emerald-400 leading-relaxed font-sans mt-2 shadow-inner">
                     <Info className="h-3 w-3 inline mr-1 mb-0.5" />
-                    Submitting this logs the rider details for internal tracking and prepares the payload string for the customer's SMS notification.
+                    Submitting this logs the rider details for delivery tracking and prepares the SMS notification payload.
                   </div>
                 </>
               ) : (
                 <div className="bg-emerald-950/20 border border-emerald-900/30 p-4 rounded-xl text-center space-y-2">
                   <MapPin className="h-6 w-6 text-emerald-500 mx-auto" />
-                  <h4 className="text-emerald-400 font-bold uppercase text-[10px]">HQ Self-Pickup</h4>
-                  <p className="text-[9px] text-emerald-200/70 font-sans leading-relaxed">This customer selected self-pickup. Click confirm below once the cargo has been securely handed over at the depot.</p>
+                  <h4 className="text-emerald-400 font-bold uppercase text-[10px]">HQ Self-Pickup Operations</h4>
+                  <p className="text-[9px] text-emerald-200/70 font-sans leading-relaxed">System will securely mark all selected pickup orders as handed over at the depot.</p>
                 </div>
               )}
 
-              <button type="submit" disabled={updatingId === `dispatch-${dispatchOrder.id}`} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-wide py-3 rounded-xl shadow-md disabled:opacity-40">
-                {dispatchOrder.delivery_type === 'delivery' ? 'Confirm Dispatch & Notify' : 'Confirm Handover & Notify'}
+              <button type="submit" disabled={updatingId !== null} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[10px] tracking-wide py-3 rounded-xl shadow-md disabled:opacity-40">
+                {dispatchOrder.isBulk ? 'Execute Bulk Processing' : dispatchOrder.delivery_type === 'delivery' ? 'Confirm Dispatch & Notify' : 'Confirm Handover'}
               </button>
             </form>
           </div>
