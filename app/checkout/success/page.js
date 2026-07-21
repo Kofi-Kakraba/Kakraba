@@ -69,10 +69,14 @@ function SuccessContent() {
         </p>
       </div>
 
-      <div className="bg-stone-50 border border-stone-200/60 rounded-2xl p-4 text-left font-mono text-xs space-y-2 text-stone-500 shadow-inner">
-        <div className="flex justify-between border-b border-stone-200/40 pb-1.5"><span className="text-[10px] text-stone-400 uppercase">Transaction ID:</span><strong className="text-stone-900 font-bold truncate max-w-[180px]">{extractedOrderId}</strong></div>
-        <div className="flex justify-between"><span className="text-[10px] text-stone-400 uppercase">Order Status:</span><strong className="text-emerald-600 uppercase font-bold">{orderRecord?.status || 'processing'}</strong></div>
-        <div className="flex justify-between border-t border-stone-200/40 pt-1.5 text-stone-800 font-bold"><span>Total Paid Amount:</span><strong className="text-emerald-700 text-sm font-black">₵{Number(orderRecord?.total_amount || 0).toFixed(2)}</strong></div>
+      <div className="bg-stone-50 border border-stone-200/60 rounded-2xl p-4 text-left font-mono text-xs space-y-3 text-stone-500 shadow-inner">
+        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-stone-200/40 pb-2 gap-1">
+          <span className="text-[10px] text-stone-400 uppercase shrink-0">Transaction ID:</span>
+          {/* Replaced truncate with break-all to show the full ID */}
+          <strong className="text-stone-900 font-bold break-all sm:text-right">{extractedOrderId}</strong>
+        </div>
+        <div className="flex justify-between items-center"><span className="text-[10px] text-stone-400 uppercase">Order Status:</span><strong className="text-emerald-600 uppercase font-bold">{orderRecord?.status || 'processing'}</strong></div>
+        <div className="flex justify-between items-center border-t border-stone-200/40 pt-2 text-stone-800 font-bold"><span>Total Paid Amount:</span><strong className="text-emerald-700 text-sm font-black">₵{Number(orderRecord?.total_amount || 0).toFixed(2)}</strong></div>
       </div>
 
       <Link href="/shop" className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-serif font-black text-xs py-3.5 rounded-xl flex items-center justify-center gap-1.5 shadow-md transition-all uppercase tracking-wide">
