@@ -14,7 +14,6 @@ function SuccessReceiptContent() {
   const [verificationError, setVerificationError] = useState(null);
   const [fetching, setFetching] = useState(true);
 
-  // Catch all possible variations of the order ID from the URL
   const extractedOrderId = searchParams.get('orderId') || searchParams.get('reference') || searchParams.get('trxref') || searchParams.get('order_id') || searchParams.get('id');
 
   useEffect(() => {
@@ -24,7 +23,6 @@ function SuccessReceiptContent() {
     }
     
     async function executeLivePaystackVerification() {
-      // Calls the server action to verify payment, update the DB status, and send the SMS
       const response = await verifyAndFinalizeCustomerPaymentAction(extractedOrderId);
       
       if (response.success && response.data) {
@@ -74,7 +72,7 @@ function SuccessReceiptContent() {
           </div>
           <h1 className="text-2xl font-black uppercase tracking-tight text-white">Payment Confirmed</h1>
           <p className="text-xs text-stone-400 leading-relaxed font-mono px-4">
-            Thank you, <strong className="text-emerald-400">{orderRecord?.customer_name || 'Customer'}</strong>. Your payment has been verified and a confirmation SMS has been sent.
+            Thank you, <strong className="text-emerald-400">{orderRecord?.customer_name || 'Customer'}</strong>. Your payment has been verified. You will receive an SMS confirmation once your order is processed and ready for pickup or en route for delivery.
           </p>
         </div>
 
@@ -87,11 +85,9 @@ function SuccessReceiptContent() {
         {/* Digital Receipt Card */}
         <div className="bg-stone-900 border border-stone-800 rounded-3xl overflow-hidden shadow-2xl">
           
-          {/* Brand Header */}
-          <div className="bg-stone-955 border-b border-stone-800 p-6 flex flex-col items-center text-center space-y-1.5">
-            <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Beverages Logo" className="h-14 w-auto object-contain brightness-110 mb-2" />
-            <h2 className="font-black text-lg text-white uppercase tracking-widest">Sparkle Beverages</h2>
-            <p className="text-[10px] font-mono text-stone-500">Chill. Sip. Sparkle.</p>
+          {/* Brand Header - Cleaned up redundant text */}
+          <div className="bg-stone-955 border-b border-stone-800 p-6 flex flex-col items-center justify-center text-center">
+            <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Beverages Logo" className="h-16 w-auto object-contain brightness-110" />
           </div>
 
           <div className="p-6 space-y-6">
