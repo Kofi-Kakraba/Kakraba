@@ -1,18 +1,21 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, ShoppingBag, ArrowRight, ShieldAlert, Loader2 } from 'lucide-react';
+import { CheckCircle2, Camera, ArrowLeft, Receipt, Loader2, MapPin, Truck } from 'lucide-react';
 import { verifyAndFinalizeCustomerPaymentAction } from '../../actions/orders';
 
-function SuccessContent() {
+function SuccessReceiptContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  
   const [orderRecord, setOrderRecord] = useState(null);
   const [verificationError, setVerificationError] = useState(null);
   const [fetching, setFetching] = useState(true);
 
-  const extractedOrderId = searchParams.get('orderId') || searchParams.get('order') || searchParams.get('id');
+  // Catch all possible variations of the order ID from the URL
+  const extractedOrderId = searchParams.get('orderId') || searchParams.get('reference') || searchParams.get('trxref') || searchParams.get('order_id') || searchParams.get('id');
 
   useEffect(() => {
     if (!extractedOrderId) {
@@ -36,78 +39,135 @@ function SuccessContent() {
 
   if (fetching) {
     return (
-      <div className="bg-white rounded-[32px] p-8 max-w-sm w-full text-center border shadow-xl space-y-4 mx-auto font-mono text-xs text-stone-500">
-        <Loader2 className="h-8 w-8 text-emerald-600 animate-spin mx-auto" />
-        <p className="font-bold">Verifying payment with Paystack...</p>
-        <p className="text-[10px] text-stone-400 font-light">Please do not close this window or refresh the page.</p>
+      <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center space-y-4 font-mono">
+        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+        <p className="text-stone-400 text-xs uppercase tracking-widest">Verifying & Generating Receipt...</p>
       </div>
     );
   }
 
   if (verificationError || !extractedOrderId) {
     return (
-      <div className="bg-white rounded-[32px] p-8 max-w-sm w-full text-center border shadow-xl space-y-4 mx-auto">
-        <ShieldAlert className="h-12 w-12 text-red-500 mx-auto" />
-        <h3 className="font-serif font-black text-lg uppercase text-stone-900 tracking-tight">Verification Incomplete</h3>
-        <p className="text-xs text-stone-500 font-light leading-relaxed">
-          {verificationError || "Missing standard URL transaction parameter tokens. Return to menu workspace lines below."}
+      <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center p-6 font-mono text-center space-y-4">
+        <Receipt className="h-12 w-12 text-stone-700" />
+        <h1 className="text-red-400 font-bold text-lg">Verification Incomplete</h1>
+        <p className="text-stone-400 text-xs max-w-md">
+          {verificationError || "Missing standard URL transaction parameter tokens. Return to storefront."}
         </p>
-        <Link href="/shop" className="w-full bg-stone-900 text-white font-mono text-xs font-bold py-3 rounded-xl flex items-center justify-center gap-1">Return to Storefront <ArrowRight className="h-3.5 w-3.5" /></Link>
+        <button onClick={() => router.push('/shop')} className="mt-4 px-6 py-2 bg-stone-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-stone-800">
+          Return to Shop
+        </button>
       </div>
     );
   }
 
+  const isDelivery = orderRecord?.delivery_type === 'delivery';
+
   return (
-    <div className="bg-white rounded-[36px] p-6 md:p-8 max-w-md w-full text-center border border-stone-200/60 shadow-2xl space-y-6 mx-auto">
-      <div className="space-y-2">
-        <div className="h-16 w-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600 border border-emerald-100 shadow-inner">
-          <CheckCircle2 className="h-9 w-9 fill-emerald-600/10" />
+    <div className="min-h-screen bg-stone-950 text-stone-200 font-sans py-12 px-4 flex justify-center selection:bg-emerald-500/30">
+      <div className="max-w-md w-full space-y-6">
+        
+        {/* Header Area */}
+        <div className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/20 mb-2">
+            <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+          </div>
+          <h1 className="text-2xl font-black uppercase tracking-tight text-white">Payment Confirmed</h1>
+          <p className="text-xs text-stone-400 leading-relaxed font-mono px-4">
+            Thank you, <strong className="text-emerald-400">{orderRecord?.customer_name || 'Customer'}</strong>. Your payment has been verified and a confirmation SMS has been sent.
+          </p>
         </div>
-        <h2 className="text-2xl font-serif font-black uppercase text-emerald-950 tracking-tight mt-3">Payment Confirmed!</h2>
-        <p className="text-xs text-stone-500 font-light leading-relaxed">
-          Thank you, <strong className="text-stone-800 font-bold">{orderRecord?.customer_name || 'Customer'}</strong>. Your payment has been verified, your order status is active, and a confirmation message has been sent via SMS.
-        </p>
-      </div>
 
-      <div className="bg-stone-50 border border-stone-200/60 rounded-2xl p-4 text-left font-mono text-xs space-y-3 text-stone-500 shadow-inner">
-        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-stone-200/40 pb-2 gap-1">
-          <span className="text-[10px] text-stone-400 uppercase shrink-0">Transaction ID:</span>
-          {/* Replaced truncate with break-all to show the full ID */}
-          <strong className="text-stone-900 font-bold break-all sm:text-right">{extractedOrderId}</strong>
+        {/* Screenshot Advisory */}
+        <div className="bg-blue-950/20 border border-blue-900/30 p-3 rounded-xl flex items-center justify-center gap-2 text-blue-400 text-[10px] font-mono font-bold uppercase tracking-wider">
+          <Camera className="h-4 w-4" />
+          <span>Please screenshot this receipt for your records</span>
         </div>
-        <div className="flex justify-between items-center"><span className="text-[10px] text-stone-400 uppercase">Order Status:</span><strong className="text-emerald-600 uppercase font-bold">{orderRecord?.status || 'processing'}</strong></div>
-        <div className="flex justify-between items-center border-t border-stone-200/40 pt-2 text-stone-800 font-bold"><span>Total Paid Amount:</span><strong className="text-emerald-700 text-sm font-black">₵{Number(orderRecord?.total_amount || 0).toFixed(2)}</strong></div>
-      </div>
 
-      <Link href="/shop" className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-serif font-black text-xs py-3.5 rounded-xl flex items-center justify-center gap-1.5 shadow-md transition-all uppercase tracking-wide">
-        <ShoppingBag className="h-4 w-4" /> <span>Back to Storefront Menu</span>
-      </Link>
+        {/* Digital Receipt Card */}
+        <div className="bg-stone-900 border border-stone-800 rounded-3xl overflow-hidden shadow-2xl">
+          
+          {/* Brand Header */}
+          <div className="bg-stone-955 border-b border-stone-800 p-6 flex flex-col items-center text-center space-y-1.5">
+            <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Beverages Logo" className="h-14 w-auto object-contain brightness-110 mb-2" />
+            <h2 className="font-black text-lg text-white uppercase tracking-widest">Sparkle Beverages</h2>
+            <p className="text-[10px] font-mono text-stone-500">Chill. Sip. Sparkle.</p>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Order Meta */}
+            <div className="space-y-3 font-mono text-xs">
+              <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-1">
+                <span className="text-stone-500 uppercase font-bold shrink-0">Order Reference:</span>
+                <span className="text-emerald-400 font-black break-all sm:text-right">{extractedOrderId}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-stone-500 uppercase font-bold">Order Status:</span>
+                <span className="text-stone-300 font-bold uppercase">{orderRecord?.status || 'Processing'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-stone-500 uppercase font-bold">Payment Status:</span>
+                <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-black uppercase tracking-widest">Paid via MoMo</span>
+              </div>
+            </div>
+
+            <div className="h-px bg-dashed bg-stone-800 w-full" />
+
+            {/* Financial Totals */}
+            <div className="space-y-2 font-mono text-xs">
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-stone-300 uppercase font-black tracking-widest">Total Paid</span>
+                <span className="text-lg font-black text-emerald-400">₵{Number(orderRecord?.total_amount || 0).toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="h-px bg-stone-800 w-full" />
+
+            {/* Logistics Footer */}
+            <div className="bg-stone-955 rounded-xl p-4 space-y-3 font-mono text-xs border border-stone-800">
+              <div className="flex items-center gap-2 text-cyan-400 border-b border-stone-800 pb-2 mb-2">
+                {isDelivery ? <Truck className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
+                <span className="font-bold uppercase tracking-wider">{isDelivery ? 'Delivery Logistics' : 'HQ Self-Pickup'}</span>
+              </div>
+              <div className="space-y-1 text-stone-400">
+                <div className="flex justify-between">
+                  <span className="font-bold">Client:</span>
+                  <span className="text-stone-200 text-right">{orderRecord?.customer_name || 'Customer'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold">Phone:</span>
+                  <span className="text-stone-200 text-right">{orderRecord?.customer_phone || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="pt-4 text-center">
+          <Link 
+            href="/shop" 
+            className="text-stone-500 hover:text-white font-mono text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Return to Storefront Menu
+          </Link>
+        </div>
+
+      </div>
     </div>
   );
 }
 
 export default function CheckoutSuccessPage() {
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-800 font-sans antialiased flex flex-col justify-between">
-      <header className="bg-stone-950 border-b border-stone-900 py-4 px-6 flex justify-between items-center shadow-lg">
-        <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" className="h-10 object-contain" />
-        <Link href="/shop" className="text-[10px] font-mono font-bold text-stone-400 hover:text-white flex items-center gap-1"><ShoppingBag className="h-3.5 w-3.5" /> Back to Storefront</Link>
-      </header>
-
-      <main className="max-w-md mx-auto px-4 py-16 flex-1 flex items-center justify-center">
-        <Suspense fallback={
-          <div className="text-center space-y-2">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto" />
-            <p className="text-xs text-stone-400 font-mono">Loading App Context...</p>
-          </div>
-        }>
-          <SuccessContent />
-        </Suspense>
-      </main>
-
-      <footer className="text-center py-6 text-[11px] text-stone-400 font-medium border-t border-stone-200 bg-stone-50">
-        © 2026 Sparkle Beverages Ltd. All rights reserved.
-      </footer>
-    </div>
+    <Suspense fallback={
+      <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+      </div>
+    }>
+      <SuccessReceiptContent />
+    </Suspense>
   );
 }
