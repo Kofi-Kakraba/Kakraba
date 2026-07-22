@@ -7,8 +7,10 @@ import {
   Tag, PlusCircle, ListFilter, Landmark, Layers, Edit3, Save, LayoutGrid, FileText, Upload, ShieldCheck, Eye, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Lock, Mail, TrendingUp, Activity, CheckSquare, Square
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
+
+// 🚨 THE FIX IS HERE: updateOrderStatusAdmin has been removed from this block...
 import { 
-  getAllOrdersForAdmin, updateOrderStatusAdmin,
+  getAllOrdersForAdmin, 
   getAllReferralCodesAdmin, toggleReferralStateAdmin,
   getStoreInventoryAdmin, updateVariantInventoryAdmin,
   getSiteSettingsAdmin, updateSiteSettingsAdmin,
@@ -16,6 +18,9 @@ import {
   processReferrerRejectionAdminAction, deleteReferrerAdminAction,
   getAdminWithdrawalTicketsQueueAction, forceResetAmbassadorPasswordAdminAction
 } from '../actions/admin';
+
+// 🚨 ...AND MOVED HERE to pull from the file containing the SMS logic!
+import { updateOrderStatusAdmin } from '../actions/orders';
 import { confirmDispatchLogisticsServerAction } from '../actions/logistics';
 
 export default function AdminDashboardPage() {
