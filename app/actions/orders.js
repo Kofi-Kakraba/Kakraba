@@ -282,7 +282,7 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
         const orderRef = orderId.substring(0, 8).toUpperCase();
         
         // Formulate the SMS message
-        const smsMessage = `Hi ${firstName}, your Sparkle Beverages order #${orderRef} is packed and READY for pickup at our HQ Depot! See you soon.`;
+        const smsMessage = `Hi ${firstName}, your Sparkle order is packed and READY for pickup at our HQ Depot! Please present your pickup code (#${orderRef}) to the dispatch team when you arrive.`;
 
         // Leverage your existing SMS function
         const smsSent = await fireSMSOnlineGHGateway(orderData.customer_phone, smsMessage);
