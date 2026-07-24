@@ -97,7 +97,10 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
     }
 
     // 3. CONNECT SECURELY TO PAYSTACK: Initialize Live Transaction Session Engine
-    const siteDomainBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    // 🚨 FIX: Hard-locking the production domain to prevent Vercel staging URL redirects
+    const siteDomainBaseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://sparklebeverages.com' 
+      : 'http://localhost:3000';
     
     const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
