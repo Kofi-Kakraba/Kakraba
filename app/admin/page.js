@@ -615,9 +615,13 @@ export default function AdminDashboardPage() {
     let downloadFileName = `Sparkle_${datasetType}_Report.csv`;
 
     if (datasetType === 'Orders') {
-      csvStringContent = 'Order ID,Customer Name,Phone Number,Delivery Option,Fulfillment Location Address,Total Amount (GHS),Payment Status,Fulfillment Status,Date Placed\r\n';
+      csvStringContent = 'Order ID,Customer Name,Phone Number,Delivery Option,Preferred Date,Fulfillment Location Address,Total Amount (GHS),Payment Status,Fulfillment Status,Date Placed\r\n';
       dataArray.forEach(row => {
-        csvStringContent += `"${row.id}","${row.customer_name}","${row.customer_phone}","${row.delivery_type}","${row.landmark || 'Self-Pickup'}",${row.total_amount},"${row.payment_status}","${row.status}","${new Date(row.created_at).toLocaleString('en-GH')}"\r\n`;
+        let meta = {};
+        try { meta = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : (row.metadata || {}); } catch(e){}
+        const prefDate = meta.preferred_delivery_date || 'N/A';
+        
+        csvStringContent += `"${row.id}","${row.customer_name}","${row.customer_phone}","${row.delivery_type}","${prefDate}","${row.landmark || 'Self-Pickup'}",${row.total_amount},"${row.payment_status}","${row.status}","${new Date(row.created_at).toLocaleString('en-GH')}"\r\n`;
       });
     } else if (datasetType === 'Ambassadors') {
       csvStringContent = 'Code Account,Legal Representative,Contact Line,Email,MoMo Wallet,Network Route,Wallet Balance (GHS),Account Verified\r\n';
@@ -688,6 +692,10 @@ export default function AdminDashboardPage() {
     } else { alert(`Toggle failed: ${error.message}`); }
     setUpdatingId(null);
   };
+
+  // 🚨 PREPARE METADATA FOR PRINTING AT COMPONENT LEVEL
+  const selectedPrintMeta = selectedPrintOrder?.metadata ? (typeof selectedPrintOrder.metadata === 'string' ? JSON.parse(selectedPrintOrder.metadata) : selectedPrintOrder.metadata) : {};
+  const printDate = selectedPrintMeta.preferred_delivery_date;
 
   return (
     <div className="min-h-screen bg-stone-955 text-stone-100 font-sans antialiased pb-12 print:bg-white print:text-stone-900">
@@ -820,6 +828,12 @@ export default function AdminDashboardPage() {
                 const isDispatched = order.status === 'dispatched'; 
                 const isCompleted = order.status === 'completed'; 
                 const isCancelled = order.status === 'cancelled'; 
+                
+                // 🚨 NEW: Safely extract metadata and preferred date
+                let metaObj = {};
+                try { metaObj = typeof order.metadata === 'string' ? JSON.parse(order.metadata) : (order.metadata || {}); } catch(e){}
+                const preferredDeliveryDate = metaObj.preferred_delivery_date;
+
                 const referralTrack = order.metadata?.applied_code;
                 const manifestLines = resolveItemManifestLines(order);
                 const hasRiderAssigned = order.metadata?.rider_name;
@@ -867,6 +881,15 @@ export default function AdminDashboardPage() {
                       <div className="bg-stone-955 border border-stone-800/85 rounded-xl p-3 text-[11px] font-mono space-y-1.5 text-stone-300">
                         <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-stone-500" /><span>{order.customer_phone}</span></div>
                         <div className="flex items-center gap-2">{isDeliveryType ? <Truck className="h-3.5 w-3.5 text-blue-400" /> : <MapPin className="h-3.5 w-3.5 text-amber-400" />}<span>{order.delivery_type} Option</span></div>
+                        
+                        {/* 🚨 NEW: Display the preferred delivery date here */}
+                        {preferredDeliveryDate && preferredDeliveryDate !== 'HQ Pickup' && (
+                          <div className="flex items-center gap-2 text-emerald-400 font-bold bg-emerald-955/20 px-2 py-1 rounded-md border border-emerald-900/30">
+                            <Calendar className="h-3.5 w-3.5" />
+                            <span>Req. Date: {new Date(preferredDeliveryDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                        )}
+
                         <div className="text-[10px] text-cyan-400/90 truncate pt-1 border-t border-stone-900 flex items-center gap-1"><MapPin className="h-3 w-3 text-cyan-500" /> <span>Dest: {order.landmark || 'HQ Self-Pickup Depot'}</span></div>
                       </div>
 
@@ -894,7 +917,7 @@ export default function AdminDashboardPage() {
                       )}
                       
                       {isCompleted && !isDeliveryType && (
-                        <div className="bg-blue-950/20 border border-blue-900/30 p-2.5 rounded-xl text-[10px] font-mono text-blue-400 space-y-1 mt-2 shadow-inner">
+                        <div className="bg-blue-955/20 border border-blue-900/30 p-2.5 rounded-xl text-[10px] font-mono text-blue-400 space-y-1 mt-2 shadow-inner">
                           <span className="uppercase font-bold tracking-wider border-b border-blue-900/50 pb-0.5 block flex items-center gap-1"><MapPin className="h-3 w-3" /> HQ Pickup Complete</span>
                           <p className="text-blue-300 leading-tight">Order securely handed over to client at the depot.</p>
                         </div>
@@ -1613,81 +1636,95 @@ export default function AdminDashboardPage() {
       )}
 
       {/* PRINT DIALOG SLIP MODAL DISPLAY */}
-      {selectedPrintOrder && (
-        <div className="fixed inset-0 bg-stone-955/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:absolute print:inset-0 print:bg-white print:p-0">
-          <div className="bg-white text-stone-950 rounded-[32px] border border-stone-200 max-w-2xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative print:border-0 print:shadow-none print:p-0 font-sans">
-            <div className="flex justify-between items-center border-b border-stone-100 pb-3 print:hidden">
-              <span className="font-bold text-xs font-mono">LOGISTICAL MANIFEST SLIP</span>
-              <div className="flex items-center gap-2">
-                <button onClick={() => window.print()} className="bg-emerald-600 text-white font-mono font-bold text-[10px] px-3 py-1.5 rounded-xl uppercase shadow-sm">Print</button>
-                <button onClick={() => setSelectedPrintOrder(null)} className="p-1 text-stone-400 hover:text-stone-750 bg-stone-50 rounded-lg border"><X className="h-4 w-4" /></button>
+      {selectedPrintOrder && (() => {
+        // 🚨 NEW: Parse metadata for the print slip
+        let printMeta = {};
+        try { printMeta = typeof selectedPrintOrder.metadata === 'string' ? JSON.parse(selectedPrintOrder.metadata) : (selectedPrintOrder.metadata || {}); } catch(e){}
+        const slipPrintDate = printMeta.preferred_delivery_date;
+
+        return (
+          <div className="fixed inset-0 bg-stone-955/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:absolute print:inset-0 print:bg-white print:p-0">
+            <div className="bg-white text-stone-950 rounded-[32px] border border-stone-200 max-w-2xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative print:border-0 print:shadow-none print:p-0 font-sans">
+              <div className="flex justify-between items-center border-b border-stone-100 pb-3 print:hidden">
+                <span className="font-bold text-xs font-mono">LOGISTICAL MANIFEST SLIP</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => window.print()} className="bg-emerald-600 text-white font-mono font-bold text-[10px] px-3 py-1.5 rounded-xl uppercase shadow-sm">Print</button>
+                  <button onClick={() => setSelectedPrintOrder(null)} className="p-1 text-stone-400 hover:text-stone-750 bg-stone-50 rounded-lg border"><X className="h-4 w-4" /></button>
+                </div>
               </div>
-            </div>
-            <div className="space-y-6 text-xs text-stone-800">
-              <div className="flex justify-between items-start border-b-2 border-stone-950 pb-4">
-                <div className="flex items-center gap-2.5">
-                  {cmsContent.receipt_logo && (
-                    <img src={cmsContent.receipt_logo} alt="Receipt Logo" className="h-12 w-12 object-contain rounded-xl border bg-stone-50 p-1 shadow-inner" />
-                  )}
-                  <div className="space-y-0.5">
-                    <h2 className="text-base font-black uppercase text-emerald-955">{cmsContent.receipt_name || 'Sparkle Beverages Ltd.'}</h2>
-                    <p className="text-[10px] text-stone-500 font-mono font-medium">{cmsContent.receipt_subtitle || 'Accra, Ghana'}</p>
+              <div className="space-y-6 text-xs text-stone-800">
+                <div className="flex justify-between items-start border-b-2 border-stone-950 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    {cmsContent.receipt_logo && (
+                      <img src={cmsContent.receipt_logo} alt="Receipt Logo" className="h-12 w-12 object-contain rounded-xl border bg-stone-50 p-1 shadow-inner" />
+                    )}
+                    <div className="space-y-0.5">
+                      <h2 className="text-base font-black uppercase text-emerald-955">{cmsContent.receipt_name || 'Sparkle Beverages Ltd.'}</h2>
+                      <p className="text-[10px] text-stone-500 font-mono font-medium">{cmsContent.receipt_subtitle || 'Accra, Ghana'}</p>
+                    </div>
+                  </div>
+                  <div className="text-right font-mono">
+                    <div className="text-xs font-black text-stone-955">#SPK-{selectedPrintOrder.id.substring(0, 8).toUpperCase()}</div>
+                    <div className="text-[9px] text-stone-400">{new Date(selectedPrintOrder.created_at).toLocaleString('en-GH')}</div>
                   </div>
                 </div>
-                <div className="text-right font-mono">
-                  <div className="text-xs font-black text-stone-955">#SPK-{selectedPrintOrder.id.substring(0, 8).toUpperCase()}</div>
-                  <div className="text-[9px] text-stone-400">{new Date(selectedPrintOrder.created_at).toLocaleString('en-GH')}</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 bg-stone-50 p-4 rounded-2xl border font-mono text-[11px]">
-                <div>
-                  <span className="text-[8px] text-stone-400 font-bold block uppercase">Client Details</span>
-                  <div className="font-bold text-stone-900">{selectedPrintOrder.customer_name}</div>
-                  <div>Phone: {selectedPrintOrder.customer_phone}</div>
-                </div>
-                <div>
-                  <span className="text-[8px] text-stone-400 font-bold block uppercase">Logistics Route</span>
-                  <div className="text-cyan-800 font-black">{selectedPrintOrder.landmark || 'HQ Self-Pickup Depot'}</div>
-                </div>
-              </div>
-              <div className="border border-stone-200 rounded-xl overflow-hidden font-mono text-[11px]">
-                <div className="bg-stone-955 text-white font-bold grid grid-cols-4 p-2.5 uppercase text-[9px] print:bg-stone-900 text-center">
-                  <div className="col-span-2 text-left">Fulfillment Package Selection</div>
-                  <div>Sizing</div>
-                  <div className="text-right">Price Allocation</div>
-                </div>
-                <div className="divide-y divide-stone-100 px-1 text-stone-700">
-                  {printOrderItems.length === 0 ? (
-                    <div className="grid grid-cols-4 py-3 text-center items-center font-sans font-medium text-stone-900 px-2">
-                      <div className="col-span-2 text-left font-bold uppercase text-emerald-955 flex flex-col">
-                        <span>Sparkle Fresh Mixed Beverages</span>
-                        <span className="text-[9px] font-mono text-stone-400 font-light">Custom Storefront Checkout Manifest Batch</span>
+                <div className="grid grid-cols-2 gap-4 bg-stone-50 p-4 rounded-2xl border font-mono text-[11px]">
+                  <div>
+                    <span className="text-[8px] text-stone-400 font-bold block uppercase">Client Details</span>
+                    <div className="font-bold text-stone-900">{selectedPrintOrder.customer_name}</div>
+                    <div>Phone: {selectedPrintOrder.customer_phone}</div>
+                  </div>
+                  <div>
+                    <span className="text-[8px] text-stone-400 font-bold block uppercase">Logistics Route</span>
+                    <div className="text-cyan-800 font-black">{selectedPrintOrder.landmark || 'HQ Self-Pickup Depot'}</div>
+                    
+                    {/* 🚨 NEW: Printed Date */}
+                    {slipPrintDate && slipPrintDate !== 'HQ Pickup' && (
+                      <div className="text-emerald-700 font-black mt-1 text-[12px] border-t border-stone-200 pt-1">
+                        DATE: {new Date(slipPrintDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                       </div>
-                      <div className="font-mono text-stone-500 uppercase">Batch</div>
-                      <div className="text-right font-mono font-black text-emerald-800">₵{Number(selectedPrintOrder.total_amount).toFixed(2)}</div>
-                    </div>
-                  ) : (
-                    printOrderItems.map((item) => (
-                      <div key={item.id} className="grid grid-cols-4 py-2.5 text-center items-center font-sans font-medium text-stone-900 text-[11px] px-2">
+                    )}
+                  </div>
+                </div>
+                <div className="border border-stone-200 rounded-xl overflow-hidden font-mono text-[11px]">
+                  <div className="bg-stone-955 text-white font-bold grid grid-cols-4 p-2.5 uppercase text-[9px] print:bg-stone-900 text-center">
+                    <div className="col-span-2 text-left">Fulfillment Package Selection</div>
+                    <div>Sizing</div>
+                    <div className="text-right">Price Allocation</div>
+                  </div>
+                  <div className="divide-y divide-stone-100 px-1 text-stone-700">
+                    {printOrderItems.length === 0 ? (
+                      <div className="grid grid-cols-4 py-3 text-center items-center font-sans font-medium text-stone-900 px-2">
                         <div className="col-span-2 text-left font-bold uppercase text-emerald-955 flex flex-col">
-                          <span>{item.flavor_title}</span>
-                          <span className="text-[9px] font-mono text-stone-400 font-light">ID: #{item.id.substring(0,6).toUpperCase()}</span>
+                          <span>Sparkle Fresh Mixed Beverages</span>
+                          <span className="text-[9px] font-mono text-stone-400 font-light">Custom Storefront Checkout Manifest Batch</span>
                         </div>
-                        <div className="font-mono text-stone-500 uppercase">{item.size_title}</div>
-                        <div className="text-right font-mono font-black text-emerald-800">{item.quantity} units / ₵{(Number(item.unit_price) * parseInt(item.quantity)).toFixed(2)}</div>
+                        <div className="font-mono text-stone-500 uppercase">Batch</div>
+                        <div className="text-right font-mono font-black text-emerald-800">₵{Number(selectedPrintOrder.total_amount).toFixed(2)}</div>
                       </div>
-                    ))
-                  )}
-                </div>
-                <div className="bg-stone-50 p-3 border-t-2 border-stone-950 font-mono text-right flex justify-between text-xs font-black text-stone-950 uppercase">
-                  <span>Grand Total Bill:</span>
-                  <span className="text-emerald-800">GHS {Number(selectedPrintOrder.total_amount).toFixed(2)}</span>
+                    ) : (
+                      printOrderItems.map((item) => (
+                        <div key={item.id} className="grid grid-cols-4 py-2.5 text-center items-center font-sans font-medium text-stone-900 text-[11px] px-2">
+                          <div className="col-span-2 text-left font-bold uppercase text-emerald-955 flex flex-col">
+                            <span>{item.flavor_title}</span>
+                            <span className="text-[9px] font-mono text-stone-400 font-light">ID: #{item.id.substring(0,6).toUpperCase()}</span>
+                          </div>
+                          <div className="font-mono text-stone-500 uppercase">{item.size_title}</div>
+                          <div className="text-right font-mono font-black text-emerald-800">{item.quantity} units / ₵{(Number(item.unit_price) * parseInt(item.quantity)).toFixed(2)}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="bg-stone-50 p-3 border-t-2 border-stone-950 font-mono text-right flex justify-between text-xs font-black text-stone-950 uppercase">
+                    <span>Grand Total Bill:</span>
+                    <span className="text-emerald-800">GHS {Number(selectedPrintOrder.total_amount).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
