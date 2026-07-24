@@ -34,7 +34,8 @@ export default function BrandWelcomeHomePage() {
     gallery_1_title: "Signature Flavors", "gallery_1_img": "",
     gallery_2_title: "Custom Matrimony Drop", "gallery_2_img": "",
     gallery_3_title: "Executive Gala Service", "gallery_3_img": "",
-    gallery_4_title: "The Community Giveback", "gallery_4_img": ""
+    gallery_4_title: "The Community Giveback", "gallery_4_img": "",
+    story_img: "" // Added to prevent undefined errors
   };
 
   const quickProducts = {
@@ -256,9 +257,16 @@ export default function BrandWelcomeHomePage() {
             <p className="border-l-4 border-amber-400 pl-4 text-stone-900 font-bold italic">{cms.story_p2}</p>
           </div>
         </div>
-        {/* Replaced logo with Banner Image */}
+        
+        {/* 🚨 REPLACED LOGO WITH DYNAMIC ADMIN IMAGE */}
         <div className="relative rounded-[40px] overflow-hidden bg-stone-100 p-2 h-[480px] flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-200 group">
-          <Image src="/SPARKLE DRINK Banner.jpg" alt="Sparkle Branding Graphic" layout="fill" objectFit="cover" className="rounded-[36px] transition-transform duration-700 group-hover:scale-105" />
+          <Image 
+            src={cms.story_img || "/SPARKLE DRINK Banner.jpg"} 
+            alt="Sparkle Branding Graphic" 
+            layout="fill" 
+            objectFit="cover" 
+            className="rounded-[36px] transition-transform duration-700 group-hover:scale-105" 
+          />
         </div>
       </section>
 
