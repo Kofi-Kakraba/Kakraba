@@ -1471,6 +1471,18 @@ export default function AdminDashboardPage() {
                 <input type="text" required placeholder="Story Block Headline Title" value={cmsContent.story_title || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_title: e.target.value }))} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold" />
                 <textarea rows="3" required placeholder="Paragraph 1 Body Copy Text..." value={cmsContent.story_p1 || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_p1: e.target.value }))} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
                 <textarea rows="3" required placeholder="Paragraph 2 Body Copy Text..." value={cmsContent.story_p2 || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_p2: e.target.value }))} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
+                
+                {/* 🚨 NEW UPLOAD BUTTON FOR THE STORY IMAGE */}
+                <label className="w-full bg-stone-955 hover:bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-stone-300 text-center flex items-center justify-center gap-2 font-bold cursor-pointer transition-colors">
+                  <Upload className="h-4 w-4 text-emerald-500" />
+                  <span>{cmsContent.story_img ? 'Image Loaded ✓ (Click to change)' : 'Browse & Upload Brand Story Image'}</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={(e) => handleImageUploadEngine(e, 'story_img', 'cms')} 
+                  />
+                </label>
               </div>
             </div>
 
