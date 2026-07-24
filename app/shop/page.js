@@ -35,6 +35,7 @@ function ShopStorefront() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [deliveryType, setDeliveryType] = useState('delivery'); 
   const [landmark, setLandmark] = useState('');
+  const [preferredDate, setPreferredDate] = useState(''); // 🚨 NEW: Added Date State
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
   useEffect(() => {
@@ -277,7 +278,9 @@ function ShopStorefront() {
         applied_code: appliedCoupon?.profile?.code || null,
         code_id: appliedCoupon?.profile?.id || null,
         payout_processed: false,
-        calculated_payout_amount: 0
+        calculated_payout_amount: 0,
+        // 🚨 NEW: Passing the selected date to the backend database
+        preferred_delivery_date: deliveryType === 'delivery' ? preferredDate : 'HQ Pickup' 
       }
     };
     
@@ -622,9 +625,27 @@ function ShopStorefront() {
                         <button type="button" onClick={() => setDeliveryType('pickup')} className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all ${deliveryType === 'pickup' ? 'bg-white text-stone-950 shadow-sm border border-stone-200' : 'text-stone-400 hover:text-stone-600'}`}>HQ Pickup</button>
                       </div>
                       
+                      {/* 🚨 NEW: Calendar and Instructional UI Block */}
                       {deliveryType === 'delivery' && (
-                        <div>
-                          <input type="text" required value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="Delivery Landmark / Address" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
+                        <div className="space-y-4">
+                          <div>
+                            <input type="text" required value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="Delivery Landmark / Address" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Select Delivery Date</span>
+                            <input 
+                              type="date" 
+                              required 
+                              value={preferredDate} 
+                              onChange={(e) => setPreferredDate(e.target.value)} 
+                              min={new Date().toISOString().split('T')[0]} // Prevents picking a past date
+                              className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold text-sm transition-colors" 
+                            />
+                          </div>
+                          <div className="bg-stone-100 border border-stone-200 p-3 rounded-2xl text-[10px] text-stone-500 font-medium leading-relaxed">
+                            <strong className="text-stone-950 font-black uppercase tracking-wider block mb-1">🚗 Yango Package (Pay Fare on Arrival)</strong>
+                            Delivery fares depend on your exact location and traffic conditions. You will pay the fare directly to the Yango/Uber rider upon arrival. We will always call you to confirm the estimated fare before dispatch.
+                          </div>
                         </div>
                       )}
                     </div>
