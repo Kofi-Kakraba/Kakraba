@@ -169,9 +169,13 @@ export default function BrandWelcomeHomePage() {
               {cms.hero_subtitle}
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            {/* 🚨 UPDATED HERO BUTTON BLOCK */}
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 pt-2">
               <Link href="/shop" className="bg-stone-950 hover:bg-stone-800 text-white text-xs font-black uppercase tracking-wide px-8 py-4 rounded-xl flex items-center justify-center gap-2 shadow-xl transition-all">
-                <ShoppingBag className="h-4 w-4" /> <span>Order Batches</span> <ChevronRight className="h-4 w-4" />
+                <ShoppingBag className="h-4 w-4" /> <span>Order Batches</span>
+              </Link>
+              <Link href="/custom" className="bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white text-xs font-black uppercase tracking-wide px-8 py-4 rounded-xl flex items-center justify-center gap-2 shadow-[0_8px_30px_rgb(225,29,72,0.3)] transition-all hover:-translate-y-0.5">
+                <Flame className="h-4 w-4 text-amber-300" /> <span>Custom Drops</span>
               </Link>
               <Link href="/referrer" className="bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-200 text-xs font-black uppercase tracking-wide px-8 py-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all">
                 <UserPlus className="h-4 w-4 text-emerald-500" /> <span>Ambassador Hub</span>
