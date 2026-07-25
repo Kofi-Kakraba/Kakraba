@@ -37,7 +37,18 @@ function ShopStorefront() {
   const [landmark, setLandmark] = useState('');
   const [preferredDate, setPreferredDate] = useState(''); // 🚨 NEW: Added Date State
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-
+  
+// 🚨 NEW: Unlocks the checkout button if the user hits the browser's "Back" button from Paystack
+  useEffect(() => {
+    const handlePageShow = (event) => {
+      if (event.persisted) {
+        setIsSubmittingOrder(false);
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
+  
   useEffect(() => {
     async function fetchStoreCatalog() {
       try {
