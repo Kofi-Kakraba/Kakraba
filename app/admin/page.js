@@ -3,12 +3,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { 
   CheckCircle2, Clock, Truck, MapPin, Phone, User, Search, Calendar, ToggleLeft, ToggleRight,
-  ShieldAlert, PackageCheck, RefreshCw, AlertCircle, Download, FileSpreadsheet, Camera, CreditCard,
-  Tag, PlusCircle, ListFilter, Landmark, Layers, Edit3, Save, LayoutGrid, FileText, Upload, ShieldCheck, Eye, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Lock, Mail, TrendingUp, Activity, CheckSquare, Square
+  ShieldAlert, PackageCheck, RefreshCw, AlertCircle, Download, Camera, CreditCard,
+  Tag, PlusCircle, ListFilter, Layers, Edit3, Save, LayoutGrid, FileText, Upload, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Mail, Activity, CheckSquare, Square
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 
-// 🚨 THE FIX IS HERE: updateOrderStatusAdmin has been removed from this block...
+// Admin Actions
 import { 
   getAllOrdersForAdmin, 
   getAllReferralCodesAdmin, toggleReferralStateAdmin,
@@ -19,13 +19,14 @@ import {
   getAdminWithdrawalTicketsQueueAction, forceResetAmbassadorPasswordAdminAction
 } from '../actions/admin';
 
-// 🚨 ...AND MOVED HERE to pull from the file containing the SMS logic!
+// Logistics Actions
 import { updateOrderStatusAdmin } from '../actions/orders';
 import { confirmDispatchLogisticsServerAction } from '../actions/logistics';
 
 export default function AdminDashboardPage() {
   const supabase = createBrowserSupabaseClient();
 
+  // Core Data States
   const [activeTab, setActiveTab] = useState('orders'); 
   const [orders, setOrders] = useState([]);
   const [referrals, setReferrals] = useState([]);
@@ -33,44 +34,43 @@ export default function AdminDashboardPage() {
   const [products, setProducts] = useState([]);
   const [cmsContent, setCmsContent] = useState({});
   const [campaignScans, setCampaignScans] = useState([]); 
+  
+  // UI & Loading States
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
-  
-  // 🚨 BULK DISPATCH STATE
-  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef(null);
 
-  // ORDER FILTERS
+  // Bulk Dispatch States
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [dispatchOrder, setDispatchOrder] = useState(null); // Can hold { isBulk: true, count: number }
+  
+  // Order Filters
   const [filterStatus, setFilterStatus] = useState('active'); 
   const [deliveryFilter, setDeliveryFilter] = useState('all'); 
   const [orderSearchText, setOrderSearchText] = useState('');
   const [orderDateText, setOrderDateText] = useState('');
   const [orderLocationText, setOrderLocationText] = useState(''); 
 
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
-  const statusDropdownRef = useRef(null);
-
-  const [selectedAmbassadorDetails, setSelectedAmbassadorDetails] = useState(null);
-  const [errorMessage, setErrorMessage] = useState(null);
-
-  const [promoDiscountsMap, setPromoDiscountsMap] = useState({});
+  // Print Management
   const [selectedPrintOrder, setSelectedPrintOrder] = useState(null);
   const [printOrderItems, setPrintOrderItems] = useState([]);
   const [loadingPrintItems, setLoadingPrintItems] = useState(false);
+  const [globalOrderLinesMap, setGlobalOrderLinesMap] = useState({});
 
-  // LOGISTICS DISPATCH MODAL STATES
-  const [dispatchOrder, setDispatchOrder] = useState(null); // Can now hold { isBulk: true, count: number }
+  // Logistics & Rider Form States
   const [riderName, setRiderName] = useState('');
   const [riderPhone, setRiderPhone] = useState('');
   const [vehicleType, setVehicleType] = useState('Motorbike');
   const [vehicleColor, setVehicleColor] = useState('');
   const [plateNumber, setPlateNumber] = useState('');
 
-  // Forms Binding Controllers States
+  // CMS/Forms Creation States
   const [newProductName, setNewProductName] = useState('');
   const [newProductDesc, setNewProductDesc] = useState('');
   const [newCode, setNewCode] = useState('');
   const [newCampaign, setNewCampaign] = useState('');
-  
   const [newAmbassadorName, setNewAmbassadorName] = useState('');
   const [newAmbassadorPhone, setNewAmbassadorPhone] = useState('');
   const [newAmbassadorEmail, setNewAmbassadorEmail] = useState('');
@@ -80,17 +80,20 @@ export default function AdminDashboardPage() {
   const [newAmbassadorPortrait, setNewAmbassadorPortrait] = useState(''); 
   const [newAmbassadorCard, setNewAmbassadorCard] = useState(''); 
 
+  // Promo Engine States
+  const [promoDiscountsMap, setPromoDiscountsMap] = useState({});
   const [promo300mlDiscount, setPromo300mlDiscount] = useState('0.50');
   const [promo500mlDiscount, setPromo500mlDiscount] = useState('1.00');
   const [promo15LDiscount, setPromo15LDiscount] = useState('2.00');
   const [promo5LDiscount, setPromo5LDiscount] = useState('5.00');
 
+  // Editing States
   const [editingPromoId, setEditingPromoId] = useState(null);
   const [editPromo300ml, setEditPromo300ml] = useState('0.50');
   const [editPromo500ml, setEditPromo500ml] = useState('1.00');
   const [editPromo15L, setEditPromo15L] = useState('2.00');
   const [editPromo5L, setEditPromo5L] = useState('5.00');
-
+  
   const [editingVariantId, setEditingVariantId] = useState(null);
   const [editStock, setEditStock] = useState(0);
   const [editRetail, setEditRetail] = useState(0);
@@ -100,12 +103,10 @@ export default function AdminDashboardPage() {
   const [editClientDiscount, setEditClientDiscount] = useState(0); 
   const [editReferrerEarnings, setEditReferrerEarnings] = useState(0); 
 
-  const [globalOrderLinesMap, setGlobalOrderLinesMap] = useState({});
-
+  // Derived Lists
   const humanAmbassadorsList = referrals.filter(r => r.legal_name && r.legal_name.trim() !== '');
   const purePromoCodesList = referrals.filter(r => !r.legal_name || r.legal_name.trim() === '');
   
-  // 🚨 UPDATED STATUS OPTIONS
   const statusOptions = [
     { value: 'active', label: 'Active Queue' },
     { value: 'all', label: 'All Orders' },
@@ -117,6 +118,7 @@ export default function AdminDashboardPage() {
     { value: 'cancelled', label: 'Cancelled' }
   ];
 
+  // Component Lifecycles
   useEffect(() => {
     function handleClickOutside(event) {
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
@@ -126,38 +128,6 @@ export default function AdminDashboardPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const filteredOrders = orders.filter(order => {
-    const textMatch = orderSearchText.trim() === '' || 
-      order.customer_name.toLowerCase().includes(orderSearchText.toLowerCase()) ||
-      order.id.toLowerCase().includes(orderSearchText.toLowerCase());
-
-    const dateMatch = orderDateText.trim() === '' ||
-      new Date(order.created_at).toLocaleDateString('en-GH').includes(orderDateText);
-
-    const locationMatch = orderLocationText.trim() === '' ||
-      (order.landmark && order.landmark.toLowerCase().includes(orderLocationText.toLowerCase()));
-
-    const statusMatch = filterStatus === 'all' || 
-      (filterStatus === 'active' && order.status !== 'completed' && order.status !== 'cancelled') ||
-      (filterStatus === 'paid' && order.payment_status === 'paid') ||
-      (filterStatus === 'processing' && order.status === 'processing') ||
-      (filterStatus === 'ready' && order.status === 'ready') ||
-      (filterStatus === 'dispatched' && order.status === 'dispatched') ||
-      (filterStatus === 'completed' && order.status === 'completed') ||
-      (filterStatus === 'cancelled' && order.status === 'cancelled');
-
-    const deliveryMatch = deliveryFilter === 'all' || order.delivery_type === deliveryFilter;
-
-    return textMatch && dateMatch && locationMatch && statusMatch && deliveryMatch;
-  });
-
-  const lowStockAlertInventoryBin = products.flatMap(flavor => 
-    (flavor.product_variants || []).map(variant => ({
-      ...variant,
-      flavorName: flavor.name
-    }))
-  ).filter(variant => variant.stock_quantity <= 20);
 
   useEffect(() => {
     loadDashboardData();
@@ -215,7 +185,6 @@ export default function AdminDashboardPage() {
               break;
             }
           }
-
           return { ...item, flavor_title: resolvedFlavorName, size_title: resolvedSizeGroup };
         });
         setPrintOrderItems(enrichedItems);
@@ -226,6 +195,40 @@ export default function AdminDashboardPage() {
     pullChildInvoiceLineItems();
   }, [selectedPrintOrder, products]);
 
+  // Filters & Derived States
+  const filteredOrders = orders.filter(order => {
+    const textMatch = orderSearchText.trim() === '' || 
+      order.customer_name.toLowerCase().includes(orderSearchText.toLowerCase()) ||
+      order.id.toLowerCase().includes(orderSearchText.toLowerCase());
+
+    const dateMatch = orderDateText.trim() === '' ||
+      new Date(order.created_at).toLocaleDateString('en-GH').includes(orderDateText);
+
+    const locationMatch = orderLocationText.trim() === '' ||
+      (order.landmark && order.landmark.toLowerCase().includes(orderLocationText.toLowerCase()));
+
+    const statusMatch = filterStatus === 'all' || 
+      (filterStatus === 'active' && order.status !== 'completed' && order.status !== 'cancelled') ||
+      (filterStatus === 'paid' && order.payment_status === 'paid') ||
+      (filterStatus === 'processing' && order.status === 'processing') ||
+      (filterStatus === 'ready' && order.status === 'ready') ||
+      (filterStatus === 'dispatched' && order.status === 'dispatched') ||
+      (filterStatus === 'completed' && order.status === 'completed') ||
+      (filterStatus === 'cancelled' && order.status === 'cancelled');
+
+    const deliveryMatch = deliveryFilter === 'all' || order.delivery_type === deliveryFilter;
+
+    return textMatch && dateMatch && locationMatch && statusMatch && deliveryMatch;
+  });
+
+  const lowStockAlertInventoryBin = products.flatMap(flavor => 
+    (flavor.product_variants || []).map(variant => ({
+      ...variant,
+      flavorName: flavor.name
+    }))
+  ).filter(variant => variant.stock_quantity <= 20);
+
+  // Core Methods
   async function loadDashboardData() {
     setLoading(true);
     setErrorMessage(null);
@@ -273,14 +276,15 @@ export default function AdminDashboardPage() {
       } else {
         setErrorMessage(ordersRes.error || referralsRes.error || inventoryRes.error || "Data sync error.");
       }
-    } catch (err) { setErrorMessage(err.message); }
+    } catch (err) { 
+      setErrorMessage(err.message); 
+    }
     setLoading(false);
   }
 
   const handleImageUploadEngine = async (e, targetKey, contextType, variantId = null) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     alert(`Uploading ${file.name}... Please wait for the success popup.`);
 
     try {
@@ -316,22 +320,18 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 🚨 SMART BULK LOOP FOR DISPATCH
   const handleConfirmDispatchLogistics = async (e) => {
     e.preventDefault();
     if (!dispatchOrder) return;
-    
     setUpdatingId('dispatching');
 
     try {
-      // Determine if we are processing one order or a bulk array
       const ordersToProcess = dispatchOrder.isBulk 
         ? orders.filter(o => selectedOrderIds.includes(o.id)) 
         : [dispatchOrder];
 
       for (const order of ordersToProcess) {
         if (order.delivery_type === 'delivery') {
-          // Delivery -> Assign Rider and mark 'dispatched'
           await confirmDispatchLogisticsServerAction({
             orderId: order.id,
             deliveryType: order.delivery_type,
@@ -343,17 +343,15 @@ export default function AdminDashboardPage() {
             vehicleColor: vehicleColor,
             plateNumber: plateNumber
           });
-          // Note: If your server action sets it to 'completed', we will override it to 'dispatched' here to maintain the 3-step flow.
           await updateOrderStatusAdmin(order.id, 'dispatched');
         } else {
-          // Pickup -> Smart Bulk simply marks them as handed over (completed)
           await updateOrderStatusAdmin(order.id, 'completed');
         }
       }
 
       alert("🌟 LOGISTICS MANIFESTS PROCESSED SUCCESSFULLY!");
       setDispatchOrder(null);
-      setSelectedOrderIds([]); // Clear selection
+      setSelectedOrderIds([]); 
       await loadDashboardData(); 
     } catch (err) {
       alert(`Network Error: ${err.message}`);
@@ -400,7 +398,9 @@ export default function AdminDashboardPage() {
       alert(`PROMO CAMPAIGN NODE ${newCode.toUpperCase()} LAUNCHED LIVE!`);
       setNewCode(''); setNewCampaign('');
       await loadDashboardData();
-    } catch (err) { alert(`Failed: ${err.message}`); }
+    } catch (err) { 
+      alert(`Failed: ${err.message}`); 
+    }
     setUpdatingId(null);
   };
 
@@ -432,22 +432,21 @@ export default function AdminDashboardPage() {
       alert(`AMBASSADOR ACCOUNT ALLOCATED LIVE!\nCode handle: #${newCode.trim().toUpperCase()}\nPassword: ${passToUse}`);
       setNewCode(''); setNewAmbassadorName(''); setNewAmbassadorPhone(''); setNewAmbassadorEmail(''); setNewAmbassadorMomo(''); setNewAmbassadorPassword('');
       await loadDashboardData();
-    } else { alert(`Database rejected entry: ${error.message}`); }
+    } else { 
+      alert(`Database rejected entry: ${error.message}`); 
+    }
     setUpdatingId(null);
   };
 
   const handleForceResetPassword = async (profileId, name, email) => {
     const newPass = Math.random().toString(36).substring(2, 10).toUpperCase();
-    
     if (!confirm(`Auto-Generated Password for ${name} is:\n\n${newPass}\n\nClick OK to apply this to the database and draft an email to the ambassador.`)) return;
 
     setUpdatingId(`reset-${profileId}`);
-    
     const { error } = await supabase.from('referral_codes').update({ password: newPass }).eq('id', profileId);
     
     if (!error) {
       alert("Password reset successfully! Opening your email client to notify the ambassador.");
-      
       const subject = encodeURIComponent("Your Sparkle Ambassador Password Has Been Reset");
       const body = encodeURIComponent(`Hello ${name},\n\nYour Sparkle Ambassador Hub password has been securely reset by an administrator.\n\nYour new temporary password is: ${newPass}\n\nPlease log in to the portal here: https://yourwebsite.com/referrer\n\nStay Sparkling,\nThe Sparkle Admin Team`);
       
@@ -456,7 +455,6 @@ export default function AdminDashboardPage() {
       } else {
         alert(`No email found for ${name}. Please manually send them this password: ${newPass}`);
       }
-      
       await loadDashboardData();
     } else {
       alert(`Failed to reset password: ${error.message}`);
@@ -474,7 +472,9 @@ export default function AdminDashboardPage() {
       const inventoryRes = await getStoreInventoryAdmin();
       if (inventoryRes.success) setProducts(inventoryRes.data || []);
       alert("New flavor line deployed successfully!");
-    } else { alert(`Failed: ${result.error}`); }
+    } else { 
+      alert(`Failed: ${result.error}`); 
+    }
     setUpdatingId(null);
   };
 
@@ -483,7 +483,9 @@ export default function AdminDashboardPage() {
     const result = await updateOrderStatusAdmin(orderId, targetState);
     if (result.success) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: targetState } : o));
-    } else { alert(`Fulfillment Error: ${result.error}`); }
+    } else { 
+      alert(`Fulfillment Error: ${result.error}`); 
+    }
     setUpdatingId(null);
   };
 
@@ -491,7 +493,6 @@ export default function AdminDashboardPage() {
     setUpdatingId(`promo-save-${codeId}`); 
     try {
       await supabase.from('referral_discounts').delete().eq('referral_code_id', codeId);
-
       const payloadBatch = [
         { referral_code_id: codeId, size: '300ml', client_discount: parseFloat(editPromo300ml) || 0, referrer_earnings: 0 },
         { referral_code_id: codeId, size: '500ml', client_discount: parseFloat(editPromo500ml) || 0, referrer_earnings: 0 },
@@ -505,7 +506,9 @@ export default function AdminDashboardPage() {
       alert("Campaign Parameters custom discounts overrides modified live!");
       setEditingPromoId(null);
       await loadDashboardData();
-    } catch (err) { alert(`Override failure: ${err.message}`); }
+    } catch (err) { 
+      alert(`Override failure: ${err.message}`); 
+    }
     setUpdatingId(null);
   };
 
@@ -515,7 +518,9 @@ export default function AdminDashboardPage() {
     if (result.success) {
       alert("Verification Cleared: Account status set to approved.");
       await loadDashboardData();
-    } else { alert(`Gateway Refusal: ${result.error}`); }
+    } else { 
+      alert(`Gateway Refusal: ${result.error}`); 
+    }
     setUpdatingId(null);
   };
 
@@ -525,7 +530,9 @@ export default function AdminDashboardPage() {
     if (result.success) {
       alert("Application Declined: Rejection advisory log fired.");
       await loadDashboardData();
-    } else { alert(`Gateway Refusal: ${result.error}`); }
+    } else { 
+      alert(`Gateway Refusal: ${result.error}`); 
+    }
     setUpdatingId(null);
   };
 
@@ -548,7 +555,9 @@ export default function AdminDashboardPage() {
         product_variants: p.product_variants.map(v => v.id === variantId ? { ...v, ...updates } : v) 
       })));
       setEditingVariantId(null);
-    } else { alert(`Update failed: ${result.error}`); }
+    } else { 
+      alert(`Update failed: ${result.error}`); 
+    }
     setUpdatingId(null);
   };
 
@@ -693,13 +702,11 @@ export default function AdminDashboardPage() {
     setUpdatingId(null);
   };
 
-  // 🚨 PREPARE METADATA FOR PRINTING AT COMPONENT LEVEL
   const selectedPrintMeta = selectedPrintOrder?.metadata ? (typeof selectedPrintOrder.metadata === 'string' ? JSON.parse(selectedPrintOrder.metadata) : selectedPrintOrder.metadata) : {};
   const printDate = selectedPrintMeta.preferred_delivery_date;
 
   return (
     <div className="min-h-screen bg-stone-955 text-stone-100 font-sans antialiased pb-12 print:bg-white print:text-stone-900">
-      
       <nav className="bg-stone-900 border-b border-stone-800 py-4 px-6 flex flex-col xl:flex-row justify-between items-center gap-4 sticky top-0 z-40 shadow-xl print:hidden">
         <div className="flex items-center gap-3">
           <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" className="h-12 w-auto object-contain brightness-110" />
@@ -726,12 +733,10 @@ export default function AdminDashboardPage() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 py-8 print:p-0">
-
+        
         {/* TAB 1: ORDERS */}
         {activeTab === 'orders' && (
           <div className="space-y-6 print:hidden">
-            
-            {/* 🚨 BULK ACTION BAR */}
             {selectedOrderIds.length > 0 && (
               <div className="bg-emerald-950/40 border border-emerald-900/50 p-4 rounded-2xl flex justify-between items-center shadow-lg">
                 <span className="font-mono text-emerald-400 font-bold text-xs">{selectedOrderIds.length} Orders Selected</span>
@@ -750,7 +755,6 @@ export default function AdminDashboardPage() {
               </div>
             )}
 
-            {/* FILTER BAR - 5 COLUMNS */}
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 font-mono text-xs shadow-md">
               <div>
                 <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1"><Search className="h-3 w-3" /> Search Customer / Ref ID</label>
@@ -765,7 +769,6 @@ export default function AdminDashboardPage() {
                 <input type="text" value={orderLocationText} onChange={(e) => setOrderLocationText(e.target.value)} placeholder="e.g. Airport Shell" className="w-full bg-stone-955 border border-cyan-900/40 rounded-xl px-3 py-2 text-cyan-400 outline-none" />
               </div>
               
-              {/* STATUS FILTER - PIXEL PERFECT CUSTOM DROPDOWN */}
               <div className="relative" ref={statusDropdownRef}>
                 <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1">
                   <ListFilter className="h-3 w-3" /> Fulfill State Group
@@ -829,7 +832,6 @@ export default function AdminDashboardPage() {
                 const isCompleted = order.status === 'completed'; 
                 const isCancelled = order.status === 'cancelled'; 
                 
-                // 🚨 NEW: Safely extract metadata and preferred date
                 let metaObj = {};
                 try { metaObj = typeof order.metadata === 'string' ? JSON.parse(order.metadata) : (order.metadata || {}); } catch(e){}
                 const preferredDeliveryDate = metaObj.preferred_delivery_date;
@@ -843,7 +845,6 @@ export default function AdminDashboardPage() {
                 return (
                   <div key={order.id} className={`bg-stone-900 border ${isSelected ? 'border-emerald-500 bg-emerald-950/10' : 'border-stone-800'} rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-md transition-colors relative`}>
                     
-                    {/* 🚨 BULK CHECKBOX */}
                     {!isCompleted && !isCancelled && (
                       <div className="absolute top-4 left-4 cursor-pointer" onClick={() => toggleOrderSelection(order.id)}>
                         {isSelected ? <CheckSquare className="h-5 w-5 text-emerald-500" /> : <Square className="h-5 w-5 text-stone-600" />}
@@ -859,7 +860,6 @@ export default function AdminDashboardPage() {
                         <div className="text-right flex flex-col items-end gap-1">
                           <span className={`inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase ${isPaid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>{order.payment_status}</span>
                           
-                          {/* 🚨 DYNAMIC STATUS BADGE */}
                           <span className={`inline-block text-[8px] font-mono font-bold px-1.5 py-0.2 rounded uppercase tracking-wider ${
                             isCompleted ? 'bg-blue-500/10 text-blue-400 border border-blue-900/30' : 
                             isReady ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-900/30' :
@@ -882,7 +882,6 @@ export default function AdminDashboardPage() {
                         <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-stone-500" /><span>{order.customer_phone}</span></div>
                         <div className="flex items-center gap-2">{isDeliveryType ? <Truck className="h-3.5 w-3.5 text-blue-400" /> : <MapPin className="h-3.5 w-3.5 text-amber-400" />}<span>{order.delivery_type} Option</span></div>
                         
-                        {/* 🚨 NEW: Display the preferred delivery date here */}
                         {preferredDeliveryDate && preferredDeliveryDate !== 'HQ Pickup' && (
                           <div className="flex items-center gap-2 text-emerald-400 font-bold bg-emerald-955/20 px-2 py-1 rounded-md border border-emerald-900/30">
                             <Calendar className="h-3.5 w-3.5" />
@@ -906,7 +905,6 @@ export default function AdminDashboardPage() {
                         )}
                       </div>
 
-                      {/* Display Rider Info if Assigned */}
                       {(isDispatched || isCompleted) && isDeliveryType && hasRiderAssigned && (
                         <div className="bg-purple-950/20 border border-purple-900/30 p-2.5 rounded-xl text-[10px] font-mono text-purple-400 space-y-1 mt-2">
                           <span className="uppercase font-bold tracking-wider border-b border-purple-900/50 pb-0.5 block flex items-center gap-1"><Navigation className="h-3 w-3" /> Assigned Dispatch Rider</span>
@@ -948,7 +946,6 @@ export default function AdminDashboardPage() {
                         )}
                       </div>
                       
-                      {/* 🚨 DYNAMIC FULFILLMENT BUTTONS */}
                       {!isCompleted && isPaid && !isCancelled && (
                         <div className="flex gap-2">
                           {isDeliveryType ? (
@@ -1472,7 +1469,6 @@ export default function AdminDashboardPage() {
                 <textarea rows="3" required placeholder="Paragraph 1 Body Copy Text..." value={cmsContent.story_p1 || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_p1: e.target.value }))} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
                 <textarea rows="3" required placeholder="Paragraph 2 Body Copy Text..." value={cmsContent.story_p2 || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_p2: e.target.value }))} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
                 
-                {/* 🚨 NEW UPLOAD BUTTON FOR THE STORY IMAGE */}
                 <label className="w-full bg-stone-955 hover:bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-stone-300 text-center flex items-center justify-center gap-2 font-bold cursor-pointer transition-colors">
                   <Upload className="h-4 w-4 text-emerald-500" />
                   <span>{cmsContent.story_img ? 'Image Loaded ✓ (Click to change)' : 'Browse & Upload Brand Story Image'}</span>
@@ -1585,7 +1581,6 @@ export default function AdminDashboardPage() {
 
             <form onSubmit={handleConfirmDispatchLogistics} className="space-y-4 font-mono text-xs">
               
-              {/* Show Rider form if single delivery, OR if bulk selection includes ANY delivery orders */}
               {(dispatchOrder.delivery_type === 'delivery' || (dispatchOrder.isBulk && orders.filter(o => selectedOrderIds.includes(o.id)).some(o => o.delivery_type === 'delivery'))) ? (
                 <>
                   <div>
@@ -1649,7 +1644,6 @@ export default function AdminDashboardPage() {
 
       {/* PRINT DIALOG SLIP MODAL DISPLAY */}
       {selectedPrintOrder && (() => {
-        // 🚨 NEW: Parse metadata for the print slip
         let printMeta = {};
         try { printMeta = typeof selectedPrintOrder.metadata === 'string' ? JSON.parse(selectedPrintOrder.metadata) : (selectedPrintOrder.metadata || {}); } catch(e){}
         const slipPrintDate = printMeta.preferred_delivery_date;
@@ -1690,7 +1684,6 @@ export default function AdminDashboardPage() {
                     <span className="text-[8px] text-stone-400 font-bold block uppercase">Logistics Route</span>
                     <div className="text-cyan-800 font-black">{selectedPrintOrder.landmark || 'HQ Self-Pickup Depot'}</div>
                     
-                    {/* 🚨 NEW: Printed Date */}
                     {slipPrintDate && slipPrintDate !== 'HQ Pickup' && (
                       <div className="text-emerald-700 font-black mt-1 text-[12px] border-t border-stone-200 pt-1">
                         DATE: {new Date(slipPrintDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
