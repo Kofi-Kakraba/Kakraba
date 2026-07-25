@@ -284,8 +284,9 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
         const firstName = orderData.customer_name.split(' ')[0] || 'Customer';
         const orderRef = orderId.substring(0, 8).toUpperCase();
         
-        // Formulate the SMS message
-        const smsMessage = `Hi ${firstName}, your Sparkle order is packed and READY for pickup at our HQ Depot! Please present your pickup code (#${orderRef}) to the dispatch team when you arrive.`;
+        // 🚨 MAGIC LINK APPENDED HERE
+        const magicLink = `https://sparklebeverages.com/track?id=${orderRef}&phone=${orderData.customer_phone.replace('+', '')}`;
+        const smsMessage = `Hi ${firstName}, your Sparkle order is packed and READY for pickup at our HQ Depot! Present code (#${orderRef}). Track live status: ${magicLink}`;
 
         // Leverage your existing SMS function
         const smsSent = await fireSMSOnlineGHGateway(orderData.customer_phone, smsMessage);
