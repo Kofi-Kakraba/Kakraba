@@ -61,7 +61,7 @@ function ShopStorefront() {
     fetchStoreCatalog();
   }, [supabase]);
 
-  // Dynamic brand slang dictionary helper
+  // Dynamic brand slang helper
   const getSizeSlang = (size) => {
     const cleanSize = size.toLowerCase().trim();
     if (cleanSize.includes('300ml')) return 'Solo ⚡';
@@ -638,9 +638,21 @@ function ShopStorefront() {
                               required 
                               value={preferredDate} 
                               onChange={(e) => setPreferredDate(e.target.value)} 
-                              min={new Date().toISOString().split('T')[0]} // Prevents picking a past date
+                              min={(() => {
+                                // 🚨 SMART CUTOFF LOGIC: If past 2:00 PM (14:00), force tomorrow as minimum date
+                                const now = new Date();
+                                if (now.getHours() >= 14) {
+                                  now.setDate(now.getDate() + 1);
+                                }
+                                return now.toISOString().split('T')[0];
+                              })()} 
                               className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold text-sm transition-colors" 
                             />
+                            {new Date().getHours() >= 14 && !preferredDate && (
+                              <p className="text-[9px] text-amber-600 font-bold mt-1.5 ml-1 flex gap-1 items-start">
+                                <span>⏱️</span> <span>Past 2:00 PM: Same-day delivery is closed. Please select tomorrow or later.</span>
+                              </p>
+                            )}
                           </div>
                           <div className="bg-stone-100 border border-stone-200 p-3 rounded-2xl text-[10px] text-stone-500 font-medium leading-relaxed">
                             <strong className="text-stone-950 font-black uppercase tracking-wider block mb-1">🚗 Yango Package (Pay Fare on Arrival)</strong>
