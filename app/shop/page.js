@@ -24,6 +24,18 @@ function ShopStorefront() {
   const [gatewayError, setGatewayError] = useState(null);
 
   const [cart, setCart] = useState([]);
+  // 🚨 NEW: Load the saved cart if they hit the back button
+  useEffect(() => {
+    const savedCart = sessionStorage.getItem('sparkle_cart');
+    if (savedCart) {
+      try { setCart(JSON.parse(savedCart)); } catch (e) {}
+    }
+  }, []);
+
+  // 🚨 NEW: Save the cart to memory every time they add or remove a drink
+  useEffect(() => {
+    sessionStorage.setItem('sparkle_cart', JSON.stringify(cart));
+  }, [cart]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null); 
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
@@ -153,6 +165,9 @@ function ShopStorefront() {
       const savedPromo = localStorage.getItem('sparkle_active_promo');
       if (savedPromo) {
         verifyAndApplyCode(savedPromo, true);
+      } else if (sessionStorage.getItem('sparkle_promo_skipped')) {
+        // 🚨 NEW: If they skipped the modal earlier this session, keep it unlocked!
+        setGatewayStage('unlocked');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -772,7 +787,10 @@ function ShopStorefront() {
                 </button>
                 <button 
                   type="button" 
-                  onClick={() => setGatewayStage('unlocked')}
+                onClick={() => { 
+  setGatewayStage('unlocked'); 
+  sessionStorage.setItem('sparkle_promo_skipped', 'true'); 
+}}
                   className="bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-200 py-4 rounded-2xl transition-all font-black text-xs uppercase tracking-widest"
                 >
                   No, Skip
