@@ -98,7 +98,6 @@ export default function AdminDashboardPage() {
   const [editStock, setEditStock] = useState(0);
   const [editRetail, setEditRetail] = useState(0);
   const [editWholesale, setEditWholesale] = useState(0);
-  const [editSizeMoqFloor, setEditSizeMoqFloor] = useState(0); 
   const [editWholesaleTrigger, setEditWholesaleTrigger] = useState(0); 
   const [editClientDiscount, setEditClientDiscount] = useState(0); 
   const [editReferrerEarnings, setEditReferrerEarnings] = useState(0); 
@@ -542,7 +541,6 @@ export default function AdminDashboardPage() {
       stock_quantity: parseInt(editStock) || 0, 
       retail_price: parseFloat(editRetail) || 0, 
       wholesale_price: parseFloat(editWholesale) || 0, 
-      size_moq_floor: parseInt(editSizeMoqFloor) || 0, 
       moq_floor: parseInt(editWholesaleTrigger) || 0, 
       client_discount: parseFloat(editClientDiscount) || 0,
       referrer_earnings: parseFloat(editReferrerEarnings) || 0,
@@ -1355,7 +1353,6 @@ export default function AdminDashboardPage() {
                             {isEditing ? (
                               <div className="space-y-2 text-stone-400">
                                 <div><label className="text-[8px] font-bold uppercase">Stock Count</label><input type="number" value={editStock} onChange={(e)=>setEditStock(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-cyan-400 font-bold uppercase">Base Size MOQ Floor</label><input type="number" value={editSizeMoqFloor} onChange={(e)=>setEditSizeMoqFloor(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
                                 <div><label className="text-[8px] text-blue-400 font-bold uppercase">Wholesale Volume Trigger</label><input type="number" value={editWholesaleTrigger} onChange={(e)=>setEditWholesaleTrigger(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
                                 <div><label className="text-[8px] text-red-400 font-bold uppercase">Default Referral Discount</label><input type="number" step="0.01" value={editClientDiscount} onChange={(e)=>setEditClientDiscount(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
                                 <div><label className="text-[8px] text-purple-400 font-bold uppercase">Ambassador Bonus Earning</label><input type="number" step="0.01" value={editReferrerEarnings} onChange={(e)=>setEditReferrerEarnings(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
@@ -1365,7 +1362,6 @@ export default function AdminDashboardPage() {
                             ) : (
                               <div className="space-y-1.5 text-stone-400 font-medium">
                                 <div className="flex justify-between"><span>Stock Remaining:</span><strong className={isLowStock ? 'text-red-400 font-black' : 'text-white'}>{variant.stock_quantity} units</strong></div>
-                                <div className="flex justify-between text-cyan-400/90"><span>Base Size MOQ:</span><strong>{variant.size_moq_floor || 30} units</strong></div>
                                 <div className="flex justify-between text-blue-400/90"><span>Wholesale Trigger:</span><strong>{variant.moq_floor || 50} units</strong></div>
                                 <div className="flex justify-between text-red-400/90 border-t border-stone-900 pt-1"><span>Referral Discount:</span><th>₵{Number(variant.client_discount || 0).toFixed(2)}</th></div>
                                 <div className="flex justify-between text-purple-400/90"><span>Ambassador Bonus:</span><strong>₵{Number(variant.referrer_earnings || 0).toFixed(2)}</strong></div>
@@ -1397,7 +1393,6 @@ export default function AdminDashboardPage() {
                                 setEditStock(variant.stock_quantity); 
                                 setEditRetail(variant.retail_price); 
                                 setEditWholesale(variant.wholesale_price);
-                                setEditSizeMoqFloor(variant.size_moq_floor || 30);
                                 setEditWholesaleTrigger(variant.moq_floor || 50);
                                 setEditClientDiscount(variant.client_discount || 0);
                                 setEditReferrerEarnings(variant.referrer_earnings || 0);
