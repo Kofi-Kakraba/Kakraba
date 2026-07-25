@@ -270,10 +270,17 @@ function ShopStorefront() {
     if (cart.length === 0) return alert("Checkout Halted: Your shopping cart container lines are empty.");
     if (!customerName || !customerPhone) return alert("Checkout Halted: Please fill out your contact details sheets.");
 
-    for (const line of compiledItemsList) {
-      if (!line.isMixedMoqSatisfiedForThisSize) {
-        alert(`Almost there! You need at least ${line.requiredMoqSizeFloorValue} packs of the ${line.variant.size} size to checkout.\n\nYou have ${line.currentTotalUnitsInThisSizeGroup} in your cart now. Please add ${line.requiredMoqSizeFloorValue - line.currentTotalUnitsInThisSizeGroup} more!`);
-        return;
+    // 🚨 NEW REVENUE OVERRIDE LOGIC
+    const REVENUE_OVERRIDE_THRESHOLD = 150.00; // You can change this 150 to any amount!
+    const isCartValueHighEnough = finalOrderBillTotal >= REVENUE_OVERRIDE_THRESHOLD;
+
+    // Only block them for MOQs if they haven't spent enough money
+    if (!isCartValueHighEnough) {
+      for (const line of compiledItemsList) {
+        if (!line.isMixedMoqSatisfiedForThisSize) {
+          alert(`Almost there! You need at least ${line.requiredMoqSizeFloorValue} packs of the ${line.variant.size} size to checkout.\n\nOR simply ensure your cart total reaches ₵${REVENUE_OVERRIDE_THRESHOLD} to unlock mixed-size combinations!`);
+          return;
+        }
       }
     }
 
@@ -290,7 +297,6 @@ function ShopStorefront() {
         code_id: appliedCoupon?.profile?.id || null,
         payout_processed: false,
         calculated_payout_amount: 0,
-        // 🚨 NEW: Passing the selected date to the backend database
         preferred_delivery_date: deliveryType === 'delivery' ? preferredDate : 'HQ Pickup' 
       }
     };
@@ -298,6 +304,10 @@ function ShopStorefront() {
     const response = await createCustomerOrderServerAction(orderPayload, compiledItemsList);
     
     if (response.success && response.authorizationUrl) {
+      // 🚨 FIX: Auto-reset the button state just in case the browser caches it
+      setTimeout(() => {
+        setIsSubmittingOrder(false);
+      }, 2000);
       window.location.href = response.authorizationUrl; 
     } else {
       alert(`Transaction Refusal: ${response.error || 'Gateway connection error'}`);
