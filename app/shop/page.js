@@ -24,7 +24,7 @@ function ShopStorefront() {
   const [gatewayError, setGatewayError] = useState(null);
 
   const [cart, setCart] = useState([]);
-  // 🚨 NEW: Load the saved cart if they hit the back button
+
   useEffect(() => {
     const savedCart = sessionStorage.getItem('sparkle_cart');
     if (savedCart) {
@@ -32,10 +32,10 @@ function ShopStorefront() {
     }
   }, []);
 
-  // 🚨 NEW: Save the cart to memory every time they add or remove a drink
   useEffect(() => {
     sessionStorage.setItem('sparkle_cart', JSON.stringify(cart));
   }, [cart]);
+  
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null); 
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
@@ -47,10 +47,9 @@ function ShopStorefront() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [deliveryType, setDeliveryType] = useState('delivery'); 
   const [landmark, setLandmark] = useState('');
-  const [preferredDate, setPreferredDate] = useState(''); // 🚨 NEW: Added Date State
+  const [preferredDate, setPreferredDate] = useState(''); 
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   
-// 🚨 NEW: Unlocks the checkout button if the user hits the browser's "Back" button from Paystack
   useEffect(() => {
     const handlePageShow = (event) => {
       if (event.persisted) {
@@ -68,7 +67,7 @@ function ShopStorefront() {
           .from('products')
           .select(`
             id, name, description, is_active,
-            product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, size_moq_floor, moq_floor, client_discount, referrer_earnings, image_url )
+            product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, moq_floor, client_discount, referrer_earnings, image_url )
           `)
           .eq('is_active', true)
           .order('name', { ascending: true });
@@ -84,7 +83,6 @@ function ShopStorefront() {
     fetchStoreCatalog();
   }, [supabase]);
 
-  // Dynamic brand slang helper
   const getSizeSlang = (size) => {
     const cleanSize = size.toLowerCase().trim();
     if (cleanSize.includes('300ml')) return 'Solo ⚡';
@@ -94,7 +92,6 @@ function ShopStorefront() {
     return '';
   };
 
-  // 🚨 REUSABLE LOGIC: Verifies code and manages state regardless if it came from URL or Manual Entry
   const verifyAndApplyCode = async (codeToVerify, isAutoFill = false) => {
     setLoading(true);
     setGatewayError(null);
@@ -141,14 +138,13 @@ function ShopStorefront() {
       setGatewayError(err.message);
       if (isAutoFill) {
         localStorage.removeItem('sparkle_active_promo');
-        setGatewayStage('question'); // Fallback to normal popup if URL code is dead
+        setGatewayStage('question'); 
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // 🚨 AUTO-FILL MEMORY ENGINE: Catches URL params and reads Local Storage
   useEffect(() => {
     const urlPromo = searchParams.get('promo');
     
@@ -156,21 +152,15 @@ function ShopStorefront() {
       const cleanPromo = urlPromo.trim().toUpperCase();
       localStorage.setItem('sparkle_active_promo', cleanPromo);
       verifyAndApplyCode(cleanPromo, true);
-
-      // 🚨 THE SILENT PING: Log this scan to our tracking database!
-      // We don't await this because we want it to happen invisibly in the background
       supabase.from('campaign_scans').insert([{ promo_code: cleanPromo }]).then();
-
     } else {
       const savedPromo = localStorage.getItem('sparkle_active_promo');
       if (savedPromo) {
         verifyAndApplyCode(savedPromo, true);
       } else if (sessionStorage.getItem('sparkle_promo_skipped')) {
-        // 🚨 NEW: If they skipped the modal earlier this session, keep it unlocked!
         setGatewayStage('unlocked');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const handleVerifyGatewayCode = async (e) => {
@@ -222,22 +212,13 @@ function ShopStorefront() {
 
   const computeItemizedCartSummaryValues = () => {
     let orderGrossSubtotal = 0;
-    const combinedQuantityMapBySizeGroup = {};
-
-    cart.forEach(item => {
-      const sizeKey = item.variant.size;
-      combinedQuantityMapBySizeGroup[sizeKey] = (combinedQuantityMapBySizeGroup[sizeKey] || 0) + Number(item.quantity);
-    });
 
     const formattedListOutput = cart.map(item => {
       const quantityCount = Number(item.quantity);
       const sizeKey = item.variant.size;
-
-      const runningSizeMoqFloorLimit = parseInt(item.variant.size_moq_floor) || 1;
       const singleItemWholesaleTriggerLimit = parseInt(item.variant.moq_floor) || 50;
 
       const isWholesalePriceTriggered = quantityCount >= singleItemWholesaleTriggerLimit;
-      const isMixedMoqSatisfiedForThisSize = (combinedQuantityMapBySizeGroup[sizeKey] || 0) >= runningSizeMoqFloorLimit;
       
       let baseUnitPriceToCalculate = Number(item.variant.retail_price);
       let discountAllowedPerUnit = 0;
@@ -261,9 +242,6 @@ function ShopStorefront() {
       return {
         ...item,
         isWholesaleTierTriggered: isWholesalePriceTriggered,
-        isMixedMoqSatisfiedForThisSize,
-        requiredMoqSizeFloorValue: runningSizeMoqFloorLimit,
-        currentTotalUnitsInThisSizeGroup: combinedQuantityMapBySizeGroup[sizeKey] || 0,
         singleUnitCost: computedLineUnitCost,
         discountAllowedPerUnit,
         lineTotal: computedLineTotalAmount
@@ -272,12 +250,11 @@ function ShopStorefront() {
 
     return {
       compiledItemsList: formattedListOutput,
-      finalOrderBillTotal: orderGrossSubtotal,
-      combinedQuantityMapBySizeGroup
+      finalOrderBillTotal: orderGrossSubtotal
     };
   };
 
-  const { compiledItemsList, finalOrderBillTotal, combinedQuantityMapBySizeGroup } = computeItemizedCartSummaryValues();
+  const { compiledItemsList, finalOrderBillTotal } = computeItemizedCartSummaryValues();
   const globalTotalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleLaunchPaystackPaymentPortalGateway = async (e) => {
@@ -285,18 +262,11 @@ function ShopStorefront() {
     if (cart.length === 0) return alert("Checkout Halted: Your shopping cart container lines are empty.");
     if (!customerName || !customerPhone) return alert("Checkout Halted: Please fill out your contact details sheets.");
 
-    // 🚨 NEW REVENUE OVERRIDE LOGIC
-    const REVENUE_OVERRIDE_THRESHOLD = 150.00; // You can change this 150 to any amount!
-    const isCartValueHighEnough = finalOrderBillTotal >= REVENUE_OVERRIDE_THRESHOLD;
+    // 🚨 NEW LOGIC: Flat Revenue-Based MOQ
+    const MINIMUM_CART_VALUE = 30.00;
 
-    // Only block them for MOQs if they haven't spent enough money
-    if (!isCartValueHighEnough) {
-      for (const line of compiledItemsList) {
-        if (!line.isMixedMoqSatisfiedForThisSize) {
-          alert(`Almost there! You need at least ${line.requiredMoqSizeFloorValue} packs of the ${line.variant.size} size to checkout.\n\nOR simply ensure your cart total reaches ₵${REVENUE_OVERRIDE_THRESHOLD} to unlock mixed-size combinations!`);
-          return;
-        }
-      }
+    if (finalOrderBillTotal < MINIMUM_CART_VALUE) {
+      return alert(`Checkout Halted: The minimum order value is GH₵${MINIMUM_CART_VALUE.toFixed(2)}.\n\nYour current total is GH₵${finalOrderBillTotal.toFixed(2)}. Please add a few more items to continue!`);
     }
 
     setIsSubmittingOrder(true);
@@ -319,7 +289,6 @@ function ShopStorefront() {
     const response = await createCustomerOrderServerAction(orderPayload, compiledItemsList);
     
     if (response.success && response.authorizationUrl) {
-      // 🚨 FIX: Auto-reset the button state just in case the browser caches it
       setTimeout(() => {
         setIsSubmittingOrder(false);
       }, 2000);
@@ -376,7 +345,7 @@ function ShopStorefront() {
               setGatewayStage('question'); 
               setCart([]); 
               setShowSuccessBanner(false);
-              localStorage.removeItem('sparkle_active_promo'); // 🚨 Clear memory on manual reset
+              localStorage.removeItem('sparkle_active_promo');
             }} 
             className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors flex items-center gap-1"
           >
@@ -443,10 +412,6 @@ function ShopStorefront() {
                 }
               };
 
-              const cumulativeUnitsInThisSizeGroup = combinedQuantityMapBySizeGroup[variant.size] || 0;
-              const requiredMoqSizeLimit = parseInt(variant.size_moq_floor) || 1;
-              const isCardGroupMoqSatisfied = cumulativeUnitsInThisSizeGroup >= requiredMoqSizeLimit;
-
               const activeBtnStatus = buttonStatuses[variant.id] || 'idle';
 
               return (
@@ -501,22 +466,6 @@ function ShopStorefront() {
                         </div>
                       )}
                     </div>
-
-                    {/* MOQ Alerts */}
-                    {requiredMoqSizeLimit > 1 && (
-                      <div className={`p-3 rounded-2xl border flex items-start gap-2 text-[10px] leading-snug font-bold uppercase tracking-wide transition-colors ${
-                        isCardGroupMoqSatisfied 
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-                          : 'bg-amber-50 border-amber-200 text-amber-700'
-                      }`}>
-                        <AlertCircle className={`h-4 w-4 shrink-0 ${!isCardGroupMoqSatisfied && 'text-amber-500'}`} />
-                        <div>
-                          {isCardGroupMoqSatisfied 
-                            ? `✓ Minimum reached for ${variant.size} batch.` 
-                            : `Add ${requiredMoqSizeLimit - cumulativeUnitsInThisSizeGroup} more ${variant.size} to unlock checkout.`}
-                        </div>
-                      </div>
-                    )}
 
                     {/* Action Row */}
                     <div className="flex items-center gap-3">
@@ -661,7 +610,6 @@ function ShopStorefront() {
                         <button type="button" onClick={() => setDeliveryType('pickup')} className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all ${deliveryType === 'pickup' ? 'bg-white text-stone-950 shadow-sm border border-stone-200' : 'text-stone-400 hover:text-stone-600'}`}>HQ Pickup</button>
                       </div>
                       
-                      {/* 🚨 NEW: Calendar and Instructional UI Block */}
                       {deliveryType === 'delivery' && (
                         <div className="space-y-4">
                           <div>
@@ -675,7 +623,6 @@ function ShopStorefront() {
                               value={preferredDate} 
                               onChange={(e) => setPreferredDate(e.target.value)} 
                               min={(() => {
-                                // 🚨 SMART CUTOFF LOGIC: If past 2:00 PM (14:00), force tomorrow as minimum date
                                 const now = new Date();
                                 if (now.getHours() >= 14) {
                                   now.setDate(now.getDate() + 1);
@@ -709,18 +656,6 @@ function ShopStorefront() {
                         <span className="font-bold">Delivery Fee:</span>
                         <span className="font-black uppercase">Calculated Post-Checkout</span>
                       </div>
-                      
-                      {compiledItemsList.map(line => {
-                        if (!line.isMixedMoqSatisfiedForThisSize) {
-                          return (
-                            <div key={`moq-alert-${line.variant.id}`} className="text-[10px] text-amber-400 bg-amber-950/50 p-3 border border-amber-900/50 rounded-xl flex gap-2 leading-tight font-bold relative z-10">
-                              <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
-                              <span>Missing: Add {line.requiredMoqSizeFloorValue - line.currentTotalUnitsInThisSizeGroup} more {line.variant.size} packs to checkout.</span>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })}
 
                       {appliedCoupon && (
                         <div className="text-[10px] text-emerald-400 bg-emerald-950/50 p-3 border border-emerald-900/50 rounded-xl flex gap-2 leading-snug font-bold relative z-10">
