@@ -46,9 +46,13 @@ export async function confirmDispatchLogisticsServerAction(payload) {
 
     let messagePayload = '';
     const orderCodeToken = orderId.substring(0, 8).toUpperCase();
-    const cleanCustomerName = customerName ? customerName.trim() : 'Customer';
+    const cleanCustomerName = customerName ? customerName.trim().split(' ')[0] : 'Customer'; // Using first name to save SMS space
 
-    // 🚀 PERSONALIZED & EMOJI-FREE LOGISTICS TEMPLATES
+    // 🚨 MAGIC LINK GENERATOR
+    const cleanUrlPhone = customerPhone.replace('+', '').replace(/\s+/g, '');
+    const magicLink = `https://sparklebeverages.com/track?id=${orderCodeToken}&phone=${cleanUrlPhone}`;
+
+    // 🚀 PERSONALIZED LOGISTICS TEMPLATES WITH EMBEDDED TRACKING
     if (deliveryType === 'delivery') {
       updatedMetadata.rider_name = riderName.trim();
       updatedMetadata.rider_phone = riderPhone.trim();
@@ -56,10 +60,10 @@ export async function confirmDispatchLogisticsServerAction(payload) {
       updatedMetadata.vehicle_color = vehicleColor.trim();
       updatedMetadata.plate_number = plateNumber.trim().toUpperCase();
 
-      messagePayload = `Hi ${cleanCustomerName}, payment confirmed! Your Sparkle Beverages order has been packed by our team and is on the way. Rider: ${riderName.trim()} (${riderPhone.trim()}) on a ${vehicleColor.trim()} ${vehicleType} [${plateNumber.trim().toUpperCase()}]. Thank you for choosing Sparkle!`;
+      messagePayload = `Hi ${cleanCustomerName}, payment confirmed! Your Sparkle order is out for delivery. Rider: ${riderName.trim()} (${riderPhone.trim()}) on a ${vehicleColor.trim()} ${vehicleType}. Track live: ${magicLink}`;
     } else {
       updatedMetadata.pickup_confirmed = true;
-      messagePayload = `Hi ${cleanCustomerName}, payment confirmed! Please call 0533527192 when coming to pickup your order, use SPK-${orderCodeToken} as your pickup code. Thank you for choosing Sparkle!`;
+      messagePayload = `Hi ${cleanCustomerName}, payment confirmed! Call 0533527192 upon arrival for pickup. Code: SPK-${orderCodeToken}. Track here: ${magicLink}`;
     }
 
     // 2. Commit status changes to Supabase securely using administrative role access
