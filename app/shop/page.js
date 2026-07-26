@@ -61,20 +61,15 @@ function ShopStorefront() {
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
 
-  // 🚨 NEW: Clear cart after successful Paystack checkout return
+  // 🚨 UI FIX: Catch Paystack Returns for the Success Modal
   useEffect(() => {
     const paymentReference = searchParams.get('reference');
     const paymentTrxRef = searchParams.get('trxref');
     
     if (paymentReference || paymentTrxRef) {
-      // 1. Wipe the cart memory
-      setCart([]);
-      sessionStorage.removeItem('sparkle_cart');
-      
-      // 2. Show a nice success message using our custom modal
       setCheckoutAlert("Payment Successful! 🎉\n\nYour drop has been securely logged. You will receive an SMS with your dispatch details shortly.");
       
-      // 3. Clean up the URL so the long reference code disappears
+      // Clean up the URL so the long reference code disappears
       window.history.replaceState(null, '', window.location.pathname);
     }
   }, [searchParams]);
@@ -281,7 +276,6 @@ function ShopStorefront() {
     if (cart.length === 0) return setCheckoutAlert("Your drop zone is empty. Add some drinks to your cart first!");
     if (!customerName || !customerPhone) return setCheckoutAlert("Please fill out your name and mobile money number in the checkout details.");
 
-    // Flat Revenue-Based MOQ
     const MINIMUM_CART_VALUE = 30.00;
 
     if (finalOrderBillTotal < MINIMUM_CART_VALUE) {
@@ -308,6 +302,11 @@ function ShopStorefront() {
     const response = await createCustomerOrderServerAction(orderPayload, compiledItemsList);
     
     if (response.success && response.authorizationUrl) {
+      // 🚨 FOOLPROOF FIX: Wipe the cart memory the EXACT moment the order is saved to the database.
+      // This guarantees the cart is empty before Paystack even loads, fixing the return issue completely.
+      setCart([]);
+      sessionStorage.removeItem('sparkle_cart');
+
       setTimeout(() => {
         setIsSubmittingOrder(false);
       }, 2000);
