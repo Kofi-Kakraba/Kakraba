@@ -49,6 +49,7 @@ function ShopStorefront() {
   const [landmark, setLandmark] = useState('');
   const [preferredDate, setPreferredDate] = useState(''); 
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [checkoutAlert, setCheckoutAlert] = useState(null); // 🚨 NEW: Custom Branded Alert State
   
   useEffect(() => {
     const handlePageShow = (event) => {
@@ -259,14 +260,14 @@ function ShopStorefront() {
 
   const handleLaunchPaystackPaymentPortalGateway = async (e) => {
     e.preventDefault();
-    if (cart.length === 0) return alert("Checkout Halted: Your shopping cart container lines are empty.");
-    if (!customerName || !customerPhone) return alert("Checkout Halted: Please fill out your contact details sheets.");
+    if (cart.length === 0) return setCheckoutAlert("Your drop zone is empty. Add some drinks to your cart first!");
+    if (!customerName || !customerPhone) return setCheckoutAlert("Please fill out your name and mobile money number in the checkout details.");
 
     // 🚨 NEW LOGIC: Flat Revenue-Based MOQ
     const MINIMUM_CART_VALUE = 30.00;
 
     if (finalOrderBillTotal < MINIMUM_CART_VALUE) {
-      return alert(`Checkout Halted: The minimum order value is GH₵${MINIMUM_CART_VALUE.toFixed(2)}.\n\nYour current total is GH₵${finalOrderBillTotal.toFixed(2)}. Please add a few more items to continue!`);
+      return setCheckoutAlert(`The minimum order value is ₵${MINIMUM_CART_VALUE.toFixed(2)}.\n\nYour current total is ₵${finalOrderBillTotal.toFixed(2)}. Please add a few more items to unlock checkout!`);
     }
 
     setIsSubmittingOrder(true);
@@ -294,7 +295,7 @@ function ShopStorefront() {
       }, 2000);
       window.location.href = response.authorizationUrl; 
     } else {
-      alert(`Transaction Refusal: ${response.error || 'Gateway connection error'}`);
+      setCheckoutAlert(`Transaction Refusal: ${response.error || 'Gateway connection error'}`);
       setIsSubmittingOrder(false);
     }
   };
@@ -836,6 +837,35 @@ function ShopStorefront() {
         <div className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-35 group-hover:opacity-0 transition-opacity" />
         <MessageCircle className="h-6 w-6 relative z-10 fill-white text-[#25D366]" />
       </a>
+
+      {/* 🚨 CUSTOM BRANDED ALERT MODAL */}
+      {checkoutAlert && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm">
+          <div className="bg-[#FDFBF7] border border-rose-200 w-full max-w-sm rounded-[32px] p-6 sm:p-8 shadow-2xl text-center space-y-4 relative overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Background Glow */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500 rounded-full blur-3xl opacity-10 -mr-10 -mt-10 pointer-events-none"></div>
+            
+            <div className="mx-auto w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-2 shadow-inner border border-rose-200">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+            
+            <h3 className="font-black text-xl text-stone-950 uppercase tracking-tight">Hold Up!</h3>
+            
+            <p className="text-stone-500 text-xs font-medium leading-relaxed whitespace-pre-wrap px-2">
+              {checkoutAlert}
+            </p>
+            
+            <div className="pt-2">
+              <button
+                onClick={() => setCheckoutAlert(null)}
+                className="w-full bg-stone-950 hover:bg-stone-800 text-white font-black py-3.5 rounded-2xl uppercase tracking-widest text-[10px] transition-colors shadow-lg"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
