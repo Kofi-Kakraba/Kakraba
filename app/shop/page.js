@@ -740,13 +740,17 @@ function ShopStorefront() {
                       <div className="flex justify-between items-center text-emerald-400 relative z-10">
                         <span className="font-bold">Delivery Fee:</span>
                         <span className="font-black uppercase">
-                          {deliveryType === 'pickup' 
-                            ? 'GH₵0.00 (Pickup)' 
-                            : isCalculatingFee 
-                              ? 'Calculating...' 
-                              : deliveryFee > 0 
-                                ? `₵${deliveryFee.toFixed(2)}` 
-                                : 'Search location to calculate'}
+                          {deliveryType === 'pickup' ? (
+                            'GH₵0.00 (Pickup)' 
+                          ) : isCalculatingFee ? (
+                            <span className="animate-pulse text-amber-400 flex items-center gap-1.5">
+                              <Loader2 className="h-4 w-4 animate-spin" /> Calculating...
+                            </span>
+                          ) : deliveryFee > 0 ? (
+                            `₵${deliveryFee.toFixed(2)}` 
+                          ) : (
+                            'Search location to calculate'
+                          )}
                         </span>
                       </div>
 
