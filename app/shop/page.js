@@ -10,10 +10,24 @@ import {
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 import { createCustomerOrderServerAction } from '../actions/orders';
+import { calculateDeliveryFee } from '../actions/delivery';
+import { useLoadScript, Autocomplete } from '@react-google-maps/api';
+
+const MAPS_LIBRARIES = ['places'];
 
 function ShopStorefront() {
   const supabase = createBrowserSupabaseClient();
   const searchParams = useSearchParams();
+
+  // --- GOOGLE MAPS SETUP ---
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    libraries: MAPS_LIBRARIES,
+  });
+  
+  const [autocompleteInstance, setAutocompleteInstance] = useState(null);
+  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [isCalculatingFee, setIsCalculatingFee] = useState(false);
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,15 +75,12 @@ function ShopStorefront() {
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
 
-  // 🚨 UI FIX: Catch Paystack Returns for the Success Modal
   useEffect(() => {
     const paymentReference = searchParams.get('reference');
     const paymentTrxRef = searchParams.get('trxref');
     
     if (paymentReference || paymentTrxRef) {
       setCheckoutAlert("Payment Successful! 🎉\n\nYour drop has been securely logged. You will receive an SMS with your dispatch details shortly.");
-      
-      // Clean up the URL so the long reference code disappears
       window.history.replaceState(null, '', window.location.pathname);
     }
   }, [searchParams]);
@@ -96,6 +107,30 @@ function ShopStorefront() {
     }
     fetchStoreCatalog();
   }, [supabase]);
+
+  // --- GOOGLE MAPS LOCATION HANDLER ---
+  const handlePlaceSelected = async () => {
+    if (autocompleteInstance !== null) {
+      const place = autocompleteInstance.getPlace();
+      const address = place.formatted_address || place.name;
+      
+      if (address) {
+        setLandmark(address);
+        setIsCalculatingFee(true);
+        
+        // Call your backend server action
+        const result = await calculateDeliveryFee(address);
+        
+        if (result.success) {
+          setDeliveryFee(result.fee);
+        } else {
+          setDeliveryFee(0);
+          setCheckoutAlert("We couldn't calculate the exact distance. A base fare will be applied.");
+        }
+        setIsCalculatingFee(false);
+      }
+    }
+  };
 
   const getSizeSlang = (size) => {
     const cleanSize = size.toLowerCase().trim();
@@ -271,6 +306,9 @@ function ShopStorefront() {
   const { compiledItemsList, finalOrderBillTotal } = computeItemizedCartSummaryValues();
   const globalTotalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  // --- DYNAMIC GRAND TOTAL ---
+  const grandTotal = deliveryType === 'delivery' ? finalOrderBillTotal + deliveryFee : finalOrderBillTotal;
+
   const handleLaunchPaystackPaymentPortalGateway = async (e) => {
     e.preventDefault();
     if (cart.length === 0) return setCheckoutAlert("Your drop zone is empty. Add some drinks to your cart first!");
@@ -282,6 +320,10 @@ function ShopStorefront() {
       return setCheckoutAlert(`The minimum order value is ₵${MINIMUM_CART_VALUE.toFixed(2)}.\n\nYour current total is ₵${finalOrderBillTotal.toFixed(2)}. Please add a few more items to unlock checkout!`);
     }
 
+    if (deliveryType === 'delivery' && deliveryFee === 0) {
+      return setCheckoutAlert("Please search and select a valid delivery location from the dropdown map so we can calculate your fare.");
+    }
+
     setIsSubmittingOrder(true);
 
     const orderPayload = {
@@ -289,21 +331,20 @@ function ShopStorefront() {
       customerPhone: customerPhone.trim(),
       deliveryType: deliveryType,
       landmark: landmark.trim(),
-      totalAmount: finalOrderBillTotal,
+      totalAmount: grandTotal, // Updated to include delivery fee!
       metadata: {
         applied_code: appliedCoupon?.profile?.code || null,
         code_id: appliedCoupon?.profile?.id || null,
         payout_processed: false,
         calculated_payout_amount: 0,
-        preferred_delivery_date: deliveryType === 'delivery' ? preferredDate : 'HQ Pickup' 
+        preferred_delivery_date: deliveryType === 'delivery' ? preferredDate : 'HQ Pickup',
+        delivery_fee_charged: deliveryType === 'delivery' ? deliveryFee : 0 
       }
     };
     
     const response = await createCustomerOrderServerAction(orderPayload, compiledItemsList);
     
     if (response.success && response.authorizationUrl) {
-      // 🚨 FOOLPROOF FIX: Wipe the cart memory the EXACT moment the order is saved to the database.
-      // This guarantees the cart is empty before Paystack even loads, fixing the return issue completely.
       setCart([]);
       sessionStorage.removeItem('sparkle_cart');
 
@@ -381,7 +422,7 @@ function ShopStorefront() {
               </span>
             </div>
             <span className="text-xs font-black ml-1 tracking-wide">
-              ₵{finalOrderBillTotal.toFixed(2)}
+              ₵{grandTotal.toFixed(2)}
             </span>
           </button>
         </div>
@@ -624,15 +665,43 @@ function ShopStorefront() {
                       </div>
                       
                       <div className="grid grid-cols-2 gap-2 bg-[#FDFBF7] p-1.5 border-2 border-stone-200 rounded-2xl text-center">
-                        <button type="button" onClick={() => setDeliveryType('delivery')} className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all ${deliveryType === 'delivery' ? 'bg-white text-stone-950 shadow-sm border border-stone-200' : 'text-stone-400 hover:text-stone-600'}`}>Dispatch</button>
-                        <button type="button" onClick={() => setDeliveryType('pickup')} className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all ${deliveryType === 'pickup' ? 'bg-white text-stone-950 shadow-sm border border-stone-200' : 'text-stone-400 hover:text-stone-600'}`}>HQ Pickup</button>
+                        <button type="button" onClick={() => { setDeliveryType('delivery'); setDeliveryFee(0); setLandmark(''); }} className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all ${deliveryType === 'delivery' ? 'bg-white text-stone-950 shadow-sm border border-stone-200' : 'text-stone-400 hover:text-stone-600'}`}>Dispatch</button>
+                        <button type="button" onClick={() => { setDeliveryType('pickup'); setDeliveryFee(0); }} className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all ${deliveryType === 'pickup' ? 'bg-white text-stone-950 shadow-sm border border-stone-200' : 'text-stone-400 hover:text-stone-600'}`}>HQ Pickup</button>
                       </div>
                       
                       {deliveryType === 'delivery' && (
                         <div className="space-y-4">
+                          {/* 🚨 THE NEW GOOGLE MAPS AUTOCOMPLETE BAR */}
                           <div>
-                            <input type="text" required value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="Delivery Landmark / Address" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Delivery Location</span>
+                            {isLoaded ? (
+                              <Autocomplete
+                                onLoad={(autocomplete) => setAutocompleteInstance(autocomplete)}
+                                onPlaceChanged={handlePlaceSelected}
+                                options={{ componentRestrictions: { country: "gh" } }}
+                              >
+                                <input 
+                                  type="text" 
+                                  required 
+                                  value={landmark} 
+                                  onChange={(e) => { setLandmark(e.target.value); setDeliveryFee(0); }} 
+                                  placeholder="Search neighborhood or landmark..." 
+                                  className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" 
+                                />
+                              </Autocomplete>
+                            ) : (
+                              <input 
+                                type="text" 
+                                required 
+                                value={landmark} 
+                                onChange={(e) => setLandmark(e.target.value)} 
+                                placeholder="Loading map search..." 
+                                className="w-full bg-stone-100 border-2 border-stone-200 rounded-2xl px-4 py-3 outline-none text-stone-400 font-bold" 
+                                disabled 
+                              />
+                            )}
                           </div>
+
                           <div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-stone-400 block mb-2 px-1">Select Delivery Date</span>
                             <input 
@@ -655,10 +724,6 @@ function ShopStorefront() {
                               </p>
                             )}
                           </div>
-                          <div className="bg-stone-100 border border-stone-200 p-3 rounded-2xl text-[10px] text-stone-500 font-medium leading-relaxed">
-                            <strong className="text-stone-950 font-black uppercase tracking-wider block mb-1">🚗 Yango Package (Pay Fare on Arrival)</strong>
-                            Delivery fares depend on your exact location and traffic conditions. You will pay the fare directly to the Yango/Uber rider upon arrival. We will always call you to confirm the estimated fare before dispatch.
-                          </div>
                         </div>
                       )}
                     </div>
@@ -670,9 +735,19 @@ function ShopStorefront() {
                         <span className="font-bold">Subtotal:</span>
                         <span className="text-white font-black">₵{finalOrderBillTotal.toFixed(2)}</span>
                       </div>
+                      
+                      {/* 🚨 DYNAMIC DELIVERY FEE */}
                       <div className="flex justify-between items-center text-emerald-400 relative z-10">
                         <span className="font-bold">Delivery Fee:</span>
-                        <span className="font-black uppercase">Calculated Post-Checkout</span>
+                        <span className="font-black uppercase">
+                          {deliveryType === 'pickup' 
+                            ? 'GH₵0.00 (Pickup)' 
+                            : isCalculatingFee 
+                              ? 'Calculating...' 
+                              : deliveryFee > 0 
+                                ? `₵${deliveryFee.toFixed(2)}` 
+                                : 'Search location to calculate'}
+                        </span>
                       </div>
 
                       {appliedCoupon && (
@@ -684,7 +759,7 @@ function ShopStorefront() {
                       
                       <div className="flex justify-between items-end border-t border-stone-800 pt-4 mt-2 text-white relative z-10">
                         <span className="text-[10px] font-black uppercase tracking-widest text-stone-500">Total</span>
-                        <span className="text-2xl font-black">₵{finalOrderBillTotal.toFixed(2)}</span>
+                        <span className="text-2xl font-black">₵{grandTotal.toFixed(2)}</span>
                       </div>
                     </div>
 
