@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Search, MapPin, Package, Truck, CheckCircle2, Clock, AlertCircle, Phone, ArrowLeft, Calendar } from 'lucide-react';
-import { fetchOrderForTracking } from '../actions/tracking';
+import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 
 export default function TrackOrderPage() {
+  const supabase = createBrowserSupabaseClient();
+
   const [orderRef, setOrderRef] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,15 +34,36 @@ export default function TrackOrderPage() {
     setLoading(true);
     setError(null);
     
-    const result = await fetchOrderForTracking(searchId, searchPhone);
-    
-    if (result.success) {
-      setOrderData(result.data);
-    } else {
-      setError(result.error);
+    try {
+      const cleanPhone = searchPhone.trim();
+      const cleanRef = searchId.trim().toLowerCase();
+
+      // 1. Fetch all orders matching the phone number first to bypass UUID strictness
+      const { data: userOrders, error: dbError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('customer_phone', cleanPhone);
+
+      if (dbError) throw dbError;
+
+      // 2. Use JavaScript to find the order whose ID starts with the entered short-code
+      const matchedOrder = userOrders?.find(order => 
+        order.id.toLowerCase().startsWith(cleanRef)
+      );
+
+      if (!matchedOrder) {
+        setError("Order not found. Please check your Reference ID and Phone Number.");
+        setOrderData(null);
+      } else {
+        setOrderData(matchedOrder);
+      }
+
+    } catch (err) {
+      setError("Connection error. Please try again.");
       setOrderData(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSearch = (e) => {

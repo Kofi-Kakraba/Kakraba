@@ -437,28 +437,56 @@ export default function AdminDashboardPage() {
     setUpdatingId(null);
   };
 
-  const handleForceResetPassword = async (profileId, name, email) => {
-    const newPass = Math.random().toString(36).substring(2, 10).toUpperCase();
-    if (!confirm(`Auto-Generated Password for ${name} is:\n\n${newPass}\n\nClick OK to apply this to the database and draft an email to the ambassador.`)) return;
+  // 🚨 SMART RESEND EMAIL DISPATCHER UPGRADE
+  const handleForceResetPassword = async (profileId, name, email, trackingCode) => {
+    if (!email) {
+      alert(`No email address on file for ${name}. You will need to contact them manually.`);
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to reset the password for ${name}? This will instantly email them a new temporary password.`)) return;
 
     setUpdatingId(`reset-${profileId}`);
-    const { error } = await supabase.from('referral_codes').update({ password: newPass }).eq('id', profileId);
     
-    if (!error) {
-      alert("Password reset successfully! Opening your email client to notify the ambassador.");
-      const subject = encodeURIComponent("Your Sparkle Ambassador Password Has Been Reset");
-      const body = encodeURIComponent(`Hello ${name},\n\nYour Sparkle Ambassador Hub password has been securely reset by an administrator.\n\nYour new temporary password is: ${newPass}\n\nPlease log in to the portal here: https://yourwebsite.com/referrer\n\nStay Sparkling,\nThe Sparkle Admin Team`);
+    try {
+      // 1. Generate an 8-character random password
+      const newPass = Math.random().toString(36).substring(2, 10).toUpperCase();
       
-      if (email) {
-        window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
-      } else {
-        alert(`No email found for ${name}. Please manually send them this password: ${newPass}`);
+      // 2. Update Supabase Database
+      const { error: dbError } = await supabase
+        .from('referral_codes')
+        .update({ password: newPass })
+        .eq('id', profileId);
+
+      if (dbError) throw dbError;
+
+      // 3. Dispatch Email via API Route
+      const emailResponse = await fetch('/api/ambassador-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          name: name.split(' ')[0],
+          trackingCode: trackingCode,
+          newPassword: newPass
+        })
+      });
+
+      const emailResult = await emailResponse.json();
+
+      if (!emailResult.success) {
+        throw new Error("Database updated, but the email server failed to send the notification.");
       }
+
+      alert(`Success! The new password has been securely emailed to ${email}.`);
       await loadDashboardData();
-    } else {
-      alert(`Failed to reset password: ${error.message}`);
+
+    } catch (error) {
+      console.error(error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setUpdatingId(null);
     }
-    setUpdatingId(null);
   };
 
   const handleAddNewProductFlavor = async (e) => {
@@ -1074,7 +1102,14 @@ export default function AdminDashboardPage() {
                   )}
 
                   <div className="border-t border-stone-800/60 pt-3 flex items-center justify-between gap-2">
-                    <button onClick={() => handleForceResetPassword(ref.id, ref.legal_name, ref.email)} disabled={updatingId === `reset-${ref.id}`} className="text-[9px] text-stone-400 hover:text-white flex items-center gap-1 font-bold uppercase tracking-widest bg-stone-955 px-2 py-1.5 rounded border border-stone-800 transition-colors"><Mail className="h-3 w-3" /> Auto-Reset Pass</button>
+                    {/* 🚨 INTEGRATED RESEND API CALL FOR PASSWORD RESET */}
+                    <button 
+                      onClick={() => handleForceResetPassword(ref.id, ref.legal_name, ref.email, ref.code)} 
+                      disabled={updatingId === `reset-${ref.id}`} 
+                      className="text-[9px] text-stone-400 hover:text-white flex items-center gap-1 font-bold uppercase tracking-widest bg-stone-955 px-2 py-1.5 rounded border border-stone-800 transition-colors"
+                    >
+                      <Mail className="h-3 w-3" /> Auto-Reset Pass
+                    </button>
                     <button onClick={() => handleMasterDeleteReferrerRecord(ref.id, ref.code)} className="p-2 text-stone-600 hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
