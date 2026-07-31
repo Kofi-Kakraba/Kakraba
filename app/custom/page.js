@@ -6,6 +6,7 @@ import {
   Sparkles, CheckCircle2, ArrowRight, Flame, 
   Crown, Star, HeartHandshake, Info, MessageCircle, ArrowLeft, Phone, Mail
 } from 'lucide-react';
+import Navbar from '../../components/Navbar';
 
 export default function CustomDropsPage() {
 
@@ -81,40 +82,35 @@ export default function CustomDropsPage() {
     }
   ];
 
-  // Unified WhatsApp Number
   const whatsappNumber = "233533527192"; 
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=Hey!%20I'm%20interested%20in%20booking%20a%20Custom%20Sparkle%20Drop%20for%20my%20event.`;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-900 antialiased font-sans pb-1 selection:bg-rose-500 selection:text-white relative">
       
-      {/* BRAND NAVIGATION */}
-      <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 py-3 px-6 sticky top-0 z-40 shadow-sm flex justify-between items-center h-20">
-        <div className="flex items-center h-full">
-          <Link href="/">
-            <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={220} height={90} className="h-16 sm:h-20 w-auto object-contain cursor-pointer" priority />
-          </Link>
+      {/* BRAND NAVIGATION SYNCED WITH STOREFRONT */}
+      <div className="sticky top-0 z-[70] bg-white/95 shadow-sm border-b border-stone-200">
+        <div className="flex justify-between items-center w-full pr-6">
+          <div className="flex-1">
+             <Navbar />
+          </div>
+          
+          <div className="flex items-center gap-3 sm:gap-6 ml-4">
+            <a 
+              href={whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2.5 rounded-full hover:bg-rose-700 transition-all shadow-xl group"
+            >
+              <MessageCircle className="h-4 w-4 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-black tracking-widest uppercase hidden sm:inline">Chat Now</span>
+            </a>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-3 sm:gap-6">
-          <Link href="/shop" className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Back to Store</span>
-          </Link>
-
-          <a 
-            href={whatsappLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2.5 rounded-full hover:bg-rose-700 transition-all shadow-xl group"
-          >
-            <MessageCircle className="h-4 w-4 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] font-black tracking-widest uppercase">Chat Now</span>
-          </a>
-        </div>
-      </nav>
+      </div>
 
       {/* HEADER */}
-      <header className="max-w-4xl mx-auto px-4 md:px-8 py-16 text-center space-y-6">
+      <header className="max-w-4xl mx-auto px-4 md:px-8 py-16 text-center space-y-6 relative z-10">
         <div className="inline-flex items-center gap-1.5 bg-rose-50 border border-rose-200 text-rose-600 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
           <Flame className="h-3.5 w-3.5" /> Event Exclusives
         </div>
@@ -127,10 +123,9 @@ export default function CustomDropsPage() {
         </p>
       </header>
 
-      {/* GALLERY: EMOTION BEFORE LOGIC */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 pb-20">
+      {/* GALLERY */}
+      <section className="max-w-7xl mx-auto px-4 md:px-8 pb-20 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 auto-rows-[250px]">
-          {/* Main Hero Shot (Kept as cover because it's a lifestyle photo) */}
           <div className="md:col-span-8 md:row-span-2 relative rounded-[32px] overflow-hidden group shadow-xl bg-white">
             <Image src="/finidi-wedding.jpg" alt="Finidi Wedding Custom Sparkle Pouches" layout="fill" objectFit="cover" className="transition-transform duration-700 group-hover:scale-105" priority />
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent opacity-80" />
@@ -139,7 +134,6 @@ export default function CustomDropsPage() {
             </div>
           </div>
           
-          {/* Supporting Shots (Changed to contain with white backgrounds to show full product) */}
           <div className="md:col-span-4 md:row-span-1 relative rounded-[32px] overflow-hidden group shadow-md hidden md:block bg-white">
             <Image src="/rev-osai-1.jpg" alt="Rev Osai Retirement Custom Pouch" layout="fill" objectFit="contain" className="transition-transform duration-700 group-hover:scale-105 p-2" />
           </div>
@@ -159,7 +153,7 @@ export default function CustomDropsPage() {
       </section>
 
       {/* PRODUCTION PACKAGES */}
-      <section className="max-w-7xl mx-auto px-4 md:px-8 pb-12">
+      <section className="max-w-7xl mx-auto px-4 md:px-8 pb-12 relative z-10">
         <div className="flex items-center gap-4 mb-10">
           <div className="h-px bg-stone-200 flex-1" />
           <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-stone-900">Select Your Tier</h2>
@@ -189,7 +183,6 @@ export default function CustomDropsPage() {
                   <p className={`text-xs mt-2 font-medium leading-relaxed ${pkg.theme.accent}`}>{pkg.tagline}</p>
                 </div>
 
-                {/* Pricing Block */}
                 <div className={`p-4 rounded-[24px] space-y-2 border ${pkg.id === 'platinum' ? 'bg-stone-900 border-stone-800' : 'bg-white/50 border-white'}`}>
                   <div className="flex justify-between items-center">
                     <span className={`text-[10px] font-black uppercase tracking-widest ${pkg.theme.accent}`}>Hibiscus/Lemonade</span>
@@ -201,7 +194,6 @@ export default function CustomDropsPage() {
                   </div>
                 </div>
 
-                {/* Features List */}
                 <ul className="space-y-3 pt-2">
                   {pkg.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-2 text-xs font-bold">
@@ -217,7 +209,7 @@ export default function CustomDropsPage() {
       </section>
 
       {/* PRICING NOTE */}
-      <section className="max-w-3xl mx-auto px-4 md:px-8 pb-20 text-center">
+      <section className="max-w-3xl mx-auto px-4 md:px-8 pb-20 text-center relative z-10">
         <div className="bg-stone-100/50 border border-stone-200 p-6 rounded-[32px] flex flex-col items-center gap-3 text-stone-500 text-xs font-bold leading-relaxed">
           <Info className="h-5 w-5 text-stone-400" />
           <p>
@@ -227,7 +219,7 @@ export default function CustomDropsPage() {
       </section>
 
       {/* THE SINGLE MASTER CTA */}
-      <section className="max-w-xl mx-auto px-4 md:px-8 text-center pb-24">
+      <section className="max-w-xl mx-auto px-4 md:px-8 text-center pb-24 relative z-10">
         <h2 className="text-3xl font-black uppercase tracking-tight text-stone-900 mb-6">Ready to Lock It In?</h2>
         <a 
           href={whatsappLink}
@@ -240,10 +232,7 @@ export default function CustomDropsPage() {
         <p className="text-[10px] font-black uppercase tracking-widest text-stone-400 mt-4">Average response time: Under 10 minutes</p>
       </section>
 
-      {/* =========================================
-          THE BRAND CONTACT FOOTER
-      ========================================= */}
-      <footer className="bg-stone-950 text-white border-t-4 border-emerald-500 pt-16 pb-12 px-6 sm:px-12">
+      <footer className="bg-stone-950 text-white border-t-4 border-emerald-500 pt-16 pb-12 px-6 sm:px-12 relative z-10">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 border-b border-stone-900 pb-12 mb-12">
           
           <div className="md:col-span-5 space-y-4 text-left">
@@ -290,14 +279,11 @@ export default function CustomDropsPage() {
         </div>
       </footer>
 
-      {/* =========================================
-          PULSING FLOATING WHATSAPP BUTTON
-      ========================================= */}
       <a 
         href="https://wa.me/233533527192?text=Hey%20Sparkle!%20I'm%20reaching%20out%20from%20the%20custom%20orders%20page.%20Could%20you%20help%20me%20with%20something?" 
         target="_blank" 
         rel="noopener noreferrer" 
-        className="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#20ba5a] text-white p-4 rounded-full shadow-[0_8px_30px_rgba(37,211,102,0.4)] transition-all duration-300 hover:scale-110 flex items-center justify-center hover:-translate-y-1 group"
+        className="fixed bottom-6 right-6 z-[80] bg-[#25D366] hover:bg-[#20ba5a] text-white p-4 rounded-full shadow-[0_8px_30px_rgba(37,211,102,0.4)] transition-all duration-300 hover:scale-110 flex items-center justify-center hover:-translate-y-1 group"
         aria-label="Contact Sparkle on WhatsApp"
       >
         <div className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-35 group-hover:opacity-0 transition-opacity" />

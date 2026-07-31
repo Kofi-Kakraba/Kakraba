@@ -3,14 +3,38 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Zap, ShoppingBag, ChevronRight, ChevronLeft, UserPlus, Flame, Phone, Mail, MessageCircle } from 'lucide-react';
+import { ArrowRight, ChevronRight, ChevronLeft, UserPlus, Phone, Mail, MessageCircle } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../lib/supabaseClient';
+import Navbar from '../components/Navbar'; 
+
+const carouselSlides = [
+  {
+    id: 'sobolo',
+    videoSrc: '/videos/sobolo.mp4', 
+    title: 'THE ORIGINAL.',
+    subtitle: 'Classic Strawberry Hibiscus',
+    buttonColor: 'bg-rose-600 hover:bg-rose-500 shadow-[0_8px_30px_rgb(225,29,72,0.4)]'
+  },
+  {
+    id: 'lemonade',
+    videoSrc: '/videos/lemonade.mp4',
+    title: 'THE ZEST.',
+    subtitle: 'Fresh Citrus Lemonade',
+    buttonColor: 'bg-amber-500 hover:bg-amber-400 shadow-[0_8px_30px_rgb(245,158,11,0.4)]'
+  },
+  {
+    id: 'pinezest',
+    videoSrc: '/videos/pinezest.mp4',
+    title: 'THE TROPIC.',
+    subtitle: 'Premium Pinezest Fusion',
+    buttonColor: 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_8px_30px_rgb(5,150,105,0.4)]'
+  }
+];
 
 export default function BrandWelcomeHomePage() {
   const supabase = createBrowserSupabaseClient();
   const [content, setContent] = useState(null);
-  const [selectedFlavor, setSelectedFlavor] = useState('sobolo');
-  const [currentSizeIndex, setCurrentSizeIndex] = useState(0);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     async function loadWebpageContent() {
@@ -22,65 +46,28 @@ export default function BrandWelcomeHomePage() {
     loadWebpageContent();
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev === carouselSlides.length - 1 ? 0 : prev + 1));
+    }, 6000); 
+    return () => clearInterval(timer);
+  }, []);
+
+  const nextSlide = () => setCurrentSlide((prev) => (prev === carouselSlides.length - 1 ? 0 : prev + 1));
+  const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? carouselSlides.length - 1 : prev - 1));
+
   const cms = content || {
-    hero_title: "Chill. Sip. Sparkle.",
-    hero_subtitle: "Bold fruit flavors packed in grab-and-go spouted pouches. Made for the daily hustle.",
     story_title: "The Sparkle Vibe.",
     story_p1: "We got tired of the same old boring drinks. Sparkle was born to bring high-energy, authentic fruit flavors in a pouch that actually keeps up with your lifestyle. Slow-cooked, locally sourced, and packed with real vibes.",
     story_p2: "No mass-market chemical rules here. Just pure, striking balances of tartness and crispness. Grab a pouch, crack the cap, and upgrade your day.",
-    team_m1_name: "Chief Executive Founder", "team_m1_role": "Vision & Vibe Architect", "team_m1_img": "",
-    team_m2_name: "Head of Brand Architecture", "team_m2_role": "Aesthetics & Culture", "team_m2_img": "",
-    team_m3_name: "Director of Operations", "team_m3_role": "Logistics & Drops", "team_m3_img": "",
-    gallery_1_title: "Signature Flavors", "gallery_1_img": "",
-    gallery_2_title: "Custom Matrimony Drop", "gallery_2_img": "",
-    gallery_3_title: "Executive Gala Service", "gallery_3_img": "",
-    gallery_4_title: "The Community Giveback", "gallery_4_img": "",
-    story_img: "" // Added to prevent undefined errors
-  };
-
-  const quickProducts = {
-    sobolo: {
-      name: "Hibiscus Drink (Sobolo)",
-      flavor: "Strawberry Twist",
-      color: "from-rose-600 to-red-900",
-      bgLight: "bg-rose-50",
-      accentText: "text-rose-600",
-      border: "border-rose-200",
-      sizes: [
-        { volume: "300ml", slang: "Solo", img: "/sobolo-300.png", height: "h-40" },
-        { volume: "500ml", slang: "Gee", img: "/sobolo-500.png", height: "h-52" },
-        { volume: "1.5L", slang: "Paddy", img: "/sobolo-1500.png", height: "h-64" },
-        { volume: "5L", slang: "Link-Up", img: "/sobolo-5000.png", height: "h-76" }
-      ]
-    },
-    lemonade: {
-      name: "Sparkle Lemonade",
-      flavor: "Citrus Mint Fusion",
-      color: "from-amber-400 to-orange-600",
-      bgLight: "bg-amber-50",
-      accentText: "text-amber-600",
-      border: "border-amber-200",
-      sizes: [
-        { volume: "300ml", slang: "Solo", img: "/lemonade-300.png", height: "h-40" },
-        { volume: "500ml", slang: "Gee", img: "/lemonade-500.png", height: "h-52" },
-        { volume: "1.5L", slang: "Paddy", img: "/lemonade-1500.png", height: "h-64" },
-        { volume: "5L", slang: "Link-Up", img: "/lemonade-5000.png", height: "h-76" }
-      ]
-    },
-    pinezest: {
-      name: "Sparkle PineZest",
-      flavor: "Tropical Pineapple Extract",
-      color: "from-emerald-400 to-green-700",
-      bgLight: "bg-emerald-50",
-      accentText: "text-emerald-600",
-      border: "border-emerald-200",
-      sizes: [
-        { volume: "300ml", slang: "Solo", img: "/pinezest-300.png", height: "h-40" },
-        { volume: "500ml", slang: "Gee", img: "/pinezest-500.png", height: "h-52" },
-        { volume: "1.5L", slang: "Paddy", img: "/pinezest-1500.png", height: "h-64" },
-        { volume: "5L", slang: "Link-Up", img: "/pinezest-5000.png", height: "h-76" }
-      ]
-    }
+    team_m1_name: "Chief Executive Founder", team_m1_role: "Vision & Vibe Architect", team_m1_img: "",
+    team_m2_name: "Head of Brand Architecture", team_m2_role: "Aesthetics & Culture", team_m2_img: "",
+    team_m3_name: "Director of Operations", team_m3_role: "Logistics & Drops", team_m3_img: "",
+    gallery_1_title: "Signature Flavors", gallery_1_img: "",
+    gallery_2_title: "Custom Matrimony Drop", gallery_2_img: "",
+    gallery_3_title: "Executive Gala Service", gallery_3_img: "",
+    gallery_4_title: "The Community Giveback", gallery_4_img: "",
+    story_img: "" 
   };
 
   const getSmartLink = (title) => {
@@ -98,154 +85,89 @@ export default function BrandWelcomeHomePage() {
     { id: 4, title: cms.gallery_4_title || "The Community Giveback", src: cms.gallery_4_img, tag: "Culture" },
   ];
 
-  const handleFlavorChange = (flavorKey) => {
-    setSelectedFlavor(flavorKey);
-    setCurrentSizeIndex(0);
-  };
-
-  const handleNextSize = () => {
-    setCurrentSizeIndex((prev) => 
-      prev < quickProducts[selectedFlavor].sizes.length - 1 ? prev + 1 : 0
-    );
-  };
-
-  const handlePrevSize = () => {
-    setCurrentSizeIndex((prev) => 
-      prev > 0 ? prev - 1 : quickProducts[selectedFlavor].sizes.length - 1
-    );
-  };
-
-  const activeSize = quickProducts[selectedFlavor].sizes[currentSizeIndex];
-
   return (
     <div className="min-h-screen bg-[#FDFBF7] font-sans text-stone-950 antialiased selection:bg-rose-500 selection:text-white pb-1 relative">
-      
-      {/* MODERN BRIGHT NAVIGATION */}
-      <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 text-stone-900 py-2 px-6 sticky top-0 z-50 flex justify-between items-center h-20 shadow-sm">
-        <div className="flex items-center h-full">
-          <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Master Logo" width={180} height={70} className="h-14 sm:h-16 w-auto object-contain" />
+      <Navbar />
+
+      <section className="relative w-full h-[75vh] md:h-[85vh] bg-stone-950 overflow-hidden">
+        {carouselSlides.map((slide, index) => (
+          <div 
+            key={slide.id}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}
+          >
+            <video 
+              autoPlay 
+              muted 
+              loop 
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+            >
+              <source src={slide.videoSrc} type="video/mp4" />
+            </video>
+
+            {/* OVERLAY COMPLETELY REMOVED FOR 100% RAW VIDEO BRIGHTNESS */}
+
+            <div className="absolute inset-0 flex flex-col justify-end pb-20 px-6 md:px-12 max-w-7xl mx-auto text-left">
+              <div className="animate-in slide-in-from-bottom-8 duration-700">
+                <div className="inline-block bg-white text-stone-950 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 shadow-xl">
+                  {slide.subtitle}
+                </div>
+                <h1 className="text-6xl md:text-8xl font-black tracking-tighter uppercase text-white mb-6 leading-none drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]">
+                  {slide.title}
+                </h1>
+                <Link href="/shop">
+                  <button className={`${slide.buttonColor} text-white px-8 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 group drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]`}>
+                    Shop The Drop <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <div className="absolute bottom-6 right-6 z-20 flex gap-2">
+          <button onClick={prevSlide} className="bg-white/10 hover:bg-white/30 backdrop-blur-md p-3 rounded-full text-white transition-all drop-shadow-md"><ChevronLeft className="h-5 w-5" /></button>
+          <button onClick={nextSlide} className="bg-white/10 hover:bg-white/30 backdrop-blur-md p-3 rounded-full text-white transition-all drop-shadow-md"><ChevronRight className="h-5 w-5" /></button>
         </div>
-        <div className="flex items-center gap-4 sm:gap-6">
-          <Link href="/referrer" className="text-[11px] font-black uppercase tracking-wide text-emerald-600 hover:text-emerald-500 transition-colors hidden sm:inline-block">Become an Ambassador 🌟</Link>
-          <Link href="/shop" className="text-xs font-bold text-stone-500 hover:text-stone-900 transition-colors uppercase tracking-wide">Shop Now</Link>
-          <Link href="/custom" className="bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white px-6 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all shadow-[0_4px_15px_rgb(225,29,72,0.3)] hover:-translate-y-0.5">
-            <Flame className="h-4 w-4 text-amber-300" /> <span>Custom Drops</span>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-6 md:px-12 mt-24 mb-12">
+        <div className="text-center mb-12 space-y-4">
+          <h2 className="text-4xl md:text-5xl font-black tracking-tighter uppercase text-stone-950">
+            CHILL. SIP. <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-amber-500">SPARKLE.</span>
+          </h2>
+          <p className="text-stone-500 font-medium max-w-xl mx-auto text-sm">
+            From cold-pressed premium hibiscus blends to custom-tailored branding architectures. Explore refreshing authenticity made entirely to order.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Link href="/shop" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
+            <Image src="/Sparkle 500ml high-def ad.jpeg" alt="Sobolo" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+            <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent flex flex-col justify-end p-8">
+              <h3 className="text-white font-black uppercase text-2xl tracking-tighter">Sobolo</h3>
+              <p className="text-rose-400 text-[10px] font-bold uppercase tracking-widest mt-1">Shop Original</p>
+            </div>
+          </Link>
+
+          <Link href="/shop" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
+            <Image src="/lemonade 500ml 2.jpeg" alt="Lemonade" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+            <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent flex flex-col justify-end p-8">
+              <h3 className="text-white font-black uppercase text-2xl tracking-tighter">Lemonade</h3>
+              <p className="text-amber-400 text-[10px] font-bold uppercase tracking-widest mt-1">Shop Citrus</p>
+            </div>
+          </Link>
+
+          <Link href="/shop" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
+            <Image src="/pinezest.jpeg" alt="Pinezest" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+            <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent flex flex-col justify-end p-8">
+              <h3 className="text-white font-black uppercase text-2xl tracking-tighter">Pinezest</h3>
+              <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest mt-1">Shop Tropic</p>
+            </div>
           </Link>
         </div>
-      </nav>
+      </section>
 
-      {/* 🚀 HERO SECTION WITH FULL-SCREEN LIFESTYLE BACKGROUND */}
-      <header className="relative bg-stone-900 overflow-hidden py-12 lg:py-0 min-h-[90vh] flex items-center px-4 md:px-8 border-b-8 border-rose-500">
-        
-        {/* Background lifestyle image */}
-        <div className="absolute inset-0 z-0">
-          <Image 
-            src="/sparkle-drinks.png" 
-            alt="Sparkle Squad Lifestyle" 
-            layout="fill" 
-            objectFit="cover" 
-            priority
-            className="w-full h-full object-cover object-center opacity-90" 
-          />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-stone-900/60 via-stone-900/40 to-stone-900/10 z-10" />
-
-        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 items-center z-20 relative pt-8 lg:pt-0">
-          
-          {/* LEFT SIDE: GLASSMORPHISM TEXT CONTAINER */}
-          <div className="lg:col-span-7 bg-white/70 backdrop-blur-xl border border-white/50 p-8 md:p-12 rounded-[40px] shadow-2xl space-y-6 text-left transform transition-all hover:scale-[1.01]">
-            <div className="inline-flex items-center gap-1.5 bg-stone-950 text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md">
-              <Zap className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> Real Fruit. Spouted Pouches.
-            </div>
-            
-            <h1 className="text-5xl md:text-7xl lg:text-[5.5rem] font-black tracking-tighter leading-[0.95] uppercase">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-rose-600 via-amber-500 to-emerald-500">
-                Chill. Sip.
-              </span>
-              <br />
-              <span className="text-stone-900">Sparkle.</span>
-            </h1>
-            
-            <p className="text-stone-700 text-sm md:text-lg max-w-xl font-bold leading-relaxed">
-              {cms.hero_subtitle}
-            </p>
-            
-            {/* 🚨 UPDATED HERO BUTTON BLOCK */}
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 pt-2">
-              <Link href="/shop" className="bg-stone-950 hover:bg-stone-800 text-white text-xs font-black uppercase tracking-wide px-8 py-4 rounded-xl flex items-center justify-center gap-2 shadow-xl transition-all">
-                <ShoppingBag className="h-4 w-4" /> <span>Order Batches</span>
-              </Link>
-              <Link href="/custom" className="bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white text-xs font-black uppercase tracking-wide px-8 py-4 rounded-xl flex items-center justify-center gap-2 shadow-[0_8px_30px_rgb(225,29,72,0.3)] transition-all hover:-translate-y-0.5">
-                <Flame className="h-4 w-4 text-amber-300" /> <span>Custom Drops</span>
-              </Link>
-              <Link href="/referrer" className="bg-white hover:bg-stone-50 text-stone-900 border-2 border-stone-200 text-xs font-black uppercase tracking-wide px-8 py-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all">
-                <UserPlus className="h-4 w-4 text-emerald-500" /> <span>Ambassador Hub</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* RIGHT SIDE: HERO PRODUCT PRESENTATION & CONTROLS */}
-          <div className="lg:col-span-5 w-full flex flex-col items-center justify-center relative space-y-4">
-            
-            {/* FLAVOR SWAPPER MOVED ABOVE THE CARD */}
-            <div className="bg-white/80 backdrop-blur-md p-3 rounded-[24px] border border-white/50 shadow-xl flex gap-2 justify-center w-full max-w-sm transform transition-all hover:scale-[1.02]">
-              <button onClick={() => handleFlavorChange('sobolo')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'sobolo' ? 'bg-rose-600 border-rose-600 text-white shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-rose-400 hover:bg-rose-50'}`}>Sobolo 🍓</button>
-              <button onClick={() => handleFlavorChange('lemonade')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'lemonade' ? 'bg-amber-400 border-amber-400 text-stone-950 shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-amber-400 hover:bg-amber-50'}`}>Lemonade 🍋</button>
-              <button onClick={() => handleFlavorChange('pinezest')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${selectedFlavor === 'pinezest' ? 'bg-emerald-500 border-emerald-500 text-white shadow-md' : 'bg-white text-stone-800 border-stone-200 hover:border-emerald-400 hover:bg-emerald-50'}`}>PineZest 🍍</button>
-            </div>
-
-            {/* The Glass Product Card */}
-            <div className={`w-full max-w-sm rounded-[40px] ${quickProducts[selectedFlavor].bgLight} border-2 ${quickProducts[selectedFlavor].border} p-6 shadow-2xl transition-all duration-500 flex flex-col justify-between relative overflow-hidden group min-h-[500px]`}>
-              
-              {/* Size Navigation */}
-              <div className="flex justify-center z-10 w-full mb-4">
-                <div className="flex items-center gap-3 bg-white/90 backdrop-blur-sm border border-stone-200/80 rounded-full p-1 shadow-sm">
-                  <button onClick={handlePrevSize} className="p-1.5 hover:bg-stone-100 rounded-full text-stone-400 hover:text-stone-900 transition-colors">
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  
-                  {/* Styled typography: Bold size + Italic slang */}
-                  <span className="min-w-[110px] text-center flex items-center justify-center gap-1.5">
-                    <span className="text-[11px] font-black uppercase tracking-widest text-stone-900">{activeSize.volume}</span>
-                    <span className="text-[11px] font-bold italic tracking-wider text-stone-500">{activeSize.slang}</span>
-                  </span>
-                  
-                  <button onClick={handleNextSize} className="p-1.5 hover:bg-stone-100 rounded-full text-stone-400 hover:text-stone-900 transition-colors">
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Dynamic Image with Realistic Floor Shadow & INSTANT LOADING */}
-              <div className="h-80 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 pb-6">
-                <Image 
-                  key={activeSize.img} 
-                  src={activeSize.img} 
-                  alt={`${quickProducts[selectedFlavor].name} ${activeSize.volume}`}
-                  width={400}
-                  height={400}
-                  priority={true}
-                  className={`object-contain transition-all duration-500 transform group-hover:-translate-y-2 group-hover:scale-105 z-10 ${activeSize.height}`}
-                />
-                {/* The "Blue Skies" style detached floor shadow */}
-                <div className="w-1/2 h-3 bg-black/40 blur-md rounded-[50%] absolute bottom-2 transition-all duration-500 group-hover:w-2/3 group-hover:opacity-60"></div>
-              </div>
-
-              {/* Badges */}
-              <div className="bg-white border border-stone-100 p-4 rounded-2xl shadow-sm z-10 space-y-0.5 relative mt-auto">
-                <div className={`text-[10px] font-black uppercase tracking-widest ${quickProducts[selectedFlavor].accentText}`}>{quickProducts[selectedFlavor].flavor}</div>
-                <h3 className="text-xl font-black text-stone-950 tracking-tight uppercase">{quickProducts[selectedFlavor].name}</h3>
-              </div>
-
-              {/* Color Bloom Effect */}
-              <div className={`absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-gradient-to-br ${quickProducts[selectedFlavor].color} opacity-20 blur-2xl pointer-events-none`} />
-            </div>
-
-          </div>
-        </div>
-      </header>
-
-      {/* BRAND STORY */}
       <section className="max-w-7xl mx-auto px-4 md:px-8 py-24 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
         <div className="space-y-8">
           <div className="text-[11px] font-black tracking-widest text-emerald-500 uppercase flex items-center gap-2">
@@ -258,7 +180,6 @@ export default function BrandWelcomeHomePage() {
           </div>
         </div>
         
-        {/* 🚨 REPLACED LOGO WITH DYNAMIC ADMIN IMAGE */}
         <div className="relative rounded-[40px] overflow-hidden bg-stone-100 p-2 h-[480px] flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-200 group">
           <Image 
             src={cms.story_img || "/SPARKLE DRINK Banner.jpg"} 
@@ -270,7 +191,6 @@ export default function BrandWelcomeHomePage() {
         </div>
       </section>
 
-      {/* MEDIA GALLERY */}
       <section className="bg-[#111111] text-white py-24 border-t border-stone-900">
         <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-16">
           <div className="flex flex-col justify-between items-start gap-4 border-b border-stone-800 pb-8">
@@ -283,30 +203,20 @@ export default function BrandWelcomeHomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {galleryItems.map(item => (
               <Link href={getSmartLink(item.title)} key={item.id} className="group block cursor-pointer">
-                {/* Image Card Container */}
                 <div className="aspect-[4/5] w-full relative overflow-hidden rounded-[32px] bg-stone-900 mb-4 border-2 border-transparent group-hover:border-rose-500 shadow-lg transition-colors duration-500">
                   {item.src ? (
-                    <Image 
-                      src={item.src} 
-                      alt={item.title} 
-                      layout="fill"
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                    />
+                    <Image src={item.src} alt={item.title} layout="fill" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-[10px] text-stone-700 font-black uppercase bg-stone-900">
                       No Image Uploaded
                     </div>
                   )}
                   
-                  {/* White Tag Pill (Top Right) */}
                   <div className="absolute top-4 right-4 bg-white px-3 py-1.5 rounded-full shadow-md z-10">
-                    <span className="text-[10px] font-black text-stone-950 uppercase tracking-widest">
-                      {item.tag}
-                    </span>
+                    <span className="text-[10px] font-black text-stone-950 uppercase tracking-widest">{item.tag}</span>
                   </div>
                 </div>
                 
-                {/* Title Text Below Image */}
                 <h3 className="text-white font-black uppercase text-xs tracking-widest group-hover:text-rose-500 transition-colors">
                   {item.title}
                 </h3>
@@ -316,7 +226,6 @@ export default function BrandWelcomeHomePage() {
         </div>
       </section>
 
-      {/* LEADERSHIP SQUAD */}
       <section className="max-w-7xl mx-auto px-4 md:px-8 py-24 space-y-16">
         <div className="space-y-3 text-center max-w-2xl mx-auto">
           <div className="text-[11px] font-black tracking-widest text-emerald-500 uppercase justify-center flex items-center gap-2">
@@ -338,8 +247,7 @@ export default function BrandWelcomeHomePage() {
                     <Image src={member.img} alt={member.name} layout="fill" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 font-black uppercase text-[10px] tracking-widest bg-stone-100">
-                      <UserPlus className="h-6 w-6 mb-2 opacity-50" />
-                      Awaiting Pic
+                      <UserPlus className="h-6 w-6 mb-2 opacity-50" /> Awaiting Pic
                     </div>
                   )}
                 </div>
@@ -353,12 +261,8 @@ export default function BrandWelcomeHomePage() {
         </div>
       </section>
 
-      {/* =========================================
-          THE BRAND CONTACT FOOTER
-      ========================================= */}
       <footer className="bg-stone-950 text-white border-t-4 border-emerald-500 pt-16 pb-12 px-6 sm:px-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 border-b border-stone-900 pb-12 mb-12">
-          
           <div className="md:col-span-5 space-y-4 text-left">
             <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={140} height={50} className="h-10 w-auto object-contain brightness-110" />
             <p className="text-stone-400 text-xs font-bold leading-relaxed max-w-sm">
@@ -388,7 +292,6 @@ export default function BrandWelcomeHomePage() {
               <Link href="/referrer" className="text-stone-400 hover:text-white transition-colors uppercase tracking-wider text-[10px]">03 // Ambassador Hub</Link>
             </div>
           </div>
-
         </div>
 
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
@@ -403,9 +306,6 @@ export default function BrandWelcomeHomePage() {
         </div>
       </footer>
 
-      {/* =========================================
-          PULSING FLOATING WHATSAPP BUTTON
-      ========================================= */}
       <a 
         href="https://wa.me/233533527192?text=Hey%20Sparkle!%20I'm%20reaching%20out%20from%20the%20homepage.%20Could%20you%20help%20me%20with%20something?" 
         target="_blank" 

@@ -114,7 +114,7 @@ export default function AmbassadorDashboardPage() {
       setLoading(false);
     }
     verifySessionAndLoadMetrics();
-  }, []);
+  }, [router, supabase]);
 
   const grossRequestAmount = parseFloat(customWithdrawInput) || 0;
   const liveTaxDeduction = grossRequestAmount * 0.10;
@@ -195,8 +195,8 @@ export default function AmbassadorDashboardPage() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-900 font-sans antialiased pb-12 relative selection:bg-emerald-500 selection:text-white">
       
-      {/* BRAND NAVIGATION WITH HOME LINK */}
-      <nav className="bg-white/90 backdrop-blur-md border-b border-stone-200 py-3 px-6 sticky top-0 z-40 shadow-sm flex justify-between items-center h-20">
+      {/* 🚨 BLUR TRAP REMOVED & Z-INDEX ELEVATED */}
+      <nav className="bg-white/95 border-b border-stone-200 py-3 px-6 sticky top-0 z-[70] shadow-sm flex justify-between items-center h-20">
         <div className="flex items-center gap-4 h-full">
           <Link href="/">
             <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={180} height={70} className="h-14 sm:h-16 w-auto object-contain cursor-pointer hover:scale-105 transition-transform" priority />
@@ -217,7 +217,7 @@ export default function AmbassadorDashboardPage() {
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 py-12 space-y-8">
+      <main className="max-w-6xl mx-auto px-4 py-12 space-y-8 relative z-10">
         
         <header className="space-y-1">
           <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-stone-950">
@@ -246,7 +246,6 @@ export default function AmbassadorDashboardPage() {
           {/* DYNAMIC WALLET & WITHDRAWAL CARD */}
           <div className="bg-white border-2 border-stone-200 rounded-[40px] p-8 shadow-xl lg:col-span-2 relative overflow-hidden">
             
-            {/* HIGH-VISIBILITY WALLET */}
             <div className="mb-6 p-6 bg-stone-950 rounded-[24px] shadow-2xl relative overflow-hidden text-white">
               <div className="absolute right-0 top-0 w-64 h-64 bg-emerald-500 rounded-full blur-[80px] opacity-20 pointer-events-none -mr-20 -mt-20" />
               <div className="absolute right-6 top-1/2 -translate-y-1/2 text-emerald-500/20 pointer-events-none hidden sm:block">
@@ -371,9 +370,9 @@ export default function AmbassadorDashboardPage() {
         </div>
       </main>
 
-      {/* RECEIPT MODAL OVERLAY */}
+      {/* 🚨 RECEIPT MODAL OVERLAY - Z-INDEX ELEVATED TO 100 TO DOMINATE SCREEN */}
       {selectedReceiptTicket && (
-        <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
           <div className="bg-white text-stone-900 rounded-[40px] max-w-sm w-full p-8 space-y-6 shadow-2xl relative font-sans text-center border border-stone-200">
             <button type="button" onClick={() => setSelectedReceiptTicket(null)} className="absolute right-6 top-6 p-2 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 transition-colors"><X className="h-4 w-4" /></button>
             

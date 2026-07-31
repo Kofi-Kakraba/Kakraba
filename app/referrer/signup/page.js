@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { User, Lock, ArrowRight, AlertCircle, Zap, ArrowLeft, Camera, CreditCard, Upload, Phone, Mail, Wallet, FileText } from 'lucide-react';
+import { User, Lock, ArrowRight, AlertCircle, Zap, ArrowLeft, Camera, CreditCard, Upload, Phone, Mail, Wallet, FileText, Home } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../../lib/supabaseClient';
 
 export default function ReferrerSignupPage() {
@@ -16,7 +16,6 @@ export default function ReferrerSignupPage() {
   const [successMode, setSuccessMode] = useState(false);
   const [assignedCode, setAssignedCode] = useState('');
 
-  // Form States
   const [legalName, setLegalName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -25,11 +24,9 @@ export default function ReferrerSignupPage() {
   const [ghanaCardNumber, setGhanaCardNumber] = useState('');
   const [password, setPassword] = useState('');
   
-  // File States
   const [selfieFile, setSelfieFile] = useState(null);
   const [cardFile, setCardFile] = useState(null);
   
-  // Terms State
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const uploadFileToSupabase = async (file, pathPrefix) => {
@@ -66,7 +63,6 @@ export default function ReferrerSignupPage() {
     setLoading(true);
 
     try {
-      // 1. SYSTEM AUTO-GENERATE UNIQUE TRACKING CODE TO PREVENT DUPLICATES
       let finalGeneratedCode = '';
       let isUnique = false;
       let safetyCounter = 0;
@@ -92,11 +88,9 @@ export default function ReferrerSignupPage() {
         throw new Error("System code routing collision. Please press submit again.");
       }
 
-      // 2. Upload KYC Documents to public bucket
       const selfieUrl = await uploadFileToSupabase(selfieFile, `kyc_selfie_${finalGeneratedCode}`);
       const cardUrl = await uploadFileToSupabase(cardFile, `kyc_card_${finalGeneratedCode}`);
 
-      // 3. Insert Application into Database under 'pending_review' lockdown
       const { error: insertError } = await supabase.from('referral_codes').insert([{
         code: finalGeneratedCode,
         campaign_name: `${legalName.trim()} [Ambassador]`,
@@ -129,7 +123,7 @@ export default function ReferrerSignupPage() {
 
   if (successMode) {
     return (
-      <div className="min-h-screen bg-[#FDFBF7] flex flex-col justify-center items-center px-4 selection:bg-rose-500 selection:text-white">
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col justify-center items-center px-4 selection:bg-rose-500 selection:text-white relative">
         <div className="max-w-md bg-white border-2 border-stone-200 rounded-[40px] p-10 text-center shadow-2xl space-y-6">
           <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Zap className="h-10 w-10 text-emerald-500" />
@@ -153,7 +147,7 @@ export default function ReferrerSignupPage() {
   return (
     <div className="min-h-screen font-sans antialiased flex flex-col justify-center items-center px-4 py-16 selection:bg-rose-500 selection:text-white relative overflow-hidden">
       
-      {/* SQUAD LIFESTYLE BACKGROUND IMAGE */}
+      {/* BACKGROUND IMAGE */}
       <div className="absolute inset-0 z-0">
         <Image 
           src="/sparkle-drinks.png" 
@@ -166,12 +160,14 @@ export default function ReferrerSignupPage() {
         <div className="absolute inset-0 bg-gradient-to-tr from-stone-950/95 via-stone-900/90 to-rose-950/80" />
       </div>
 
+      {/* 🚨 FLOATING ESCAPE HATCH (HOME BUTTON) */}
+      <Link href="/" className="fixed top-6 left-6 z-50 flex items-center gap-2 bg-stone-900/50 hover:bg-stone-900/80 backdrop-blur-md border border-white/10 text-white px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all hover:-translate-x-1 shadow-2xl">
+        <Home className="h-4 w-4" /> <span>Home</span>
+      </Link>
+
       <div className="w-full max-w-2xl bg-white/95 backdrop-blur-2xl border-2 border-white/50 rounded-[40px] p-8 md:p-10 shadow-2xl space-y-8 relative z-10 my-8">
         
         <div className="text-center space-y-4">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors mb-2">
-            <ArrowLeft className="h-3 w-3" /> Back to Storefront
-          </Link>
           <Link href="/" className="block">
             <Image src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" width={180} height={70} className="h-14 mx-auto object-contain transition-transform hover:scale-105" priority />
           </Link>
@@ -186,7 +182,6 @@ export default function ReferrerSignupPage() {
 
         <form onSubmit={handleSignupSubmit} className="space-y-8 text-left">
           
-          {/* SECTION 1: PERSONAL DETAILS */}
           <div className="space-y-4">
             <h3 className="font-black text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200 pb-2">1. Personal Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -201,7 +196,6 @@ export default function ReferrerSignupPage() {
                 <label className="block text-stone-500 uppercase font-black text-[10px] mb-2 tracking-widest">Contact Phone</label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-                  {/* 🛠️ UPGRADED CEILING SAFEGUARD FIELD: Enforces exact 10-digit formats starting with 0 */}
                   <input 
                     type="tel" 
                     required 
@@ -224,7 +218,6 @@ export default function ReferrerSignupPage() {
             </div>
           </div>
 
-          {/* SECTION 2: PAYOUT DETAILS */}
           <div className="space-y-4">
             <h3 className="font-black text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200 pb-2">2. Payout Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -240,7 +233,6 @@ export default function ReferrerSignupPage() {
                 <label className="block text-stone-500 uppercase font-black text-[10px] mb-2 tracking-widest">MoMo Wallet Number</label>
                 <div className="relative">
                   <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-                  {/* 🛠️ UPGRADED CEILING SAFEGUARD FIELD: Enforces exact 10-digit formats starting with 0 */}
                   <input 
                     type="tel" 
                     required 
@@ -256,7 +248,6 @@ export default function ReferrerSignupPage() {
             </div>
           </div>
 
-          {/* SECTION 3: KYC VERIFICATION */}
           <div className="space-y-4">
             <h3 className="font-black text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200 pb-2">3. KYC Identity Audit</h3>
             <div className="space-y-4">
@@ -269,7 +260,6 @@ export default function ReferrerSignupPage() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Selfie Upload */}
                 <div className="bg-[#FDFBF7] border-2 border-dashed border-stone-200 rounded-2xl p-4 text-center hover:border-rose-400 transition-colors">
                   <Camera className="h-6 w-6 text-stone-400 mx-auto mb-2" />
                   <label className="cursor-pointer block">
@@ -282,7 +272,6 @@ export default function ReferrerSignupPage() {
                   </label>
                 </div>
 
-                {/* ID Card Upload */}
                 <div className="bg-[#FDFBF7] border-2 border-dashed border-stone-200 rounded-2xl p-4 text-center hover:border-rose-400 transition-colors">
                   <CreditCard className="h-6 w-6 text-stone-400 mx-auto mb-2" />
                   <label className="cursor-pointer block">
@@ -298,7 +287,6 @@ export default function ReferrerSignupPage() {
             </div>
           </div>
 
-          {/* SECTION 4: SECURITY PASSPHRASE */}
           <div className="space-y-4">
             <h3 className="font-black text-xs uppercase tracking-widest text-stone-400 border-b border-stone-200 pb-2">4. Access Security</h3>
             <div>
@@ -310,7 +298,6 @@ export default function ReferrerSignupPage() {
             </div>
           </div>
 
-          {/* COMPREHENSIVE TERMS AND CONDITIONS BOX */}
           <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 flex items-start gap-4 shadow-inner">
             <input 
               type="checkbox" 
