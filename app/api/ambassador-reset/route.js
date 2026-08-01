@@ -9,7 +9,7 @@ export async function POST(request) {
     const { email, name, trackingCode, newPassword } = await request.json();
 
     const data = await resend.emails.send({
-      from: 'Sparkle Admin <info@sparklebeverages.com>',
+      from: 'Sparkle Admin <admin@sparklebeverages.com>',
       to: email,
       subject: 'Sparkle Ambassador: Password Reset',
       html: `
