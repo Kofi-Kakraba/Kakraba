@@ -976,7 +976,8 @@ function ShopStorefront() {
             <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Hit Us Up Directly</h4>
             <div className="space-y-3 text-xs">
               <a href="tel:0533527192" className="flex items-center gap-2 text-stone-300 hover:text-white transition-colors"><Phone className="h-4 w-4 text-emerald-500 shrink-0" /><span>+233 533 527 192</span></a>
-              <a href="mailto:sparklebeverages@outlook.com" className="flex items-center gap-2 text-stone-300 hover:text-white transition-colors truncate"><Mail className="h-4 w-4 text-rose-500 shrink-0" /><span>sparklebeverages@outlook.com</span></a>
+              {/* ✅ NEW INFO ADDRESS BELOW */}
+              <a href="mailto:info@sparklebeverages.com" className="flex items-center gap-2 text-stone-300 hover:text-white transition-colors truncate"><Mail className="h-4 w-4 text-rose-500 shrink-0" /><span>info@sparklebeverages.com</span></a>
             </div>
           </div>
           <div className="md:col-span-3 space-y-4 text-left text-xs font-bold font-mono">

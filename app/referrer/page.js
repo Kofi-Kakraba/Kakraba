@@ -84,7 +84,7 @@ export default function ReferrerPortalPage() {
             </div>
             
             <div className="flex justify-end mt-2">
-              <a href="https://wa.me/233540000000?text=Hello%20Sparkle%20Admin,%20I%20am%20an%20ambassador%20and%20I%20have%20forgotten%20my%20password.%20Can%20you%20help%20me%20reset%20it?" target="_blank" rel="noopener noreferrer" className="text-[10px] text-emerald-600 font-black uppercase tracking-widest hover:text-emerald-500 transition-colors">Forgot Password?</a>
+              <a href="mailto:info@sparklebeverages.com?subject=Ambassador%20Password%20Reset%20Request&body=Hello%20Sparkle%20Admin%2C%0A%0AI%20am%20an%20ambassador%20and%20I%20need%20help%20resetting%20my%20password.%20My%20tracking%20code%20is%3A%20%5BInsert%20Your%20Code%20Here%5D" className="text-[10px] text-emerald-600 font-black uppercase tracking-widest hover:text-emerald-500 transition-colors">Forgot Password?</a>
             </div>
           </div>
 

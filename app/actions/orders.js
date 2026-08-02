@@ -226,8 +226,8 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
 
     try {
       await resend.emails.send({
-        from: 'Sparkle Storefront <onboarding@resend.dev>',
-        to: ['sparklebeverages@outlook.com'], 
+        from: 'Sparkle Admin <admin@sparklebeverages.com>',
+        to: ['orders@sparklebeverages.com'], 
         subject: `🚨 New PAID Sparkle Order: ₵${Number(updatedOrder.total_amount).toFixed(2)}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px; border-radius: 10px; background-color: #FAFAFA; border: 1px solid #E5E7EB;">
