@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { LogOut, Wallet, History, RefreshCw, Package, Search, Printer, X, Sparkles, ArrowLeft, User } from 'lucide-react';
+import { LogOut, Wallet, History, RefreshCw, Package, Search, Printer, X, Sparkles, ArrowLeft, User, Lock, CheckCircle2 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../../lib/supabaseClient';
 
 export default function AmbassadorDashboardPage() {
@@ -22,6 +22,12 @@ export default function AmbassadorDashboardPage() {
 
   const [auditSearchText, setAuditSearchText] = useState('');
   const [sizeFilterText, setSizeFilterText] = useState('all');
+
+  // --- NEW: Password Change State ---
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState({ loading: false, error: null, success: false });
 
   useEffect(() => {
     async function verifySessionAndLoadMetrics() {
@@ -171,6 +177,44 @@ export default function AmbassadorDashboardPage() {
     router.push('/referrer');
   };
 
+  // --- NEW: Password Change Handler ---
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    
+    if (newPassword.length < 6) {
+      setPasswordStatus({ loading: false, error: "Password must be at least 6 characters.", success: false });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordStatus({ loading: false, error: "Passwords do not match.", success: false });
+      return;
+    }
+
+    setPasswordStatus({ loading: true, error: null, success: false });
+
+    try {
+      const { error } = await supabase
+        .from('referral_codes')
+        .update({ password: newPassword.trim() })
+        .eq('id', partnerProfile.id);
+
+      if (error) throw error;
+
+      setPasswordStatus({ loading: false, error: null, success: true });
+      
+      // Close modal and reset state after a short delay
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setNewPassword('');
+        setConfirmPassword('');
+        setPasswordStatus({ loading: false, error: null, success: false });
+      }, 2000);
+
+    } catch (err) {
+      setPasswordStatus({ loading: false, error: err.message || "Failed to update password.", success: false });
+    }
+  };
+
   const filteredAuditSalesLog = salesPipeline.filter(sale => {
     const matchesSearch = auditSearchText.trim() === '' || 
       sale.customerName.toLowerCase().includes(auditSearchText.toLowerCase()) ||
@@ -195,7 +239,7 @@ export default function AmbassadorDashboardPage() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-900 font-sans antialiased pb-12 relative selection:bg-emerald-500 selection:text-white">
       
-      {/* 🚨 BLUR TRAP REMOVED & Z-INDEX ELEVATED */}
+      {/* NAVIGATION */}
       <nav className="bg-white/95 border-b border-stone-200 py-3 px-6 sticky top-0 z-[70] shadow-sm flex justify-between items-center h-20">
         <div className="flex items-center gap-4 h-full">
           <Link href="/">
@@ -207,6 +251,7 @@ export default function AmbassadorDashboardPage() {
         </div>
         
         <div className="flex items-center gap-3 sm:gap-6">
+          {/* STOREFRONT LINK LOCATED HERE */}
           <Link href="/" className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors flex items-center gap-1">
             <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Storefront</span>
           </Link>
@@ -237,9 +282,20 @@ export default function AmbassadorDashboardPage() {
               <h2 className="text-2xl font-black text-stone-950 uppercase tracking-tight truncate pt-2">{partnerProfile?.legal_name || 'Ambassador'}</h2>
               <span className="text-xs text-emerald-600 font-black uppercase tracking-wider block">ID: #{partnerProfile?.code || '----'}</span>
             </div>
-            <div className="bg-[#FDFBF7] border border-stone-200 p-4 rounded-2xl text-[11px] font-bold space-y-2 relative z-10 text-stone-600 uppercase tracking-wide mt-6">
-              <div className="flex justify-between items-center"><span>Payout Route:</span><strong className="text-stone-950">{partnerProfile?.momo_number || 'None'}</strong></div>
-              <div className="flex justify-between items-center"><span>Network:</span><strong className="text-stone-950">{partnerProfile?.momo_network || 'MTN'}</strong></div>
+            
+            <div className="mt-6 space-y-3 relative z-10">
+              <div className="bg-[#FDFBF7] border border-stone-200 p-4 rounded-2xl text-[11px] font-bold space-y-2 text-stone-600 uppercase tracking-wide">
+                <div className="flex justify-between items-center"><span>Payout Route:</span><strong className="text-stone-950">{partnerProfile?.momo_number || 'None'}</strong></div>
+                <div className="flex justify-between items-center"><span>Network:</span><strong className="text-stone-950">{partnerProfile?.momo_network || 'MTN'}</strong></div>
+              </div>
+              
+              {/* NEW: Change Password Button */}
+              <button 
+                onClick={() => setShowPasswordModal(true)} 
+                className="w-full bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-950 font-black text-[10px] uppercase tracking-widest py-3.5 rounded-2xl flex items-center justify-center gap-1.5 transition-all border border-stone-200"
+              >
+                <Lock className="h-3.5 w-3.5" /> Change Password
+              </button>
             </div>
           </div>
 
@@ -369,6 +425,81 @@ export default function AmbassadorDashboardPage() {
 
         </div>
       </main>
+
+      {/* 🚨 PASSWORD CHANGE MODAL OVERLAY */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+          <div className="bg-white text-stone-900 rounded-[40px] max-w-sm w-full p-8 shadow-2xl relative font-sans border border-stone-200">
+            <button 
+              type="button" 
+              onClick={() => {
+                setShowPasswordModal(false);
+                setPasswordStatus({ loading: false, error: null, success: false });
+                setNewPassword('');
+                setConfirmPassword('');
+              }} 
+              className="absolute right-6 top-6 p-2 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            
+            <div className="text-center pt-2 mb-6">
+              <div className="mx-auto w-12 h-12 bg-stone-100 text-stone-950 rounded-full flex items-center justify-center shadow-inner mb-4">
+                <Lock className="h-5 w-5" />
+              </div>
+              <h2 className="text-xl font-black uppercase text-stone-950 tracking-tight">Security</h2>
+              <p className="text-[10px] text-stone-500 font-bold uppercase tracking-widest mt-1">Update Your Access Key</p>
+            </div>
+
+            {passwordStatus.success ? (
+              <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-[24px] text-center space-y-3">
+                <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
+                <p className="text-emerald-800 font-black text-sm uppercase tracking-wide">Password Updated</p>
+                <p className="text-emerald-600/80 text-[10px] font-bold uppercase tracking-widest">Your changes have been saved.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <div>
+                  <label className="block text-stone-500 uppercase font-black text-[10px] mb-2 tracking-widest">New Password</label>
+                  <input 
+                    type="password" 
+                    required 
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••" 
+                    className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl px-4 py-3 text-stone-900 font-bold outline-none focus:border-emerald-500 transition-colors placeholder:text-stone-300" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-stone-500 uppercase font-black text-[10px] mb-2 tracking-widest">Confirm Password</label>
+                  <input 
+                    type="password" 
+                    required 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••" 
+                    className="w-full bg-[#FDFBF7] border-2 border-stone-200 rounded-2xl px-4 py-3 text-stone-900 font-bold outline-none focus:border-emerald-500 transition-colors placeholder:text-stone-300" 
+                  />
+                </div>
+
+                {passwordStatus.error && (
+                  <div className="bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-black uppercase tracking-widest p-3 rounded-xl text-center">
+                    {passwordStatus.error}
+                  </div>
+                )}
+
+                <button 
+                  type="submit" 
+                  disabled={passwordStatus.loading}
+                  className="w-full bg-stone-950 hover:bg-stone-800 text-white font-black text-[10px] uppercase tracking-widest py-4 rounded-2xl shadow-xl transition-all disabled:opacity-50 mt-2"
+                >
+                  {passwordStatus.loading ? 'Updating...' : 'Save Password'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 🚨 RECEIPT MODAL OVERLAY - Z-INDEX ELEVATED TO 100 TO DOMINATE SCREEN */}
       {selectedReceiptTicket && (
