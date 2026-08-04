@@ -13,6 +13,7 @@ import { createCustomerOrderServerAction } from '../actions/orders';
 import { calculateDeliveryFee } from '../actions/delivery';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import Navbar from '../../components/Navbar';
+import SmartSupportBot from '../../components/SmartSupportBot'; // 🚨 IMPORTED BOT
 
 const MAPS_LIBRARIES = ['places'];
 
@@ -104,7 +105,6 @@ function ShopStorefront() {
         
         if (data) {
           const initialVariants = {};
-          
           const sizeOrder = { '300ml': 1, '500ml': 2, '1.5l': 3, '5l': 4 };
           
           data.forEach(p => {
@@ -240,7 +240,7 @@ function ShopStorefront() {
   };
 
   const handleAddItemToCartChannel = (product, variant, continuousQuantity) => {
-    if (continuousQuantity <= 0) return;
+    if (continuousQuantity <= 0 || continuousQuantity === '') return; // Guard for empty state
 
     setButtonStatuses(prev => ({ ...prev, [variant.id]: 'adding' }));
 
@@ -262,6 +262,41 @@ function ShopStorefront() {
       }, 1200);
 
     }, 600);
+  };
+
+  // 🚨 NEW FUNCTIONS FOR EDITABLE QUANTITIES
+  const handleSetCartQuantityIndex = (variantId, absoluteQuantity) => {
+    setCart(prevCart => prevCart.map(item => {
+      if (item.variant.id === variantId) {
+        return absoluteQuantity > 0 ? { ...item, quantity: absoluteQuantity } : null;
+      }
+      return item;
+    }).filter(Boolean));
+  };
+
+  const handleManualQuantityChange = (variantId, isCartItem, value) => {
+    if (value === '') {
+      if (!isCartItem) setLocalQuantities(prev => ({ ...prev, [variantId]: '' }));
+      return;
+    }
+    const newQty = parseInt(value, 10);
+    if (!isNaN(newQty) && newQty > 0) {
+      if (isCartItem) {
+        handleSetCartQuantityIndex(variantId, newQty);
+      } else {
+        setLocalQuantities(prev => ({ ...prev, [variantId]: newQty }));
+      }
+    }
+  };
+
+  const handleQuantityBlur = (variantId, isCartItem, currentValue) => {
+    if (currentValue === '' || currentValue < 1) {
+      if (isCartItem) {
+        handleSetCartQuantityIndex(variantId, 1);
+      } else {
+        setLocalQuantities(prev => ({ ...prev, [variantId]: 1 }));
+      }
+    }
   };
 
   const handleAdjustCartQuantityIndex = (variantId, adjustmentFactor) => {
@@ -378,7 +413,6 @@ function ShopStorefront() {
     }
   };
 
-  // 🚨 EXPANDED THEMES FOR FULL COLOR INTEGRATION
   const getFlavorTheme = (productName) => {
     const name = productName.toLowerCase();
     if (name.includes('sobolo') || name.includes('hibiscus')) return { 
@@ -429,7 +463,6 @@ function ShopStorefront() {
     return productNameLower.includes(filterLower);
   });
 
-  // 🚨 RESPONSIVE FILTER CLASSES
   const getFilterClasses = (filter, isActive) => {
     const base = "w-full sm:w-auto px-3 sm:px-6 py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-2 flex items-center justify-center text-center leading-none";
     if (isActive) {
@@ -461,7 +494,6 @@ function ShopStorefront() {
         </div>
       )}
 
-      {/* NAV BAR */}
       <div className="sticky top-0 z-[70] bg-white/95 shadow-sm border-b border-stone-200">
         <div className="flex justify-between items-center w-full pr-6">
           <div className="flex-1">
@@ -526,7 +558,6 @@ function ShopStorefront() {
         <p className="text-stone-500 font-medium max-w-xl mx-auto">Secure your batches. Real fruit flavors packed for the daily hustle.</p>
       </header>
 
-      {/* 🚨 RESPONSIVE CATEGORY FILTERS GRID */}
       <div className="sticky top-20 z-30 bg-[#FDFBF7]/95 backdrop-blur-md py-4 mb-8 border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3 pb-2">
@@ -563,13 +594,17 @@ function ShopStorefront() {
             const displayedCostPaidPerBottle = Number(activeVariant.retail_price) - activeUnitDiscount;
 
             const cartItem = cart.find(item => item.variant.id === activeVariant.id);
-            const currentPickerCount = cartItem ? cartItem.quantity : (localQuantities[activeVariant.id] || 1);
+            
+            // 🚨 UPDATED TO HANDLE EMPTY INPUT STATES
+            const currentPickerCount = cartItem 
+              ? cartItem.quantity 
+              : (localQuantities[activeVariant.id] !== undefined ? localQuantities[activeVariant.id] : 1);
             
             const handleMinusClick = () => {
               if (cartItem) {
                 handleAdjustCartQuantityIndex(activeVariant.id, -1);
               } else {
-                setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: Math.max(1, currentPickerCount - 1) }));
+                setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: Math.max(1, (Number(currentPickerCount) || 1) - 1) }));
               }
             };
 
@@ -577,7 +612,7 @@ function ShopStorefront() {
               if (cartItem) {
                 handleAdjustCartQuantityIndex(activeVariant.id, 1);
               } else {
-                setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: currentPickerCount + 1 }));
+                setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: (Number(currentPickerCount) || 1) + 1 }));
               }
             };
 
@@ -590,10 +625,8 @@ function ShopStorefront() {
 
                 <div className="flex justify-between items-start relative z-10">
                   <div>
-                    {/* 🚨 THEMED PRODUCT TITLE */}
                     <h4 className={`font-black uppercase text-lg leading-tight tracking-tight pr-2 ${theme.title}`}>{product.name}</h4>
                   </div>
-                  {/* 🚨 THEMED STOCK BADGE */}
                   <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${isOutOfStock ? 'bg-stone-100 text-stone-400' : theme.stockBadge}`}>
                     {isOutOfStock ? 'Sold Out' : 'In Stock'}
                   </span>
@@ -638,7 +671,6 @@ function ShopStorefront() {
                       <div className="space-y-1">
                         <div className="flex justify-between text-stone-600">
                           <span>Standard Retail:</span>
-                          {/* 🚨 THEMED MAIN PRICE */}
                           <strong className={`font-black text-sm ${theme.price}`}>₵{Number(activeVariant.retail_price).toFixed(2)}</strong>
                         </div>
                         <div className="flex justify-between text-emerald-600 font-bold text-[10px] uppercase">
@@ -659,7 +691,18 @@ function ShopStorefront() {
                       >
                         <Minus className="h-4 w-4" />
                       </button>
-                      <span className={`font-black text-sm w-8 text-center ${cartItem ? 'text-emerald-950' : 'text-stone-950'}`}>{currentPickerCount}</span>
+                      
+                      {/* 🚨 EDITABLE QUANTITY INPUT (PRODUCT GRID) */}
+                      <input 
+                        type="number"
+                        min="1"
+                        value={currentPickerCount}
+                        onChange={(e) => handleManualQuantityChange(activeVariant.id, !!cartItem, e.target.value)}
+                        onBlur={(e) => handleQuantityBlur(activeVariant.id, !!cartItem, currentPickerCount)}
+                        className={`font-black text-sm w-10 text-center bg-transparent outline-none appearance-none ${cartItem ? 'text-emerald-950' : 'text-stone-950'}`}
+                        style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
+                      />
+
                       <button 
                         type="button"
                         disabled={activeBtnStatus !== 'idle'}
@@ -670,10 +713,9 @@ function ShopStorefront() {
                       </button>
                     </div>
 
-                    {/* 🚨 THEMED ADD TO CART BUTTON */}
                     <button 
                       type="button" 
-                      disabled={isOutOfStock || activeBtnStatus !== 'idle' || !!cartItem}
+                      disabled={isOutOfStock || activeBtnStatus !== 'idle' || !!cartItem || currentPickerCount === ''}
                       onClick={() => handleAddItemToCartChannel(product, activeVariant, currentPickerCount)}
                       className={`flex-1 font-black text-xs h-14 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest transition-all duration-300 ${
                         isOutOfStock 
@@ -767,7 +809,18 @@ function ShopStorefront() {
                       <div className="flex justify-between items-center pt-3 border-t border-stone-200/50">
                         <div className="flex items-center bg-white border border-stone-200 rounded-xl h-10 shadow-sm overflow-hidden">
                           <button onClick={() => handleAdjustCartQuantityIndex(item.variant.id, -1)} className="px-3 text-stone-500 hover:bg-stone-50 h-full"><Minus className="h-3 w-3" /></button>
-                          <span className="w-6 text-center font-black text-xs text-stone-950">{item.quantity}</span>
+                          
+                          {/* 🚨 EDITABLE QUANTITY INPUT (CART DRAWER) */}
+                          <input 
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => handleManualQuantityChange(item.variant.id, true, e.target.value)}
+                            onBlur={(e) => handleQuantityBlur(item.variant.id, true, e.target.value)}
+                            className="w-8 text-center font-black text-xs text-stone-950 bg-transparent outline-none appearance-none"
+                            style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
+                          />
+
                           <button onClick={() => handleAdjustCartQuantityIndex(item.variant.id, 1)} className="px-3 text-stone-500 hover:bg-stone-50 h-full"><Plus className="h-3 w-3" /></button>
                         </div>
                         <span className="font-black text-stone-950 text-lg">₵{item.lineTotal.toFixed(2)}</span>
@@ -912,7 +965,6 @@ function ShopStorefront() {
         </div>
       )}
 
-      {/* GATEWAY POPUP */}
       {gatewayStage !== 'unlocked' && (
         <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-xl z-[60] flex justify-center items-center p-4">
           <div className="w-full max-w-md bg-[#FDFBF7] rounded-[40px] p-8 shadow-2xl border border-stone-200 text-center space-y-8 relative overflow-hidden mt-20">
@@ -976,7 +1028,6 @@ function ShopStorefront() {
             <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Hit Us Up Directly</h4>
             <div className="space-y-3 text-xs">
               <a href="tel:0533527192" className="flex items-center gap-2 text-stone-300 hover:text-white transition-colors"><Phone className="h-4 w-4 text-emerald-500 shrink-0" /><span>+233 533 527 192</span></a>
-              {/* ✅ NEW INFO ADDRESS BELOW */}
               <a href="mailto:info@sparklebeverages.com" className="flex items-center gap-2 text-stone-300 hover:text-white transition-colors truncate"><Mail className="h-4 w-4 text-rose-500 shrink-0" /><span>info@sparklebeverages.com</span></a>
             </div>
           </div>
@@ -991,16 +1042,8 @@ function ShopStorefront() {
         </div>
       </footer>
 
-      <a 
-        href="https://wa.me/233533527192?text=Hey%20Sparkle!%20I'm%20reaching%20out%20from%20the%20shop%20page.%20Could%20you%20help%20me%20with%20something?" 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className={`fixed right-6 z-30 bg-[#25D366] hover:bg-[#20ba5a] text-white p-4 rounded-full shadow-[0_8px_30px_rgba(37,211,102,0.4)] transition-all duration-300 hover:scale-110 flex items-center justify-center hover:-translate-y-1 group ${cart.length > 0 && !isCartOpen ? 'bottom-28' : 'bottom-6'}`}
-        aria-label="Contact Sparkle on WhatsApp"
-      >
-        <div className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-35 group-hover:opacity-0 transition-opacity" />
-        <MessageCircle className="h-6 w-6 relative z-10 fill-white text-[#25D366]" />
-      </a>
+      {/* 🚨 REPLACED WHATSAPP BUTTON WITH THE NEW COMPONENT */}
+      <SmartSupportBot />
 
       {checkoutAlert && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm">
