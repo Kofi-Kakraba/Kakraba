@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { ArrowRight, ChevronRight, ChevronLeft, UserPlus, Phone, Mail, MessageCircle } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar'; 
+import SmartSupportBot from '../components/SmartSupportBot'; // 🚨 IMPORTED BOT
 
 const carouselSlides = [
   {
@@ -104,8 +105,6 @@ export default function BrandWelcomeHomePage() {
             >
               <source src={slide.videoSrc} type="video/mp4" />
             </video>
-
-            {/* OVERLAY COMPLETELY REMOVED FOR 100% RAW VIDEO BRIGHTNESS */}
 
             <div className="absolute inset-0 flex flex-col justify-end pb-20 px-6 md:px-12 max-w-7xl mx-auto text-left">
               <div className="animate-in slide-in-from-bottom-8 duration-700">
@@ -306,16 +305,8 @@ export default function BrandWelcomeHomePage() {
         </div>
       </footer>
 
-      <a 
-        href="https://wa.me/233533527192?text=Hey%20Sparkle!%20I'm%20reaching%20out%20from%20the%20homepage.%20Could%20you%20help%20me%20with%20something?" 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="fixed bottom-6 right-6 z-50 bg-[#25D366] hover:bg-[#20ba5a] text-white p-4 rounded-full shadow-[0_8px_30px_rgba(37,211,102,0.4)] transition-all duration-300 hover:scale-110 flex items-center justify-center hover:-translate-y-1 group"
-        aria-label="Contact Sparkle on WhatsApp"
-      >
-        <div className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-35 group-hover:opacity-0 transition-opacity" />
-        <MessageCircle className="h-6 w-6 relative z-10 fill-white text-[#25D366]" />
-      </a>
+      {/* 🚨 SMART SUPPORT BOT INSTALLED */}
+      <SmartSupportBot />
 
     </div>
   );
