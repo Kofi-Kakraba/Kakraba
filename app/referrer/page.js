@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { User, Lock, ArrowRight, AlertCircle, Sparkles, ArrowLeft, Home } from 'lucide-react';
 import { loginReferrerPortal } from '../actions/referrer';
+import SmartSupportBot from '../../components/SmartSupportBot'; // 🚨 IMPORTED BOT
 
 export default function ReferrerPortalPage() {
   const router = useRouter();
@@ -84,7 +85,6 @@ export default function ReferrerPortalPage() {
             </div>
             
             <div className="flex justify-end mt-2">
-              {/* ✅ UPDATED LINK TO NEW ROUTE */}
               <Link href="/referrer/forgot-password" className="text-[10px] text-emerald-600 font-black uppercase tracking-widest hover:text-emerald-500 transition-colors">Forgot Password?</Link>
             </div>
           </div>
@@ -106,6 +106,10 @@ export default function ReferrerPortalPage() {
         </form>
 
       </div>
+      
+      {/* 🚨 SMART SUPPORT BOT INSTALLED */}
+      <SmartSupportBot />
+
     </div>
   );
 }
