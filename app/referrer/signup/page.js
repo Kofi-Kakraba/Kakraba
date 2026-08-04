@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { User, Lock, ArrowRight, AlertCircle, Zap, ArrowLeft, Camera, CreditCard, Upload, Phone, Mail, Wallet, FileText, Home } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../../lib/supabaseClient';
+import SmartSupportBot from '../../../components/SmartSupportBot'; // 🚨 IMPORTED BOT
 
 export default function ReferrerSignupPage() {
   const router = useRouter();
@@ -333,6 +334,10 @@ export default function ReferrerSignupPage() {
         </form>
 
       </div>
+      
+      {/* 🚨 SMART SUPPORT BOT INSTALLED */}
+      <SmartSupportBot />
+
     </div>
   );
 }
