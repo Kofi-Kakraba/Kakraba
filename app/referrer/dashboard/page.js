@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { LogOut, Wallet, History, RefreshCw, Package, Search, Printer, X, Sparkles, ArrowLeft, User, Lock, CheckCircle2 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../../lib/supabaseClient';
+import SmartSupportBot from '../../../components/SmartSupportBot'; // 🚨 IMPORTED BOT
 
 export default function AmbassadorDashboardPage() {
   const supabase = createBrowserSupabaseClient();
@@ -425,6 +426,9 @@ export default function AmbassadorDashboardPage() {
 
         </div>
       </main>
+
+      {/* 🚨 SMART SUPPORT BOT */}
+      <SmartSupportBot />
 
       {/* 🚨 PASSWORD CHANGE MODAL OVERLAY */}
       {showPasswordModal && (
