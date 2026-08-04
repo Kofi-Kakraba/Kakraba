@@ -7,19 +7,19 @@ import { MessageCircle, X, ChevronRight, HelpCircle } from 'lucide-react';
 export default function SmartSupportBot() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState(null);
-  const [hasBeenOpened, setHasBeenOpened] = useState(false); // 🚨 Tracks if the bubble should hide
+  const [hasBeenOpened, setHasBeenOpened] = useState(false); 
   const pathname = usePathname(); 
 
   const WHATSAPP_NUMBER = "233533527192"; 
 
-  // 🚨 EXPANDED PAGE-SPECIFIC FAQ DICTIONARIES
   const faqs = {
     shop: [
       { id: 1, question: "How long does delivery take?", answer: "We typically deliver within Accra in 24-48 hours. Orders placed before 2 PM often qualify for same-day delivery!" },
       { id: 2, question: "Do you have wholesale pricing?", answer: "Yes! Wholesale pricing automatically applies when you hit the trigger limit (e.g., 50+ units). The price updates automatically in your cart." },
       { id: 3, question: "How do I use an Ambassador Code?", answer: "Click 'Unlock The Drop' at the top of the page, enter your ambassador's code, and click apply. Your VIP discount will calculate instantly." },
       { id: 4, question: "What payment methods do you accept?", answer: "We accept all major Mobile Money networks (MTN, Telecel, AT) and credit/debit cards via our secure Paystack checkout." },
-      { id: 5, question: "How long do the drinks stay fresh?", answer: "Our drinks are made with real, authentic fruit and no harsh chemical preservatives. Please keep them refrigerated! They stay fresh for up to 14 days chilled." },
+      // 🚨 UPDATED SHELF LIFE ANSWER BELOW
+      { id: 5, question: "How long do the drinks stay fresh?", answer: "Keep them refrigerated! Unopened, Hibiscus lasts up to 3 months (6 months frozen), Lemonade lasts 2 months, and Pinezest lasts 1 month. Once opened, please consume within a few days." },
       { id: 6, question: "Can I mix flavors in a single order?", answer: "Absolutely. You can add as many different variants (Sobolo, Lemonade, PineZest) and sizes to your Drop Zone cart as you like before checking out." }
     ],
     custom: [
@@ -37,20 +37,18 @@ export default function SmartSupportBot() {
     ]
   };
 
-  // Determine which dictionary to use based on the URL
   let currentFaqs = faqs.shop;
   if (pathname?.includes('/custom')) currentFaqs = faqs.custom;
   if (pathname?.includes('/referrer')) currentFaqs = faqs.referrer;
 
   const handleToggleBot = () => {
     setIsOpen(!isOpen);
-    setHasBeenOpened(true); // Permanently hides the bubble once clicked
+    setHasBeenOpened(true); 
   };
 
   return (
     <div className="fixed bottom-6 right-6 z-[90] font-sans flex flex-col items-end">
       
-      {/* 🚨 THE ANIMATED BUBBLE */}
       {!hasBeenOpened && !isOpen && (
         <button 
           onClick={handleToggleBot}
@@ -58,13 +56,11 @@ export default function SmartSupportBot() {
         >
           <div className="bg-white text-stone-950 px-5 py-3 rounded-2xl shadow-2xl border border-stone-200 text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
             Need any help? 👋
-            {/* The little triangle tail pointing down */}
             <div className="absolute -bottom-2 right-5 w-4 h-4 bg-white border-b border-r border-stone-200 transform rotate-45"></div>
           </div>
         </button>
       )}
 
-      {/* BOT WINDOW */}
       {isOpen && (
         <div className="mb-4 w-[320px] bg-white border border-stone-200 rounded-[24px] shadow-2xl overflow-hidden flex flex-col transform origin-bottom-right transition-all">
           <div className="bg-stone-950 text-white p-4 flex justify-between items-center">
@@ -122,7 +118,6 @@ export default function SmartSupportBot() {
         </div>
       )}
 
-      {/* FLOATING ACTION BUTTON */}
       <button 
         onClick={handleToggleBot}
         className="w-14 h-14 bg-stone-950 hover:bg-stone-800 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:scale-105 transition-all ml-auto relative"
