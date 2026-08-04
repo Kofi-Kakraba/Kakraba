@@ -7,6 +7,7 @@ import {
   Crown, Star, HeartHandshake, Info, MessageCircle, ArrowLeft, Phone, Mail
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
+import SmartSupportBot from '../../components/SmartSupportBot'; // 🚨 IMPORTED BOT
 
 export default function CustomDropsPage() {
 
@@ -279,16 +280,8 @@ export default function CustomDropsPage() {
         </div>
       </footer>
 
-      <a 
-        href="https://wa.me/233533527192?text=Hey%20Sparkle!%20I'm%20reaching%20out%20from%20the%20custom%20orders%20page.%20Could%20you%20help%20me%20with%20something?" 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="fixed bottom-6 right-6 z-[80] bg-[#25D366] hover:bg-[#20ba5a] text-white p-4 rounded-full shadow-[0_8px_30px_rgba(37,211,102,0.4)] transition-all duration-300 hover:scale-110 flex items-center justify-center hover:-translate-y-1 group"
-        aria-label="Contact Sparkle on WhatsApp"
-      >
-        <div className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-35 group-hover:opacity-0 transition-opacity" />
-        <MessageCircle className="h-6 w-6 relative z-10 fill-white text-[#25D366]" />
-      </a>
+      {/* 🚨 REPLACED WHATSAPP BUTTON WITH THE NEW COMPONENT */}
+      <SmartSupportBot />
 
     </div>
   );
