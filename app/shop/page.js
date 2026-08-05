@@ -240,7 +240,7 @@ function ShopStorefront() {
   };
 
   const handleAddItemToCartChannel = (product, variant, continuousQuantity) => {
-    if (continuousQuantity <= 0 || continuousQuantity === '') return; // Guard for empty state
+    if (continuousQuantity <= 0 || continuousQuantity === '') return; 
 
     setButtonStatuses(prev => ({ ...prev, [variant.id]: 'adding' }));
 
@@ -249,10 +249,12 @@ function ShopStorefront() {
         const existingLineIndex = prevCart.findIndex(item => item.variant.id === variant.id);
         if (existingLineIndex > -1) {
           const updatedCart = [...prevCart];
-          updatedCart[existingLineIndex].quantity += continuousQuantity;
+          // 🚨 Cap at max stock
+          const newQty = updatedCart[existingLineIndex].quantity + continuousQuantity;
+          updatedCart[existingLineIndex].quantity = Math.min(newQty, variant.stock_quantity);
           return updatedCart;
         }
-        return [...prevCart, { product, variant, quantity: continuousQuantity }];
+        return [...prevCart, { product, variant, quantity: Math.min(continuousQuantity, variant.stock_quantity) }];
       });
 
       setButtonStatuses(prev => ({ ...prev, [variant.id]: 'added' }));
@@ -264,29 +266,38 @@ function ShopStorefront() {
     }, 600);
   };
 
-  // 🚨 NEW FUNCTIONS FOR EDITABLE QUANTITIES
-  const handleSetCartQuantityIndex = (variantId, absoluteQuantity) => {
-    setCart(prevCart => prevCart.map(item => {
-      if (item.variant.id === variantId) {
-        return absoluteQuantity > 0 ? { ...item, quantity: absoluteQuantity } : null;
-      }
-      return item;
-    }).filter(Boolean));
-  };
-
-  const handleManualQuantityChange = (variantId, isCartItem, value) => {
+  // 🚨 INVENTORY CAPPED FUNCTIONS
+  const handleManualQuantityChange = (variantId, isCartItem, value, maxStock) => {
     if (value === '') {
       if (!isCartItem) setLocalQuantities(prev => ({ ...prev, [variantId]: '' }));
       return;
     }
-    const newQty = parseInt(value, 10);
+    let newQty = parseInt(value, 10);
     if (!isNaN(newQty) && newQty > 0) {
+      if (maxStock !== undefined && newQty > maxStock) {
+        newQty = maxStock; // Snap to max stock
+        setCheckoutAlert(`Inventory Limit Reached!\n\nWe currently only have ${maxStock} units of this specific drop available in stock.`);
+      }
       if (isCartItem) {
-        handleSetCartQuantityIndex(variantId, newQty);
+        handleSetCartQuantityIndex(variantId, newQty, maxStock);
       } else {
         setLocalQuantities(prev => ({ ...prev, [variantId]: newQty }));
       }
     }
+  };
+
+  const handleSetCartQuantityIndex = (variantId, absoluteQuantity, maxStock) => {
+    setCart(prevCart => prevCart.map(item => {
+      if (item.variant.id === variantId) {
+        let finalQty = absoluteQuantity;
+        if (maxStock !== undefined && absoluteQuantity > maxStock) {
+          finalQty = maxStock;
+          setCheckoutAlert(`Inventory Limit Reached!\n\nWe currently only have ${maxStock} units of this specific drop available in stock.`);
+        }
+        return finalQty > 0 ? { ...item, quantity: finalQty } : null;
+      }
+      return item;
+    }).filter(Boolean));
   };
 
   const handleQuantityBlur = (variantId, isCartItem, currentValue) => {
@@ -299,11 +310,15 @@ function ShopStorefront() {
     }
   };
 
-  const handleAdjustCartQuantityIndex = (variantId, adjustmentFactor) => {
+  const handleAdjustCartQuantityIndex = (variantId, adjustmentFactor, maxStock) => {
     setCart(prevCart => {
       return prevCart.map(item => {
         if (item.variant.id === variantId) {
-          const calculatedNewQty = item.quantity + adjustmentFactor;
+          let calculatedNewQty = item.quantity + adjustmentFactor;
+          if (maxStock !== undefined && calculatedNewQty > maxStock) {
+            calculatedNewQty = maxStock; 
+            setCheckoutAlert(`Inventory Limit Reached!\n\nWe currently only have ${maxStock} units of this specific drop available in stock.`);
+          }
           return calculatedNewQty > 0 ? { ...item, quantity: calculatedNewQty } : null;
         }
         return item;
@@ -367,7 +382,9 @@ function ShopStorefront() {
   const handleLaunchPaystackPaymentPortalGateway = async (e) => {
     e.preventDefault();
     if (cart.length === 0) return setCheckoutAlert("Your drop zone is empty. Add some drinks to your cart first!");
-    if (!customerName || !customerPhone) return setCheckoutAlert("Please fill out your name and mobile money number in the checkout details.");
+    
+    // 🚨 UPDATED ERROR ALERT TEXT
+    if (!customerName || !customerPhone) return setCheckoutAlert("Please fill out your name and active contact number in the checkout details.");
 
     const MINIMUM_CART_VALUE = 30.00;
 
@@ -595,14 +612,13 @@ function ShopStorefront() {
 
             const cartItem = cart.find(item => item.variant.id === activeVariant.id);
             
-            // 🚨 UPDATED TO HANDLE EMPTY INPUT STATES
             const currentPickerCount = cartItem 
               ? cartItem.quantity 
               : (localQuantities[activeVariant.id] !== undefined ? localQuantities[activeVariant.id] : 1);
             
             const handleMinusClick = () => {
               if (cartItem) {
-                handleAdjustCartQuantityIndex(activeVariant.id, -1);
+                handleAdjustCartQuantityIndex(activeVariant.id, -1, activeVariant.stock_quantity);
               } else {
                 setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: Math.max(1, (Number(currentPickerCount) || 1) - 1) }));
               }
@@ -610,9 +626,11 @@ function ShopStorefront() {
 
             const handlePlusClick = () => {
               if (cartItem) {
-                handleAdjustCartQuantityIndex(activeVariant.id, 1);
+                handleAdjustCartQuantityIndex(activeVariant.id, 1, activeVariant.stock_quantity);
               } else {
-                setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: (Number(currentPickerCount) || 1) + 1 }));
+                const currentVal = Number(currentPickerCount) || 1;
+                const newVal = currentVal + 1;
+                setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: Math.min(newVal, activeVariant.stock_quantity) }));
               }
             };
 
@@ -692,12 +710,12 @@ function ShopStorefront() {
                         <Minus className="h-4 w-4" />
                       </button>
                       
-                      {/* 🚨 EDITABLE QUANTITY INPUT (PRODUCT GRID) */}
                       <input 
                         type="number"
                         min="1"
+                        max={activeVariant.stock_quantity}
                         value={currentPickerCount}
-                        onChange={(e) => handleManualQuantityChange(activeVariant.id, !!cartItem, e.target.value)}
+                        onChange={(e) => handleManualQuantityChange(activeVariant.id, !!cartItem, e.target.value, activeVariant.stock_quantity)}
                         onBlur={(e) => handleQuantityBlur(activeVariant.id, !!cartItem, currentPickerCount)}
                         className={`font-black text-sm w-10 text-center bg-transparent outline-none appearance-none ${cartItem ? 'text-emerald-950' : 'text-stone-950'}`}
                         style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
@@ -808,20 +826,20 @@ function ShopStorefront() {
 
                       <div className="flex justify-between items-center pt-3 border-t border-stone-200/50">
                         <div className="flex items-center bg-white border border-stone-200 rounded-xl h-10 shadow-sm overflow-hidden">
-                          <button onClick={() => handleAdjustCartQuantityIndex(item.variant.id, -1)} className="px-3 text-stone-500 hover:bg-stone-50 h-full"><Minus className="h-3 w-3" /></button>
+                          <button onClick={() => handleAdjustCartQuantityIndex(item.variant.id, -1, item.variant.stock_quantity)} className="px-3 text-stone-500 hover:bg-stone-50 h-full"><Minus className="h-3 w-3" /></button>
                           
-                          {/* 🚨 EDITABLE QUANTITY INPUT (CART DRAWER) */}
                           <input 
                             type="number"
                             min="1"
+                            max={item.variant.stock_quantity}
                             value={item.quantity}
-                            onChange={(e) => handleManualQuantityChange(item.variant.id, true, e.target.value)}
+                            onChange={(e) => handleManualQuantityChange(item.variant.id, true, e.target.value, item.variant.stock_quantity)}
                             onBlur={(e) => handleQuantityBlur(item.variant.id, true, e.target.value)}
-                            className="w-8 text-center font-black text-xs text-stone-950 bg-transparent outline-none appearance-none"
+                            className="w-10 text-center font-black text-xs text-stone-950 bg-transparent outline-none appearance-none"
                             style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
                           />
 
-                          <button onClick={() => handleAdjustCartQuantityIndex(item.variant.id, 1)} className="px-3 text-stone-500 hover:bg-stone-50 h-full"><Plus className="h-3 w-3" /></button>
+                          <button onClick={() => handleAdjustCartQuantityIndex(item.variant.id, 1, item.variant.stock_quantity)} className="px-3 text-stone-500 hover:bg-stone-50 h-full"><Plus className="h-3 w-3" /></button>
                         </div>
                         <span className="font-black text-stone-950 text-lg">₵{item.lineTotal.toFixed(2)}</span>
                       </div>
@@ -837,7 +855,9 @@ function ShopStorefront() {
                       <div>
                         <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full legal name" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
                       </div>
-                      <div>
+                      
+                      {/* 🚨 THE UPDATED CONTACT NUMBER INPUT 🚨 */}
+                      <div className="space-y-1.5">
                         <input 
                           type="tel" 
                           required 
@@ -845,9 +865,12 @@ function ShopStorefront() {
                           title="Please enter a valid 10-digit Ghanaian phone number starting with 0 (e.g., 0547664422)"
                           value={customerPhone} 
                           onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').substring(0, 10))} 
-                          placeholder="Mobile Money Number (e.g. 054...)" 
+                          placeholder="Active Contact Number (e.g. 054...)" 
                           className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" 
                         />
+                        <p className="text-[9px] text-amber-600 font-bold uppercase tracking-widest pl-1 leading-snug">
+                          * Please provide a number we can reach you on (Not a MoMo Vendor's number).
+                        </p>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-2 bg-[#FDFBF7] p-1.5 border-2 border-stone-200 rounded-2xl text-center">
