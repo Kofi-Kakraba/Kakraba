@@ -58,6 +58,23 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error("Server Configuration Error: Missing Paystack processing keys tokens.");
     }
 
+    // 🚨 THE BOUNCER: Live Database Stock Verification 
+    for (const item of cartItemsList) {
+      const { data: liveVariant, error: variantError } = await supabase
+        .from('product_variants')
+        .select('stock_quantity')
+        .eq('id', item.variant.id)
+        .single();
+
+      if (variantError || !liveVariant) {
+        throw new Error("Could not verify live inventory. Please try checking out again.");
+      }
+
+      if (item.quantity > liveVariant.stock_quantity) {
+        throw new Error(`Stock Alert: We only have ${liveVariant.stock_quantity} units left for the ${item.variant.size} size. Please adjust your cart to proceed.`);
+      }
+    }
+
     // 1. Insert the master order tracking header row
     const { data: newOrderHeader, error: orderInsertError } = await supabase
       .from('orders')
@@ -97,7 +114,6 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
     }
 
     // 3. CONNECT SECURELY TO PAYSTACK: Initialize Live Transaction Session Engine
-    // 🚨 FIX: Hard-locking the production domain to prevent Vercel staging URL redirects
     const siteDomainBaseUrl = process.env.NODE_ENV === 'production' 
       ? 'https://sparklebeverages.com' 
       : 'http://localhost:3000';
@@ -224,6 +240,31 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
       }
     }
 
+    // 🚨 DEDUCT INVENTORY UPON SUCCESSFUL PAYMENT
+    // We only deduct inventory once they actually pay to prevent malicious users from holding your stock hostage in abandoned carts.
+    const { data: paidItems } = await supabase
+      .from('order_items')
+      .select('variant_id, quantity')
+      .eq('order_id', orderId);
+
+    if (paidItems && paidItems.length > 0) {
+      for (const item of paidItems) {
+        const { data: currentVariant } = await supabase
+          .from('product_variants')
+          .select('stock_quantity')
+          .eq('id', item.variant_id)
+          .single();
+          
+        if (currentVariant) {
+          const newStock = Math.max(0, currentVariant.stock_quantity - item.quantity);
+          await supabase
+            .from('product_variants')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.variant_id);
+        }
+      }
+    }
+
     try {
       await resend.emails.send({
         from: 'Sparkle Admin <admin@sparklebeverages.com>',
@@ -262,7 +303,7 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
  */
 export async function updateOrderStatusAdmin(orderId, targetState) {
   try {
-    const supabase = getServiceSupabaseClient(); // Uses your existing Supabase configuration
+    const supabase = getServiceSupabaseClient(); 
 
     // 1. Update the database status
     const { error: updateError } = await supabase
@@ -284,11 +325,9 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
         const firstName = orderData.customer_name.split(' ')[0] || 'Customer';
         const orderRef = orderId.substring(0, 8).toUpperCase();
         
-        // 🚨 MAGIC LINK APPENDED HERE
         const magicLink = `https://sparklebeverages.com/track?id=${orderRef}&phone=${orderData.customer_phone.replace('+', '')}`;
         const smsMessage = `Hi ${firstName}, your Sparkle order is packed and READY for pickup at our HQ Depot! Present code (#${orderRef}). Track live status: ${magicLink}`;
 
-        // Leverage your existing SMS function
         const smsSent = await fireSMSOnlineGHGateway(orderData.customer_phone, smsMessage);
         
         if (smsSent) {
