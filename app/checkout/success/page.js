@@ -60,48 +60,47 @@ function SuccessReceiptContent() {
     setDownloadingFormat(format);
     
     try {
-      // 🚨 FIX 1: Bulletproof dynamic imports
-      const html2canvasModule = await import('html2canvas');
-      const html2canvas = html2canvasModule.default || html2canvasModule;
-
-      const canvas = await html2canvas(receiptRef.current, { 
-        scale: 2, 
-        backgroundColor: '#1c1917', 
-        useCORS: true,
-        logging: false
+      // 🚨 FIX: Using html-to-image which natively supports Tailwind v4 modern colors!
+      const htmlToImage = await import('html-to-image');
+      
+      const dataUrl = await htmlToImage.toPng(receiptRef.current, { 
+        pixelRatio: 2, 
+        backgroundColor: '#1c1917',
+        cacheBust: true
       });
       
       const filePrefix = `Sparkle_Receipt_${extractedOrderId.substring(0,8)}`;
 
       if (format === 'png') {
-        const image = canvas.toDataURL('image/png');
         const link = document.createElement('a');
-        link.href = image;
         link.download = `${filePrefix}.png`;
+        link.href = dataUrl;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       } 
       
       if (format === 'pdf') {
-        // 🚨 FIX 2: Bulletproof jsPDF import
         const jsPDFModule = await import('jspdf');
         const jsPDF = jsPDFModule.jsPDF || jsPDFModule.default?.jsPDF || jsPDFModule.default;
 
-        const image = canvas.toDataURL('image/png');
+        // Calculate dimensions to keep it sharp
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise((resolve) => { img.onload = resolve; });
+
         const pdf = new jsPDF({
           orientation: 'portrait',
           unit: 'px',
-          format: [canvas.width, canvas.height]
+          format: [img.width / 2, img.height / 2]
         });
         
-        pdf.addImage(image, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.addImage(dataUrl, 'PNG', 0, 0, img.width / 2, img.height / 2);
         pdf.save(`${filePrefix}.pdf`);
       }
 
     } catch (err) {
       console.error(`Failed to download ${format} receipt`, err);
-      // 🚨 FIX 3: Print the exact error so we can read it!
       alert(`Generation Error: ${err.message || err}\n\nPlease screenshot the page instead!`);
     } finally {
       setDownloadingFormat(null);
@@ -154,7 +153,6 @@ function SuccessReceiptContent() {
           className="bg-stone-900 border border-stone-800 rounded-3xl overflow-hidden shadow-2xl relative"
         >
           <div className="bg-[#18181b] border-b border-stone-800 p-6 flex flex-col items-center justify-center text-center">
-            {/* 🚨 FIX 4: Encoded URL spaces to prevent Canvas Tainting */}
             <img src="/SPARKLE%20BEV.%20LOGO%20A%20No%20BG.png" crossOrigin="anonymous" alt="Sparkle Beverages Logo" className="h-14 w-auto object-contain brightness-110" />
             <p className="text-[9px] text-stone-500 font-black uppercase tracking-widest mt-3">Official Transaction Receipt</p>
           </div>
