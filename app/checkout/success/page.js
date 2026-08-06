@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { CheckCircle2, Camera, ArrowLeft, Receipt, Loader2, MapPin, Truck, Download } from 'lucide-react';
 import { verifyAndFinalizeCustomerPaymentAction } from '../../actions/orders';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
-import html2canvas from 'html2canvas';
+// 🚨 Notice: html2canvas is NO LONGER imported here at the top! 🚨
 
 function SuccessReceiptContent() {
   const searchParams = useSearchParams();
@@ -61,6 +61,9 @@ function SuccessReceiptContent() {
     setIsDownloading(true);
     
     try {
+      // 🚨 DYNAMIC IMPORT: This tells Vercel to ONLY load this in the browser, fixing the crash!
+      const html2canvas = (await import('html2canvas')).default;
+
       // Takes a high-res digital snapshot of the receipt card
       const canvas = await html2canvas(receiptRef.current, { 
         scale: 2, 
