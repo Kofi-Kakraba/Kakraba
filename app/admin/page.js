@@ -437,7 +437,6 @@ export default function AdminDashboardPage() {
     setUpdatingId(null);
   };
 
-  // 🚨 SMART RESEND EMAIL DISPATCHER UPGRADE
   const handleForceResetPassword = async (profileId, name, email, trackingCode) => {
     if (!email) {
       alert(`No email address on file for ${name}. You will need to contact them manually.`);
@@ -449,10 +448,8 @@ export default function AdminDashboardPage() {
     setUpdatingId(`reset-${profileId}`);
     
     try {
-      // 1. Generate an 8-character random password
       const newPass = Math.random().toString(36).substring(2, 10).toUpperCase();
       
-      // 2. Update Supabase Database
       const { error: dbError } = await supabase
         .from('referral_codes')
         .update({ password: newPass })
@@ -460,7 +457,6 @@ export default function AdminDashboardPage() {
 
       if (dbError) throw dbError;
 
-      // 3. Dispatch Email via API Route
       const emailResponse = await fetch('/api/ambassador-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -742,19 +738,21 @@ export default function AdminDashboardPage() {
             <p className="text-[10px] text-stone-400 font-medium">Unified Fulfillment, KYC Onboarding & Paystack MoMo Payouts</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 justify-end text-xs font-bold font-mono">
-          <div className="bg-stone-955 p-1 rounded-xl border border-stone-800 flex gap-1">
-            <button onClick={() => setActiveTab('orders')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'orders' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Orders ({orders.length})</button>
-            <button onClick={() => setActiveTab('ambassadors')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'ambassadors' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Ambassadors ({humanAmbassadorsList.length})</button>
-            <button onClick={() => setActiveTab('promocodes')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'promocodes' ? 'bg-stone-800 text-white text-cyan-400' : 'text-stone-400'}`}>Promo Codes ({purePromoCodesList.length})</button>
-            <button onClick={() => setActiveTab('analytics')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'analytics' ? 'bg-stone-800 text-white text-purple-400' : 'text-stone-400'}`}>Analytics</button>
-            <button onClick={() => setActiveTab('cashouts')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'cashouts' ? 'bg-stone-800 text-white text-emerald-400' : 'text-stone-400'}`}>Cashouts ({cashouts.filter(c => c.status === 'pending').length})</button>
-            <button onClick={() => setActiveTab('inventory')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'inventory' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>
-              Stock {lowStockAlertInventoryBin.length > 0 && <span className="ml-1 px-1.5 py-0.2 bg-red-600 text-white text-[9px] rounded-full animate-pulse">!</span>}
-            </button>
-            <button onClick={() => setActiveTab('cms')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'cms' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Web CMS</button>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-end text-xs font-bold font-mono w-full xl:w-auto overflow-hidden">
+          <div className="w-full overflow-x-auto pb-1 -mb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="bg-stone-955 p-1 rounded-xl border border-stone-800 flex gap-1 w-max">
+              <button onClick={() => setActiveTab('orders')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'orders' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Orders ({orders.length})</button>
+              <button onClick={() => setActiveTab('ambassadors')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'ambassadors' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Ambassadors ({humanAmbassadorsList.length})</button>
+              <button onClick={() => setActiveTab('promocodes')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'promocodes' ? 'bg-stone-800 text-white text-cyan-400' : 'text-stone-400'}`}>Promo Codes ({purePromoCodesList.length})</button>
+              <button onClick={() => setActiveTab('analytics')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'analytics' ? 'bg-stone-800 text-white text-purple-400' : 'text-stone-400'}`}>Analytics</button>
+              <button onClick={() => setActiveTab('cashouts')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'cashouts' ? 'bg-stone-800 text-white text-emerald-400' : 'text-stone-400'}`}>Cashouts ({cashouts.filter(c => c.status === 'pending').length})</button>
+              <button onClick={() => setActiveTab('inventory')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'inventory' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>
+                Stock {lowStockAlertInventoryBin.length > 0 && <span className="ml-1 px-1.5 py-0.2 bg-red-600 text-white text-[9px] rounded-full animate-pulse">!</span>}
+              </button>
+              <button onClick={() => setActiveTab('cms')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'cms' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Web CMS</button>
+            </div>
           </div>
-          <button onClick={loadDashboardData} className="p-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl"><RefreshCw className="h-4 w-4" /></button>
+          <button onClick={loadDashboardData} className="p-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl shrink-0"><RefreshCw className="h-4 w-4" /></button>
         </div>
       </nav>
 
@@ -1102,7 +1100,6 @@ export default function AdminDashboardPage() {
                   )}
 
                   <div className="border-t border-stone-800/60 pt-3 flex items-center justify-between gap-2">
-                    {/* 🚨 INTEGRATED RESEND API CALL FOR PASSWORD RESET */}
                     <button 
                       onClick={() => handleForceResetPassword(ref.id, ref.legal_name, ref.email, ref.code)} 
                       disabled={updatingId === `reset-${ref.id}`} 
@@ -1677,6 +1674,7 @@ export default function AdminDashboardPage() {
         let printMeta = {};
         try { printMeta = typeof selectedPrintOrder.metadata === 'string' ? JSON.parse(selectedPrintOrder.metadata) : (selectedPrintOrder.metadata || {}); } catch(e){}
         const slipPrintDate = printMeta.preferred_delivery_date;
+        const printDeliveryFee = printMeta.delivery_fee_charged || 0;
 
         return (
           <div className="fixed inset-0 bg-stone-955/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:absolute print:inset-0 print:bg-white print:p-0">
@@ -1689,21 +1687,17 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
               <div className="space-y-6 text-xs text-stone-800">
+                
                 <div className="flex justify-between items-start border-b-2 border-stone-950 pb-4">
                   <div className="flex items-center gap-2.5">
-                    {cmsContent.receipt_logo && (
-                      <img src={cmsContent.receipt_logo} alt="Receipt Logo" className="h-12 w-12 object-contain rounded-xl border bg-stone-50 p-1 shadow-inner" />
-                    )}
-                    <div className="space-y-0.5">
-                      <h2 className="text-base font-black uppercase text-emerald-955">{cmsContent.receipt_name || 'Sparkle Beverages Ltd.'}</h2>
-                      <p className="text-[10px] text-stone-500 font-mono font-medium">{cmsContent.receipt_subtitle || 'Accra, Ghana'}</p>
-                    </div>
+                    <img src={cmsContent.receipt_logo || "/SPARKLE%20BEV.%20LOGO%20A%20No%20BG.png"} alt="Sparkle Beverages Logo" className="h-14 sm:h-16 w-auto object-contain" />
                   </div>
                   <div className="text-right font-mono">
                     <div className="text-xs font-black text-stone-955">#SPK-{selectedPrintOrder.id.substring(0, 8).toUpperCase()}</div>
                     <div className="text-[9px] text-stone-400">{new Date(selectedPrintOrder.created_at).toLocaleString('en-GH')}</div>
                   </div>
                 </div>
+
                 <div className="grid grid-cols-2 gap-4 bg-stone-50 p-4 rounded-2xl border font-mono text-[11px]">
                   <div>
                     <span className="text-[8px] text-stone-400 font-bold block uppercase">Client Details</span>
@@ -1750,7 +1744,15 @@ export default function AdminDashboardPage() {
                       ))
                     )}
                   </div>
-                  <div className="bg-stone-50 p-3 border-t-2 border-stone-950 font-mono text-right flex justify-between text-xs font-black text-stone-950 uppercase">
+                  
+                  {printDeliveryFee > 0 && (
+                    <div className="bg-stone-50 p-2.5 border-t-2 border-stone-950 font-mono flex justify-between text-[10px] font-bold text-stone-600 uppercase">
+                      <span>Delivery Logistics Fee:</span>
+                      <span>GHS {Number(printDeliveryFee).toFixed(2)}</span>
+                    </div>
+                  )}
+                  
+                  <div className={`bg-stone-50 p-3 ${printDeliveryFee > 0 ? 'border-t border-stone-200' : 'border-t-2 border-stone-950'} font-mono flex justify-between text-xs font-black text-stone-950 uppercase`}>
                     <span>Grand Total Bill:</span>
                     <span className="text-emerald-800">GHS {Number(selectedPrintOrder.total_amount).toFixed(2)}</span>
                   </div>
