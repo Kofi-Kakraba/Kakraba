@@ -18,7 +18,6 @@ export default function SmartSupportBot() {
       { id: 2, question: "Do you have wholesale pricing?", answer: "Yes! Wholesale pricing automatically applies when you hit the trigger limit (e.g., 50+ units). The price updates automatically in your cart." },
       { id: 3, question: "How do I use an Ambassador Code?", answer: "Click 'Unlock The Drop' at the top of the page, enter your ambassador's code, and click apply. Your VIP discount will calculate instantly." },
       { id: 4, question: "What payment methods do you accept?", answer: "We accept all major Mobile Money networks (MTN, Telecel, AT) and credit/debit cards via our secure Paystack checkout." },
-      // 🚨 UPDATED SHELF LIFE ANSWER BELOW
       { id: 5, question: "How long do the drinks stay fresh?", answer: "Keep them refrigerated! Unopened, Hibiscus lasts up to 3 months (6 months frozen), Lemonade lasts 2 months, and Pinezest lasts 1 month. Once opened, please consume within a few days." },
       { id: 6, question: "Can I mix flavors in a single order?", answer: "Absolutely. You can add as many different variants (Sobolo, Lemonade, PineZest) and sizes to your Drop Zone cart as you like before checking out." }
     ],
@@ -49,18 +48,6 @@ export default function SmartSupportBot() {
   return (
     <div className="fixed bottom-24 md:bottom-6 right-4 z-[90] font-sans flex flex-col items-end">
       
-      {!hasBeenOpened && !isOpen && (
-        <button 
-          onClick={handleToggleBot}
-          className="mb-4 mr-1 animate-bounce cursor-pointer relative"
-        >
-          <div className="bg-white text-stone-950 px-5 py-3 rounded-2xl shadow-2xl border border-stone-200 text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-            Need any help? 👋
-            <div className="absolute -bottom-2 right-5 w-4 h-4 bg-white border-b border-r border-stone-200 transform rotate-45"></div>
-          </div>
-        </button>
-      )}
-
       {isOpen && (
         <div className="mb-4 w-[320px] bg-white border border-stone-200 rounded-[24px] shadow-2xl overflow-hidden flex flex-col transform origin-bottom-right transition-all">
           <div className="bg-stone-950 text-white p-4 flex justify-between items-center">
@@ -118,12 +105,25 @@ export default function SmartSupportBot() {
         </div>
       )}
 
+      {/* 🚨 THE NEW SHAPE-SHIFTING TOGGLE BUTTON */}
       <button 
         onClick={handleToggleBot}
-        className="w-14 h-14 bg-stone-950 hover:bg-stone-800 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:scale-105 transition-all ml-auto relative"
+        className={`bg-stone-950 hover:bg-stone-800 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:scale-105 transition-all duration-300 relative ml-auto ${
+          isOpen 
+            ? 'w-14 h-14' 
+            : `px-5 py-3.5 sm:px-6 sm:py-4 ${!hasBeenOpened ? 'animate-bounce' : ''}`
+        }`}
       >
-        {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {isOpen ? (
+          <X className="h-6 w-6" />
+        ) : (
+          <div className="flex items-center gap-2 font-black uppercase text-[10px] sm:text-xs tracking-widest whitespace-nowrap">
+            <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
+            <span>Need Help?</span>
+          </div>
+        )}
       </button>
+
     </div>
   );
 }
