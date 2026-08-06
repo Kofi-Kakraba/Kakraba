@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 
+// Initialize the Resend Client utilizing your secure environment key
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 function getServiceSupabaseClient() {
@@ -45,19 +46,27 @@ async function fireSMSOnlineGHGateway(targetPhone, messageContent) {
   }
 }
 
+/**
+ * 🚨 THE AUTO-JANITOR: Finds abandoned checkouts (older than 10 mins) and returns their stock to the shelf
+ */
 async function releaseAbandonedStockReservations(supabase) {
   try {
-    const fifteenMinsAgo = new Date(Date.now() - 15 * 60000).toISOString();
+    const tenMinsAgo = new Date(Date.now() - 10 * 60000).toISOString();
+    
+    // Find all unpaid orders older than 10 minutes
     const { data: abandonedOrders } = await supabase
       .from('orders')
       .select('id')
       .eq('status', 'pending_payment')
-      .lt('created_at', fifteenMinsAgo);
+      .lt('created_at', tenMinsAgo);
 
     if (!abandonedOrders || abandonedOrders.length === 0) return;
 
     for (const order of abandonedOrders) {
+      // 1. Mark as cancelled so it doesn't get processed again
       await supabase.from('orders').update({ status: 'cancelled', payment_status: 'abandoned' }).eq('id', order.id);
+      
+      // 2. Fetch the reserved items and put them back in stock
       const { data: items } = await supabase.from('order_items').select('variant_id, quantity').eq('order_id', order.id);
       if (items) {
         for (const item of items) {
@@ -73,7 +82,14 @@ async function releaseAbandonedStockReservations(supabase) {
   }
 }
 
-// 🚨 NEW: INSTANT FRONT-END CANCEL ACTION
+// 🚨 EXPORT THE JANITOR SO THE SHOP CAN TRIGGER IT ON LOAD
+export async function runAutoJanitorServerAction() {
+  const supabase = getServiceSupabaseClient();
+  await releaseAbandonedStockReservations(supabase);
+  return { success: true };
+}
+
+// INSTANT FRONT-END CANCEL ACTION
 export async function cancelAbandonedOrderServerAction(orderId) {
   try {
     const supabase = getServiceSupabaseClient();
@@ -123,7 +139,6 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
         throw new Error("Could not verify live inventory. Please try checking out again.");
       }
 
-      // 🚨 UPDATED ERROR ALERT STRUCTURE FOR BOLD FORMATTING
       if (item.quantity > liveVariant.stock_quantity) {
         return {
           success: false,
@@ -211,7 +226,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
     return { 
       success: true, 
       authorizationUrl: paystackJson.data.authorization_url,
-      orderId: newOrderHeader.id // Returned for the auto-cancel tracking
+      orderId: newOrderHeader.id 
     };
 
   } catch (err) {
