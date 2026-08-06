@@ -9,7 +9,7 @@ import {
   Sparkles, CheckCircle2, AlertCircle, Loader2, ArrowLeft, X, Zap, Key, Phone, Mail, MessageCircle
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
-import { createCustomerOrderServerAction } from '../actions/orders';
+import { createCustomerOrderServerAction, runAutoJanitorServerAction } from '../actions/orders';
 import { calculateDeliveryFee } from '../actions/delivery';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import Navbar from '../../components/Navbar';
@@ -125,8 +125,12 @@ function ShopStorefront() {
     }
   };
 
-  // 🚨 SMART SESSION MANAGER: Handles Fresh Load vs Paystack Handoffs vs Promo Overrides
+  // 🚨 SMART SESSION MANAGER: Wipes slate clean if you arrive normally
   useEffect(() => {
+    
+    // 🚨 SPINS UP THE AUTO-JANITOR TO CLEAN ABANDONED ORDERS THE MOMENT SHOP OPENS
+    runAutoJanitorServerAction();
+
     async function fetchStoreCatalog() {
       try {
         const { data, error } = await supabase
@@ -186,13 +190,11 @@ function ShopStorefront() {
     if (isHandoff === 'true') {
       sessionStorage.removeItem('sparkle_checkout_handoff');
       
-      // Preserve their cart
       const savedCart = sessionStorage.getItem('sparkle_cart');
       if (savedCart) {
         try { setCart(JSON.parse(savedCart)); } catch (e) {}
       }
       
-      // Preserve their promo code gate status
       const savedPromo = localStorage.getItem('sparkle_active_promo');
       if (savedPromo) {
         verifyAndApplyCode(savedPromo, true);
@@ -200,28 +202,26 @@ function ShopStorefront() {
         setGatewayStage('unlocked');
       }
 
-      // 🚨 AUTOMATIC ABANDONED ORDER CANCEL AND REFUND
       if (pendingOrderId) {
         import('../actions/orders').then(async (m) => {
           await m.cancelAbandonedOrderServerAction(pendingOrderId);
           sessionStorage.removeItem('sparkle_pending_order');
-          fetchStoreCatalog(); // Refetch the database to instantly show the refunded stock!
+          fetchStoreCatalog(); 
         });
       } else {
         fetchStoreCatalog();
       }
 
-    // SCENARIO C: Clean Fresh Visit (from Homepage or raw link)
+    // SCENARIO C: Clean Fresh Visit (Wipes cart & forces gateway reset)
     } else {
       const urlPromo = searchParams.get('promo');
       if (urlPromo) {
-        // They clicked a direct promo link
         const cleanPromo = urlPromo.trim().toUpperCase();
         localStorage.setItem('sparkle_active_promo', cleanPromo);
         verifyAndApplyCode(cleanPromo, true);
         supabase.from('campaign_scans').insert([{ promo_code: cleanPromo }]).then();
       } else {
-        // 🚨 Wipe EVERYTHING! Start completely fresh.
+        // 🚨 WIPES EVERYTHING FOR A FRESH START
         setCart([]);
         sessionStorage.removeItem('sparkle_cart');
         sessionStorage.removeItem('sparkle_promo_skipped');
@@ -446,15 +446,11 @@ function ShopStorefront() {
     const response = await createCustomerOrderServerAction(orderPayload, compiledItemsList);
     
     if (response.success && response.authorizationUrl) {
-      // 🚨 SET THE HANDOFF FLAG SO THE SHOP KNOWS THEY WENT TO PAYSTACK
       sessionStorage.setItem('sparkle_checkout_handoff', 'true');
       sessionStorage.setItem('sparkle_pending_order', response.orderId);
-      // Notice we are NOT clearing the cart here anymore!
-      
       window.location.href = response.authorizationUrl; 
     } else {
       
-      // 🚨 UPDATED DYNAMIC HTML FORMATTING FOR OUT OF STOCK ERRORS
       if (response.errorType === 'stock_alert') {
         if (response.remaining === 0) {
           setCheckoutAlert(
@@ -821,7 +817,7 @@ function ShopStorefront() {
       </main>
 
       {cart.length > 0 && !isCartOpen && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] flex justify-between items-center">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 z-[90] shadow-[0_-10px_30px_rgba(0,0,0,0.1)] flex justify-between items-center">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-stone-500 block">Your Drop ({globalTotalItemsCount})</span>
             <span className="text-lg font-black text-stone-950">₵{grandTotal.toFixed(2)}</span>
@@ -1125,7 +1121,6 @@ function ShopStorefront() {
             <div className="mx-auto w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-2 shadow-inner border border-rose-200"><AlertCircle className="h-6 w-6" /></div>
             <h3 className="font-black text-xl text-stone-950 uppercase tracking-tight">Hold Up!</h3>
             
-            {/* 🚨 Renders the new custom Bold HTML strings from the Server Action */}
             <p className="text-stone-500 text-xs font-medium leading-relaxed px-2">
               {checkoutAlert}
             </p>
