@@ -13,7 +13,7 @@ import { createCustomerOrderServerAction } from '../actions/orders';
 import { calculateDeliveryFee } from '../actions/delivery';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import Navbar from '../../components/Navbar';
-import SmartSupportBot from '../../components/SmartSupportBot'; // 🚨 IMPORTED BOT
+import SmartSupportBot from '../../components/SmartSupportBot'; 
 
 const MAPS_LIBRARIES = ['places'];
 
@@ -249,7 +249,6 @@ function ShopStorefront() {
         const existingLineIndex = prevCart.findIndex(item => item.variant.id === variant.id);
         if (existingLineIndex > -1) {
           const updatedCart = [...prevCart];
-          // 🚨 Cap at max stock
           const newQty = updatedCart[existingLineIndex].quantity + continuousQuantity;
           updatedCart[existingLineIndex].quantity = Math.min(newQty, variant.stock_quantity);
           return updatedCart;
@@ -266,7 +265,6 @@ function ShopStorefront() {
     }, 600);
   };
 
-  // 🚨 INVENTORY CAPPED FUNCTIONS
   const handleManualQuantityChange = (variantId, isCartItem, value, maxStock) => {
     if (value === '') {
       if (!isCartItem) setLocalQuantities(prev => ({ ...prev, [variantId]: '' }));
@@ -275,7 +273,7 @@ function ShopStorefront() {
     let newQty = parseInt(value, 10);
     if (!isNaN(newQty) && newQty > 0) {
       if (maxStock !== undefined && newQty > maxStock) {
-        newQty = maxStock; // Snap to max stock
+        newQty = maxStock; 
         setCheckoutAlert(`Inventory Limit Reached!\n\nWe currently only have ${maxStock} units of this specific drop available in stock.`);
       }
       if (isCartItem) {
@@ -383,7 +381,6 @@ function ShopStorefront() {
     e.preventDefault();
     if (cart.length === 0) return setCheckoutAlert("Your drop zone is empty. Add some drinks to your cart first!");
     
-    // 🚨 UPDATED ERROR ALERT TEXT
     if (!customerName || !customerPhone) return setCheckoutAlert("Please fill out your name and active contact number in the checkout details.");
 
     const MINIMUM_CART_VALUE = 30.00;
@@ -398,6 +395,39 @@ function ShopStorefront() {
 
     setIsSubmittingOrder(true);
 
+    // 🚨 1. LIVE DATABASE INVENTORY VALIDATOR (Prevents Race Condition Overselling)
+    try {
+      const variantIdsToCheck = cart.map(item => item.variant.id);
+      
+      const { data: liveStockData, error: liveStockError } = await supabase
+        .from('product_variants')
+        .select('id, stock_quantity')
+        .in('id', variantIdsToCheck);
+
+      if (liveStockError) throw new Error("Could not connect to live inventory validator.");
+
+      for (const cartItem of cart) {
+        const liveVariant = liveStockData.find(v => v.id === cartItem.variant.id);
+        
+        if (!liveVariant) {
+           setIsSubmittingOrder(false);
+           return setCheckoutAlert(`Error: Product variant missing from live database.`);
+        }
+        
+        // The core check: If the cart has more than the live DB has left
+        if (cartItem.quantity > liveVariant.stock_quantity) {
+           setIsSubmittingOrder(false);
+           return setCheckoutAlert(
+             `Out of Stock Alert!\n\nSomeone just snatched up the last of the ${cartItem.product.name} (${cartItem.variant.size}).\n\nLive Stock Remaining: ${liveVariant.stock_quantity}\nYour Cart: ${cartItem.quantity}\n\nPlease adjust your cart quantity to match the remaining stock to continue.`
+           );
+        }
+      }
+    } catch (err) {
+      setIsSubmittingOrder(false);
+      return setCheckoutAlert(`Verification Error: ${err.message}`);
+    }
+
+    // 2. Procced with Server Action to create order and initialize Paystack
     const orderPayload = {
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
@@ -856,7 +886,6 @@ function ShopStorefront() {
                         <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full legal name" className="w-full bg-[#FDFBF7] border-2 border-stone-200 focus:border-rose-500 rounded-2xl px-4 py-3 outline-none text-stone-900 font-bold placeholder:text-stone-400 transition-colors" />
                       </div>
                       
-                      {/* 🚨 THE UPDATED CONTACT NUMBER INPUT 🚨 */}
                       <div className="space-y-1.5">
                         <input 
                           type="tel" 
@@ -1065,7 +1094,6 @@ function ShopStorefront() {
         </div>
       </footer>
 
-      {/* 🚨 REPLACED WHATSAPP BUTTON WITH THE NEW COMPONENT */}
       <SmartSupportBot />
 
       {checkoutAlert && (
