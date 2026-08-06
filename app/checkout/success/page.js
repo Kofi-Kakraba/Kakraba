@@ -3,10 +3,9 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Camera, ArrowLeft, Receipt, Loader2, MapPin, Truck, Download } from 'lucide-react';
+import { CheckCircle2, Camera, ArrowLeft, Receipt, Loader2, MapPin, Truck, Download, FileText, Image as ImageIcon } from 'lucide-react';
 import { verifyAndFinalizeCustomerPaymentAction } from '../../actions/orders';
 import { createBrowserSupabaseClient } from '../../../lib/supabaseClient';
-// 🚨 Notice: html2canvas is NO LONGER imported here at the top! 🚨
 
 function SuccessReceiptContent() {
   const searchParams = useSearchParams();
@@ -18,7 +17,9 @@ function SuccessReceiptContent() {
   const [orderItems, setOrderItems] = useState([]);
   const [verificationError, setVerificationError] = useState(null);
   const [fetching, setFetching] = useState(true);
-  const [isDownloading, setIsDownloading] = useState(false);
+  
+  // Track which format is currently downloading
+  const [downloadingFormat, setDownloadingFormat] = useState(null);
 
   const extractedOrderId = searchParams.get('orderId') || searchParams.get('reference') || searchParams.get('trxref') || searchParams.get('order_id') || searchParams.get('id');
 
@@ -34,7 +35,6 @@ function SuccessReceiptContent() {
       if (response.success && response.data) {
         setOrderRecord(response.data);
 
-        // 🚨 FETCH THE ITEMIZED CART CONTENTS FOR THE RECEIPT
         const { data: items } = await supabase
           .from('order_items')
           .select(`
@@ -56,30 +56,53 @@ function SuccessReceiptContent() {
     executeLivePaystackVerification();
   }, [extractedOrderId, supabase]);
 
-  const handleDownloadReceipt = async () => {
+  // 🚨 UPDATED DOWNLOAD ENGINE (Handles both PNG and PDF + bypasses browser blocks)
+  const handleDownloadReceipt = async (format) => {
     if (!receiptRef.current) return;
-    setIsDownloading(true);
+    setDownloadingFormat(format);
     
     try {
-      // 🚨 DYNAMIC IMPORT: This tells Vercel to ONLY load this in the browser, fixing the crash!
+      // 1. Take the digital snapshot
       const html2canvas = (await import('html2canvas')).default;
-
-      // Takes a high-res digital snapshot of the receipt card
       const canvas = await html2canvas(receiptRef.current, { 
         scale: 2, 
-        backgroundColor: '#1c1917', // matches stone-900
+        backgroundColor: '#1c1917', 
         useCORS: true 
       });
       
-      const image = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = image;
-      link.download = `Sparkle_Receipt_${extractedOrderId.substring(0,8)}.png`;
-      link.click();
+      const filePrefix = `Sparkle_Receipt_${extractedOrderId.substring(0,8)}`;
+
+      if (format === 'png') {
+        const image = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `${filePrefix}.png`;
+        // 🚨 CRITICAL FIX: Append to body so mobile browsers don't block it!
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } 
+      
+      if (format === 'pdf') {
+        const { jsPDF } = await import('jspdf');
+        const image = canvas.toDataURL('image/png');
+        
+        // Match the PDF size exactly to the canvas size
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'px',
+          format: [canvas.width, canvas.height]
+        });
+        
+        pdf.addImage(image, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`${filePrefix}.pdf`);
+      }
+
     } catch (err) {
-      console.error('Failed to download receipt', err);
+      console.error(`Failed to download ${format} receipt`, err);
+      alert("Something went wrong generating your receipt. Please screenshot the page instead!");
     } finally {
-      setIsDownloading(false);
+      setDownloadingFormat(null);
     }
   };
 
@@ -114,7 +137,6 @@ function SuccessReceiptContent() {
     <div className="min-h-screen bg-stone-950 text-stone-200 font-sans py-12 px-4 flex flex-col items-center selection:bg-emerald-500/30">
       <div className="max-w-md w-full space-y-6">
         
-        {/* Header Area */}
         <div className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/20 mb-2">
             <CheckCircle2 className="h-8 w-8 text-emerald-500" />
@@ -125,19 +147,16 @@ function SuccessReceiptContent() {
           </p>
         </div>
 
-        {/* 🚨 DIGITAL RECEIPT CARD (Targeted by html2canvas) */}
         <div 
           ref={receiptRef}
           className="bg-stone-900 border border-stone-800 rounded-3xl overflow-hidden shadow-2xl relative"
         >
-          {/* Brand Header */}
           <div className="bg-[#18181b] border-b border-stone-800 p-6 flex flex-col items-center justify-center text-center">
             <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Beverages Logo" className="h-14 w-auto object-contain brightness-110" />
             <p className="text-[9px] text-stone-500 font-black uppercase tracking-widest mt-3">Official Transaction Receipt</p>
           </div>
 
           <div className="p-6 space-y-6">
-            {/* Order Meta */}
             <div className="space-y-3 font-mono text-xs">
               <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-1">
                 <span className="text-stone-500 uppercase font-bold shrink-0">Order Ref:</span>
@@ -155,7 +174,6 @@ function SuccessReceiptContent() {
 
             <div className="h-px bg-dashed bg-stone-800 w-full" />
 
-            {/* 🚨 ITEMIZED CART BREAKDOWN */}
             <div className="space-y-3 font-mono text-xs">
               <div className="text-[10px] text-stone-500 font-black uppercase tracking-widest border-b border-stone-800 pb-2 mb-2">Itemized Drops</div>
               
@@ -176,7 +194,6 @@ function SuccessReceiptContent() {
 
             <div className="h-px bg-dashed bg-stone-800 w-full" />
 
-            {/* Financial Totals */}
             <div className="space-y-2 font-mono text-xs">
               {deliveryFee > 0 && (
                 <div className="flex justify-between items-center text-stone-400">
@@ -192,7 +209,6 @@ function SuccessReceiptContent() {
 
             <div className="h-px bg-stone-800 w-full" />
 
-            {/* Logistics Footer */}
             <div className="bg-[#18181b] rounded-xl p-4 space-y-3 font-mono text-xs border border-stone-800">
               <div className="flex items-center gap-2 text-cyan-400 border-b border-stone-800 pb-2 mb-2">
                 {isDelivery ? <Truck className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
@@ -219,20 +235,31 @@ function SuccessReceiptContent() {
           </div>
         </div>
 
-        {/* 🚨 DOWNLOAD BUTTON */}
+        {/* 🚨 UPDATED DOWNLOAD BUTTONS */}
         <div className="space-y-3 pt-2">
-          <button 
-            onClick={handleDownloadReceipt}
-            disabled={isDownloading}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-stone-800 text-white font-black py-4 rounded-2xl transition-all shadow-[0_8px_30px_rgb(5,150,105,0.2)] disabled:shadow-none flex items-center justify-center gap-2 uppercase text-xs tracking-widest"
-          >
-            {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            <span>{isDownloading ? 'Generating Image...' : 'Download Image Receipt'}</span>
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              onClick={() => handleDownloadReceipt('png')}
+              disabled={downloadingFormat !== null}
+              className="w-full bg-stone-800 hover:bg-stone-700 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest"
+            >
+              {downloadingFormat === 'png' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+              <span>Save Image</span>
+            </button>
+            
+            <button 
+              onClick={() => handleDownloadReceipt('pdf')}
+              disabled={downloadingFormat !== null}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest"
+            >
+              {downloadingFormat === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              <span>Save PDF</span>
+            </button>
+          </div>
           
           <Link 
             href="/shop" 
-            className="w-full bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-white border border-stone-800 font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest"
+            className="w-full bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-white border border-stone-800 font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest mt-4"
           >
             <ArrowLeft className="h-4 w-4" />
             <span>Return to Storefront Menu</span>
