@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Camera, ArrowLeft, Receipt, Loader2, MapPin, Truck, Download } from 'lucide-react';
 import { verifyAndFinalizeCustomerPaymentAction } from '../../actions/orders';
-import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
+import { createBrowserSupabaseClient } from '../../../lib/supabaseClient';
 // 🚨 Notice: html2canvas is NO LONGER imported here at the top! 🚨
 
 function SuccessReceiptContent() {
