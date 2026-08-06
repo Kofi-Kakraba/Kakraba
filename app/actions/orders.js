@@ -88,6 +88,9 @@ async function releaseAbandonedStockReservations(supabase) {
 export async function createCustomerOrderServerAction(orderPayload, cartItemsList) {
   const supabase = getServiceSupabaseClient();
   
+  // 🚨 TRACKER: We will only put back items we ACTUALLY deducted.
+  let successfullyReservedItems = [];
+  
   try {
     const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
 
@@ -95,10 +98,10 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error("Server Configuration Error: Missing Paystack processing keys tokens.");
     }
 
-    // 🚨 1. RUN THE AUTO-JANITOR BEFORE WE DO ANYTHING ELSE
+    // 1. RUN THE AUTO-JANITOR BEFORE WE DO ANYTHING ELSE
     await releaseAbandonedStockReservations(supabase);
 
-    // 🚨 2. THE BOUNCER & RESERVATION: Verify Stock and Deduct Immediately (Locks it in)
+    // 2. THE BOUNCER & RESERVATION: Verify Stock and Deduct Immediately
     for (const item of cartItemsList) {
       const { data: liveVariant, error: variantError } = await supabase
         .from('product_variants')
@@ -124,6 +127,9 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       if (deductError) {
          throw new Error("Failed to reserve inventory. Please try again.");
       }
+      
+      // ✅ SUCCESS! Add this to our tracker so we know we took it.
+      successfullyReservedItems.push(item);
     }
 
     // 3. Insert the master order tracking header row
@@ -197,9 +203,9 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
   } catch (err) {
     console.error("CRITICAL CHECKOUT SERVER ACTION CRASH ->", err);
     
-    // 🚨 6. SAFETY ROLLBACK: If Paystack fails to open immediately, return the reserved stock to the shelf.
-    if (cartItemsList && cartItemsList.length > 0) {
-       for (const item of cartItemsList) {
+    // 🚨 6. SMART ROLLBACK: ONLY rollback items we ACTUALLY deducted before the crash occurred!
+    if (successfullyReservedItems.length > 0) {
+       for (const item of successfullyReservedItems) {
           const { data: currentVariant } = await supabase.from('product_variants').select('stock_quantity').eq('id', item.variant.id).single();
           if (currentVariant) {
              await supabase.from('product_variants').update({ stock_quantity: currentVariant.stock_quantity + parseInt(item.quantity) }).eq('id', item.variant.id);
@@ -342,7 +348,7 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
   try {
     const supabase = getServiceSupabaseClient(); 
 
-    // 🚨 1. ADMIN RESTOCK FIX: If the Admin cancels an order, put the stock back on the shelf!
+    // 🚨 ADMIN RESTOCK FIX: If the Admin cancels an order, put the stock back on the shelf!
     if (targetState === 'cancelled') {
       const { data: items } = await supabase.from('order_items').select('variant_id, quantity').eq('order_id', orderId);
       if (items) {
