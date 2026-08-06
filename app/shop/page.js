@@ -44,13 +44,6 @@ function ShopStorefront() {
   const [selectedVariantIds, setSelectedVariantIds] = useState({});
 
   useEffect(() => {
-    const savedCart = sessionStorage.getItem('sparkle_cart');
-    if (savedCart) {
-      try { setCart(JSON.parse(savedCart)); } catch (e) {}
-    }
-  }, []);
-
-  useEffect(() => {
     sessionStorage.setItem('sparkle_cart', JSON.stringify(cart));
   }, [cart]);
   
@@ -78,89 +71,6 @@ function ShopStorefront() {
     window.addEventListener('pageshow', handlePageShow);
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
-
-  useEffect(() => {
-    const paymentReference = searchParams.get('reference');
-    const paymentTrxRef = searchParams.get('trxref');
-    
-    if (paymentReference || paymentTrxRef) {
-      setCheckoutAlert("Payment Successful! 🎉\n\nYour drop has been securely logged. You will receive an SMS with your dispatch details shortly.");
-      window.history.replaceState(null, '', window.location.pathname);
-    }
-  }, [searchParams]);
-  
-  useEffect(() => {
-    async function fetchStoreCatalog() {
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select(`
-            id, name, description, is_active,
-            product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, moq_floor, client_discount, referrer_earnings, image_url )
-          `)
-          .eq('is_active', true)
-          .order('name', { ascending: true });
-
-        if (error) throw error;
-        
-        if (data) {
-          const initialVariants = {};
-          const sizeOrder = { '300ml': 1, '500ml': 2, '1.5l': 3, '5l': 4 };
-          
-          data.forEach(p => {
-            if (p.product_variants && p.product_variants.length > 0) {
-              p.product_variants.sort((a, b) => {
-                const aVal = sizeOrder[a.size.toLowerCase().trim()] || 99;
-                const bVal = sizeOrder[b.size.toLowerCase().trim()] || 99;
-                return aVal - bVal;
-              });
-              initialVariants[p.id] = p.product_variants[0].id;
-            }
-          });
-          
-          setSelectedVariantIds(initialVariants);
-        }
-
-        setProducts(data || []);
-      } catch (err) {
-        setErrorMessage(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchStoreCatalog();
-  }, [supabase]);
-
-  const handlePlaceSelected = async () => {
-    if (autocompleteInstance !== null) {
-      const place = autocompleteInstance.getPlace();
-      const address = place.formatted_address || place.name;
-      
-      if (address) {
-        setLandmark(address);
-        setIsCalculatingFee(true);
-        
-        const result = await calculateDeliveryFee(address);
-        
-        if (result.success) {
-          setDeliveryFee(result.fee);
-        } else {
-          setDeliveryFee(0);
-          setCheckoutAlert("We couldn't calculate the exact distance. A base fare will be applied.");
-        }
-        setIsCalculatingFee(false);
-      }
-    }
-  };
-
-  const getSizeSlang = (size) => {
-    const cleanSize = size.toLowerCase().trim();
-    if (cleanSize.includes('300ml')) return 'Solo ⚡';
-    if (cleanSize.includes('500ml')) return 'Gee ✊';
-    if (cleanSize.includes('1.5l')) return 'Paddy 🤝';
-    if (cleanSize.includes('5l')) return 'Link-Up 🔊';
-    return '';
-  };
 
   const verifyAndApplyCode = async (codeToVerify, isAutoFill = false) => {
     setLoading(true);
@@ -215,23 +125,145 @@ function ShopStorefront() {
     }
   };
 
+  // 🚨 SMART SESSION MANAGER: Handles Fresh Load vs Paystack Handoffs vs Promo Overrides
   useEffect(() => {
-    const urlPromo = searchParams.get('promo');
+    async function fetchStoreCatalog() {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select(`
+            id, name, description, is_active,
+            product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, moq_floor, client_discount, referrer_earnings, image_url )
+          `)
+          .eq('is_active', true)
+          .order('name', { ascending: true });
+
+        if (error) throw error;
+        
+        if (data) {
+          const initialVariants = {};
+          const sizeOrder = { '300ml': 1, '500ml': 2, '1.5l': 3, '5l': 4 };
+          data.forEach(p => {
+            if (p.product_variants && p.product_variants.length > 0) {
+              p.product_variants.sort((a, b) => {
+                const aVal = sizeOrder[a.size.toLowerCase().trim()] || 99;
+                const bVal = sizeOrder[b.size.toLowerCase().trim()] || 99;
+                return aVal - bVal;
+              });
+              initialVariants[p.id] = p.product_variants[0].id;
+            }
+          });
+          setSelectedVariantIds(initialVariants);
+        }
+        setProducts(data || []);
+      } catch (err) {
+        setErrorMessage(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    const paymentReference = searchParams.get('reference');
+    const paymentTrxRef = searchParams.get('trxref');
     
-    if (urlPromo) {
-      const cleanPromo = urlPromo.trim().toUpperCase();
-      localStorage.setItem('sparkle_active_promo', cleanPromo);
-      verifyAndApplyCode(cleanPromo, true);
-      supabase.from('campaign_scans').insert([{ promo_code: cleanPromo }]).then();
-    } else {
+    // SCENARIO A: A Successful Payment Completed
+    if (paymentReference || paymentTrxRef) {
+      setCheckoutAlert(<span>Payment Successful! 🎉<br/><br/>Your drop has been securely logged. You will receive an SMS with your dispatch details shortly.</span>);
+      window.history.replaceState(null, '', window.location.pathname);
+      setCart([]);
+      sessionStorage.removeItem('sparkle_cart');
+      sessionStorage.removeItem('sparkle_checkout_handoff');
+      sessionStorage.removeItem('sparkle_pending_order');
+      setGatewayStage('question');
+      fetchStoreCatalog();
+      return;
+    }
+
+    const isHandoff = sessionStorage.getItem('sparkle_checkout_handoff');
+    const pendingOrderId = sessionStorage.getItem('sparkle_pending_order');
+
+    // SCENARIO B: Returning User from abandoned Paystack Checkout!
+    if (isHandoff === 'true') {
+      sessionStorage.removeItem('sparkle_checkout_handoff');
+      
+      // Preserve their cart
+      const savedCart = sessionStorage.getItem('sparkle_cart');
+      if (savedCart) {
+        try { setCart(JSON.parse(savedCart)); } catch (e) {}
+      }
+      
+      // Preserve their promo code gate status
       const savedPromo = localStorage.getItem('sparkle_active_promo');
       if (savedPromo) {
         verifyAndApplyCode(savedPromo, true);
       } else if (sessionStorage.getItem('sparkle_promo_skipped')) {
         setGatewayStage('unlocked');
       }
+
+      // 🚨 AUTOMATIC ABANDONED ORDER CANCEL AND REFUND
+      if (pendingOrderId) {
+        import('../actions/orders').then(async (m) => {
+          await m.cancelAbandonedOrderServerAction(pendingOrderId);
+          sessionStorage.removeItem('sparkle_pending_order');
+          fetchStoreCatalog(); // Refetch the database to instantly show the refunded stock!
+        });
+      } else {
+        fetchStoreCatalog();
+      }
+
+    // SCENARIO C: Clean Fresh Visit (from Homepage or raw link)
+    } else {
+      const urlPromo = searchParams.get('promo');
+      if (urlPromo) {
+        // They clicked a direct promo link
+        const cleanPromo = urlPromo.trim().toUpperCase();
+        localStorage.setItem('sparkle_active_promo', cleanPromo);
+        verifyAndApplyCode(cleanPromo, true);
+        supabase.from('campaign_scans').insert([{ promo_code: cleanPromo }]).then();
+      } else {
+        // 🚨 Wipe EVERYTHING! Start completely fresh.
+        setCart([]);
+        sessionStorage.removeItem('sparkle_cart');
+        sessionStorage.removeItem('sparkle_promo_skipped');
+        localStorage.removeItem('sparkle_active_promo');
+        setGatewayStage('question');
+        setAppliedCoupon(null);
+      }
+      fetchStoreCatalog();
     }
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, supabase]);
+
+  const handlePlaceSelected = async () => {
+    if (autocompleteInstance !== null) {
+      const place = autocompleteInstance.getPlace();
+      const address = place.formatted_address || place.name;
+      
+      if (address) {
+        setLandmark(address);
+        setIsCalculatingFee(true);
+        
+        const result = await calculateDeliveryFee(address);
+        
+        if (result.success) {
+          setDeliveryFee(result.fee);
+        } else {
+          setDeliveryFee(0);
+          setCheckoutAlert("We couldn't calculate the exact distance. A base fare will be applied.");
+        }
+        setIsCalculatingFee(false);
+      }
+    }
+  };
+
+  const getSizeSlang = (size) => {
+    const cleanSize = size.toLowerCase().trim();
+    if (cleanSize.includes('300ml')) return 'Solo ⚡';
+    if (cleanSize.includes('500ml')) return 'Gee ✊';
+    if (cleanSize.includes('1.5l')) return 'Paddy 🤝';
+    if (cleanSize.includes('5l')) return 'Link-Up 🔊';
+    return '';
+  };
 
   const handleVerifyGatewayCode = async (e) => {
     e.preventDefault();
@@ -395,39 +427,6 @@ function ShopStorefront() {
 
     setIsSubmittingOrder(true);
 
-    // 🚨 1. LIVE DATABASE INVENTORY VALIDATOR (Prevents Race Condition Overselling)
-    try {
-      const variantIdsToCheck = cart.map(item => item.variant.id);
-      
-      const { data: liveStockData, error: liveStockError } = await supabase
-        .from('product_variants')
-        .select('id, stock_quantity')
-        .in('id', variantIdsToCheck);
-
-      if (liveStockError) throw new Error("Could not connect to live inventory validator.");
-
-      for (const cartItem of cart) {
-        const liveVariant = liveStockData.find(v => v.id === cartItem.variant.id);
-        
-        if (!liveVariant) {
-           setIsSubmittingOrder(false);
-           return setCheckoutAlert(`Error: Product variant missing from live database.`);
-        }
-        
-        // The core check: If the cart has more than the live DB has left
-        if (cartItem.quantity > liveVariant.stock_quantity) {
-           setIsSubmittingOrder(false);
-           return setCheckoutAlert(
-             `Out of Stock Alert!\n\nSomeone just snatched up the last of the ${cartItem.product.name} (${cartItem.variant.size}).\n\nLive Stock Remaining: ${liveVariant.stock_quantity}\nYour Cart: ${cartItem.quantity}\n\nPlease adjust your cart quantity to match the remaining stock to continue.`
-           );
-        }
-      }
-    } catch (err) {
-      setIsSubmittingOrder(false);
-      return setCheckoutAlert(`Verification Error: ${err.message}`);
-    }
-
-    // 2. Procced with Server Action to create order and initialize Paystack
     const orderPayload = {
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
@@ -447,15 +446,38 @@ function ShopStorefront() {
     const response = await createCustomerOrderServerAction(orderPayload, compiledItemsList);
     
     if (response.success && response.authorizationUrl) {
-      setCart([]);
-      sessionStorage.removeItem('sparkle_cart');
-
-      setTimeout(() => {
-        setIsSubmittingOrder(false);
-      }, 2000);
+      // 🚨 SET THE HANDOFF FLAG SO THE SHOP KNOWS THEY WENT TO PAYSTACK
+      sessionStorage.setItem('sparkle_checkout_handoff', 'true');
+      sessionStorage.setItem('sparkle_pending_order', response.orderId);
+      // Notice we are NOT clearing the cart here anymore!
+      
       window.location.href = response.authorizationUrl; 
     } else {
-      setCheckoutAlert(`Transaction Refusal: ${response.error || 'Gateway connection error'}`);
+      
+      // 🚨 UPDATED DYNAMIC HTML FORMATTING FOR OUT OF STOCK ERRORS
+      if (response.errorType === 'stock_alert') {
+        if (response.remaining === 0) {
+          setCheckoutAlert(
+            <>
+              Someone just snatched up the last of the <strong>{response.productName} ({response.size})</strong>.<br/><br/>
+              Live Stock Remaining: <strong className="text-rose-600">0</strong><br/>
+              Your Cart: <strong>{response.requested}</strong><br/><br/>
+              Please <strong>remove it from your cart</strong> to continue.
+            </>
+          );
+        } else {
+          setCheckoutAlert(
+            <>
+              We only have <strong>{response.remaining}</strong> units left for the <strong>{response.productName} ({response.size})</strong>.<br/><br/>
+              Live Stock Remaining: <strong className="text-emerald-600">{response.remaining}</strong><br/>
+              Your Cart: <strong>{response.requested}</strong><br/><br/>
+              Please <strong>adjust your cart quantity</strong> to match the remaining stock to continue.
+            </>
+          );
+        }
+      } else {
+        setCheckoutAlert(<span>Transaction Refusal: {response.error || 'Gateway connection error'}</span>);
+      }
       setIsSubmittingOrder(false);
     }
   };
@@ -1102,7 +1124,12 @@ function ShopStorefront() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500 rounded-full blur-3xl opacity-10 -mr-10 -mt-10 pointer-events-none"></div>
             <div className="mx-auto w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-2 shadow-inner border border-rose-200"><AlertCircle className="h-6 w-6" /></div>
             <h3 className="font-black text-xl text-stone-950 uppercase tracking-tight">Hold Up!</h3>
-            <p className="text-stone-500 text-xs font-medium leading-relaxed whitespace-pre-wrap px-2">{checkoutAlert}</p>
+            
+            {/* 🚨 Renders the new custom Bold HTML strings from the Server Action */}
+            <p className="text-stone-500 text-xs font-medium leading-relaxed px-2">
+              {checkoutAlert}
+            </p>
+
             <div className="pt-2"><button onClick={() => setCheckoutAlert(null)} className="w-full bg-stone-950 hover:bg-stone-800 text-white font-black py-3.5 rounded-2xl uppercase tracking-widest text-[10px] transition-colors shadow-lg">Got it</button></div>
           </div>
         </div>
