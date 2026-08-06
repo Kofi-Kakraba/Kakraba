@@ -677,7 +677,6 @@ function ShopStorefront() {
 
             const activeBtnStatus = buttonStatuses[activeVariant.id] || 'idle';
 
-            // 🚨 UPDATED SOLD-OUT STYLING CARD
             return (
               <div key={product.id} className={`bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} ${isOutOfStock ? 'bg-stone-50' : 'hover:-translate-y-1'} transition-transform duration-300 relative overflow-hidden group`}>
                 
@@ -692,7 +691,6 @@ function ShopStorefront() {
                   </span>
                 </div>
 
-                {/* 🚨 SIZES REMAIN CLICKABLE SO THEY CAN SWITCH VARIANTS */}
                 <div className="relative z-20 flex flex-wrap gap-2">
                   {product.product_variants.map(v => (
                     <button
@@ -722,7 +720,7 @@ function ShopStorefront() {
                     {/* 🚨 BIG ANIMATED SOLD OUT STAMP OVER THE IMAGE */}
                     {isOutOfStock && (
                       <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-                        <div className="bg-stone-900/90 text-rose-500 font-black text-3xl px-6 py-2 rounded-2xl transform -rotate-12 uppercase tracking-widest animate-pulse border-4 border-stone-900 shadow-2xl backdrop-blur-sm">
+                        <div className="bg-red-600 text-white font-black text-3xl px-6 py-2 rounded-2xl transform -rotate-12 uppercase tracking-widest animate-pulse border-4 border-white shadow-2xl">
                           Sold Out
                         </div>
                       </div>
@@ -730,7 +728,6 @@ function ShopStorefront() {
                   </div>
                 )}
 
-                {/* 🚨 CHECKOUT SECTION GRAYED OUT AND DISABLED */}
                 <div className={`space-y-4 relative z-10 mt-auto ${isOutOfStock ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
                   <div className="bg-[#FDFBF7] border border-stone-200 p-4 rounded-2xl text-xs font-medium space-y-1.5 transition-all duration-300">
                     {appliedCoupon ? (
