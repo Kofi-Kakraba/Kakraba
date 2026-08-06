@@ -47,6 +47,42 @@ async function fireSMSOnlineGHGateway(targetPhone, messageContent) {
 }
 
 /**
+ * 🚨 THE AUTO-JANITOR: Finds abandoned checkouts (older than 15 mins) and returns their stock to the shelf
+ */
+async function releaseAbandonedStockReservations(supabase) {
+  try {
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60000).toISOString();
+    
+    // Find all unpaid orders older than 15 minutes
+    const { data: abandonedOrders } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('status', 'pending_payment')
+      .lt('created_at', fifteenMinsAgo);
+
+    if (!abandonedOrders || abandonedOrders.length === 0) return;
+
+    for (const order of abandonedOrders) {
+      // 1. Mark as cancelled so it doesn't get processed again
+      await supabase.from('orders').update({ status: 'cancelled', payment_status: 'abandoned' }).eq('id', order.id);
+      
+      // 2. Fetch the reserved items and put them back in stock
+      const { data: items } = await supabase.from('order_items').select('variant_id, quantity').eq('order_id', order.id);
+      if (items) {
+        for (const item of items) {
+          const { data: variant } = await supabase.from('product_variants').select('stock_quantity').eq('id', item.variant_id).single();
+          if (variant) {
+            await supabase.from('product_variants').update({ stock_quantity: variant.stock_quantity + item.quantity }).eq('id', item.variant_id);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Auto-cleanup failed:", e);
+  }
+}
+
+/**
  * Processes customer checkout pipelines and initializes a live Paystack payment gateway authorization transaction
  */
 export async function createCustomerOrderServerAction(orderPayload, cartItemsList) {
@@ -59,7 +95,10 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error("Server Configuration Error: Missing Paystack processing keys tokens.");
     }
 
-    // 🚨 1. THE BOUNCER & RESERVATION: Verify Stock and Deduct Immediately (Locks it in)
+    // 🚨 1. RUN THE AUTO-JANITOR BEFORE WE DO ANYTHING ELSE
+    await releaseAbandonedStockReservations(supabase);
+
+    // 🚨 2. THE BOUNCER & RESERVATION: Verify Stock and Deduct Immediately (Locks it in)
     for (const item of cartItemsList) {
       const { data: liveVariant, error: variantError } = await supabase
         .from('product_variants')
@@ -87,7 +126,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       }
     }
 
-    // 2. Insert the master order tracking header row
+    // 3. Insert the master order tracking header row
     const { data: newOrderHeader, error: orderInsertError } = await supabase
       .from('orders')
       .insert([{
@@ -107,7 +146,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error(`Order Header processing failure: ${orderInsertError?.message}`);
     }
 
-    // 3. Format and inject individual item line maps directly to your database columns
+    // 4. Format and inject individual item line maps directly to your database columns
     const formattedItemRows = cartItemsList.map(item => ({
       order_id: newOrderHeader.id,
       variant_id: item.variant.id,
@@ -125,7 +164,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error(`Line Items tracking injection failure: ${linesInsertError.message}`);
     }
 
-    // 4. CONNECT SECURELY TO PAYSTACK: Initialize Live Transaction Session Engine
+    // 5. CONNECT SECURELY TO PAYSTACK: Initialize Live Transaction Session Engine
     const siteDomainBaseUrl = process.env.NODE_ENV === 'production' 
       ? 'https://sparklebeverages.com' 
       : 'http://localhost:3000';
@@ -158,7 +197,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
   } catch (err) {
     console.error("CRITICAL CHECKOUT SERVER ACTION CRASH ->", err);
     
-    // 🚨 5. SAFETY ROLLBACK: If Paystack fails to open, return the reserved stock to the shelf.
+    // 🚨 6. SAFETY ROLLBACK: If Paystack fails to open immediately, return the reserved stock to the shelf.
     if (cartItemsList && cartItemsList.length > 0) {
        for (const item of cartItemsList) {
           const { data: currentVariant } = await supabase.from('product_variants').select('stock_quantity').eq('id', item.variant.id).single();
@@ -263,9 +302,6 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
       }
     }
 
-    // 🚨 DEDUCTION LOGIC REMOVED HERE 
-    // Stock is now safely deducted upfront during order creation to prevent race conditions!
-
     try {
       await resend.emails.send({
         from: 'Sparkle Admin <admin@sparklebeverages.com>',
@@ -306,7 +342,20 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
   try {
     const supabase = getServiceSupabaseClient(); 
 
-    // 1. Update the database status
+    // 🚨 1. ADMIN RESTOCK FIX: If the Admin cancels an order, put the stock back on the shelf!
+    if (targetState === 'cancelled') {
+      const { data: items } = await supabase.from('order_items').select('variant_id, quantity').eq('order_id', orderId);
+      if (items) {
+        for (const item of items) {
+          const { data: variant } = await supabase.from('product_variants').select('stock_quantity').eq('id', item.variant_id).single();
+          if (variant) {
+            await supabase.from('product_variants').update({ stock_quantity: variant.stock_quantity + item.quantity }).eq('id', item.variant_id);
+          }
+        }
+      }
+    }
+
+    // 2. Update the database status
     const { error: updateError } = await supabase
       .from('orders')
       .update({ status: targetState })
@@ -314,7 +363,7 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
 
     if (updateError) throw updateError;
 
-    // 2. Trigger SMSOnlineGH text message if state changed to 'ready'
+    // 3. Trigger SMSOnlineGH text message if state changed to 'ready'
     if (targetState === 'ready') {
       const { data: orderData } = await supabase
         .from('orders')
