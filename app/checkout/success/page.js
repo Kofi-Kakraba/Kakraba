@@ -1,18 +1,24 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Camera, ArrowLeft, Receipt, Loader2, MapPin, Truck } from 'lucide-react';
+import { CheckCircle2, Camera, ArrowLeft, Receipt, Loader2, MapPin, Truck, Download } from 'lucide-react';
 import { verifyAndFinalizeCustomerPaymentAction } from '../../actions/orders';
+import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
+import html2canvas from 'html2canvas';
 
 function SuccessReceiptContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const supabase = createBrowserSupabaseClient();
+  const receiptRef = useRef(null);
   
   const [orderRecord, setOrderRecord] = useState(null);
+  const [orderItems, setOrderItems] = useState([]);
   const [verificationError, setVerificationError] = useState(null);
   const [fetching, setFetching] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const extractedOrderId = searchParams.get('orderId') || searchParams.get('reference') || searchParams.get('trxref') || searchParams.get('order_id') || searchParams.get('id');
 
@@ -27,13 +33,52 @@ function SuccessReceiptContent() {
       
       if (response.success && response.data) {
         setOrderRecord(response.data);
+
+        // 🚨 FETCH THE ITEMIZED CART CONTENTS FOR THE RECEIPT
+        const { data: items } = await supabase
+          .from('order_items')
+          .select(`
+            quantity,
+            size,
+            unit_price,
+            product_variants (
+              products ( name )
+            )
+          `)
+          .eq('order_id', extractedOrderId);
+          
+        setOrderItems(items || []);
       } else {
         setVerificationError(response.error || "Failed to finalize payment processing tokens.");
       }
       setFetching(false);
     }
     executeLivePaystackVerification();
-  }, [extractedOrderId]);
+  }, [extractedOrderId, supabase]);
+
+  const handleDownloadReceipt = async () => {
+    if (!receiptRef.current) return;
+    setIsDownloading(true);
+    
+    try {
+      // Takes a high-res digital snapshot of the receipt card
+      const canvas = await html2canvas(receiptRef.current, { 
+        scale: 2, 
+        backgroundColor: '#1c1917', // matches stone-900
+        useCORS: true 
+      });
+      
+      const image = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = `Sparkle_Receipt_${extractedOrderId.substring(0,8)}.png`;
+      link.click();
+    } catch (err) {
+      console.error('Failed to download receipt', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   if (fetching) {
     return (
@@ -60,9 +105,10 @@ function SuccessReceiptContent() {
   }
 
   const isDelivery = orderRecord?.delivery_type === 'delivery';
+  const deliveryFee = orderRecord?.metadata?.delivery_fee_charged || 0;
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-200 font-sans py-12 px-4 flex justify-center selection:bg-emerald-500/30">
+    <div className="min-h-screen bg-stone-950 text-stone-200 font-sans py-12 px-4 flex flex-col items-center selection:bg-emerald-500/30">
       <div className="max-w-md w-full space-y-6">
         
         {/* Header Area */}
@@ -76,78 +122,117 @@ function SuccessReceiptContent() {
           </p>
         </div>
 
-        {/* Screenshot Advisory */}
-        <div className="bg-blue-950/20 border border-blue-900/30 p-3 rounded-xl flex items-center justify-center gap-2 text-blue-400 text-[10px] font-mono font-bold uppercase tracking-wider">
-          <Camera className="h-4 w-4" />
-          <span>Please screenshot this receipt for your records</span>
-        </div>
-
-        {/* Digital Receipt Card */}
-        <div className="bg-stone-900 border border-stone-800 rounded-3xl overflow-hidden shadow-2xl">
-          
-          {/* Brand Header - Cleaned up redundant text */}
-          <div className="bg-stone-955 border-b border-stone-800 p-6 flex flex-col items-center justify-center text-center">
-            <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Beverages Logo" className="h-16 w-auto object-contain brightness-110" />
+        {/* 🚨 DIGITAL RECEIPT CARD (Targeted by html2canvas) */}
+        <div 
+          ref={receiptRef}
+          className="bg-stone-900 border border-stone-800 rounded-3xl overflow-hidden shadow-2xl relative"
+        >
+          {/* Brand Header */}
+          <div className="bg-[#18181b] border-b border-stone-800 p-6 flex flex-col items-center justify-center text-center">
+            <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Beverages Logo" className="h-14 w-auto object-contain brightness-110" />
+            <p className="text-[9px] text-stone-500 font-black uppercase tracking-widest mt-3">Official Transaction Receipt</p>
           </div>
 
           <div className="p-6 space-y-6">
             {/* Order Meta */}
             <div className="space-y-3 font-mono text-xs">
               <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-1">
-                <span className="text-stone-500 uppercase font-bold shrink-0">Order Reference:</span>
-                <span className="text-emerald-400 font-black break-all sm:text-right">{extractedOrderId}</span>
+                <span className="text-stone-500 uppercase font-bold shrink-0">Order Ref:</span>
+                <span className="text-emerald-400 font-black break-all sm:text-right">{extractedOrderId.toUpperCase()}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-stone-500 uppercase font-bold">Order Status:</span>
-                <span className="text-stone-300 font-bold uppercase">{orderRecord?.status || 'Processing'}</span>
+                <span className="text-stone-500 uppercase font-bold">Date:</span>
+                <span className="text-stone-300 font-bold uppercase">{new Date(orderRecord?.created_at).toLocaleDateString('en-GH', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-stone-500 uppercase font-bold">Payment Status:</span>
-                <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-black uppercase tracking-widest">Paid via MoMo</span>
+                <span className="text-stone-500 uppercase font-bold">Payment:</span>
+                <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-black uppercase tracking-widest">Paid via Paystack</span>
               </div>
+            </div>
+
+            <div className="h-px bg-dashed bg-stone-800 w-full" />
+
+            {/* 🚨 ITEMIZED CART BREAKDOWN */}
+            <div className="space-y-3 font-mono text-xs">
+              <div className="text-[10px] text-stone-500 font-black uppercase tracking-widest border-b border-stone-800 pb-2 mb-2">Itemized Drops</div>
+              
+              {orderItems.map((item, idx) => {
+                const productName = item.product_variants?.products?.name || 'Sparkle Drink';
+                const lineTotal = item.quantity * item.unit_price;
+                return (
+                  <div key={idx} className="flex justify-between items-start">
+                    <div>
+                      <span className="font-bold text-stone-200">{item.quantity}x {productName}</span>
+                      <span className="block text-[10px] text-stone-500 uppercase tracking-widest mt-0.5">{item.size}</span>
+                    </div>
+                    <span className="font-black text-stone-300">₵{lineTotal.toFixed(2)}</span>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="h-px bg-dashed bg-stone-800 w-full" />
 
             {/* Financial Totals */}
             <div className="space-y-2 font-mono text-xs">
+              {deliveryFee > 0 && (
+                <div className="flex justify-between items-center text-stone-400">
+                  <span className="uppercase font-bold tracking-wide">Delivery Fee</span>
+                  <span className="font-bold">₵{Number(deliveryFee).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center pt-2">
                 <span className="text-stone-300 uppercase font-black tracking-widest">Total Paid</span>
-                <span className="text-lg font-black text-emerald-400">₵{Number(orderRecord?.total_amount || 0).toFixed(2)}</span>
+                <span className="text-xl font-black text-emerald-400">₵{Number(orderRecord?.total_amount || 0).toFixed(2)}</span>
               </div>
             </div>
 
             <div className="h-px bg-stone-800 w-full" />
 
             {/* Logistics Footer */}
-            <div className="bg-stone-955 rounded-xl p-4 space-y-3 font-mono text-xs border border-stone-800">
+            <div className="bg-[#18181b] rounded-xl p-4 space-y-3 font-mono text-xs border border-stone-800">
               <div className="flex items-center gap-2 text-cyan-400 border-b border-stone-800 pb-2 mb-2">
                 {isDelivery ? <Truck className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
                 <span className="font-bold uppercase tracking-wider">{isDelivery ? 'Delivery Logistics' : 'HQ Self-Pickup'}</span>
               </div>
-              <div className="space-y-1 text-stone-400">
+              <div className="space-y-2 text-stone-400">
                 <div className="flex justify-between">
                   <span className="font-bold">Client:</span>
-                  <span className="text-stone-200 text-right">{orderRecord?.customer_name || 'Customer'}</span>
+                  <span className="text-stone-200 text-right truncate max-w-[150px]">{orderRecord?.customer_name || 'Customer'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-bold">Phone:</span>
                   <span className="text-stone-200 text-right">{orderRecord?.customer_phone || 'N/A'}</span>
                 </div>
+                {isDelivery && (
+                  <div className="flex justify-between">
+                    <span className="font-bold">Location:</span>
+                    <span className="text-stone-200 text-right truncate max-w-[150px]">{orderRecord?.landmark || 'N/A'}</span>
+                  </div>
+                )}
               </div>
             </div>
 
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="pt-4 text-center">
+        {/* 🚨 DOWNLOAD BUTTON */}
+        <div className="space-y-3 pt-2">
+          <button 
+            onClick={handleDownloadReceipt}
+            disabled={isDownloading}
+            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-stone-800 text-white font-black py-4 rounded-2xl transition-all shadow-[0_8px_30px_rgb(5,150,105,0.2)] disabled:shadow-none flex items-center justify-center gap-2 uppercase text-xs tracking-widest"
+          >
+            {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            <span>{isDownloading ? 'Generating Image...' : 'Download Image Receipt'}</span>
+          </button>
+          
           <Link 
             href="/shop" 
-            className="text-stone-500 hover:text-white font-mono text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-colors"
+            className="w-full bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-white border border-stone-800 font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest"
           >
             <ArrowLeft className="h-4 w-4" />
-            Return to Storefront Menu
+            <span>Return to Storefront Menu</span>
           </Link>
         </div>
 
