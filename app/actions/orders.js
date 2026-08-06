@@ -50,15 +50,16 @@ async function fireSMSOnlineGHGateway(targetPhone, messageContent) {
  * Processes customer checkout pipelines and initializes a live Paystack payment gateway authorization transaction
  */
 export async function createCustomerOrderServerAction(orderPayload, cartItemsList) {
+  const supabase = getServiceSupabaseClient();
+  
   try {
-    const supabase = getServiceSupabaseClient();
     const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
 
     if (!paystackSecret) {
       throw new Error("Server Configuration Error: Missing Paystack processing keys tokens.");
     }
 
-    // 🚨 THE BOUNCER: Live Database Stock Verification 
+    // 🚨 1. THE BOUNCER & RESERVATION: Verify Stock and Deduct Immediately (Locks it in)
     for (const item of cartItemsList) {
       const { data: liveVariant, error: variantError } = await supabase
         .from('product_variants')
@@ -73,9 +74,20 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       if (item.quantity > liveVariant.stock_quantity) {
         throw new Error(`Stock Alert: We only have ${liveVariant.stock_quantity} units left for the ${item.variant.size} size. Please adjust your cart to proceed.`);
       }
+
+      // Automatically reserve the stock right now so nobody else can take it!
+      const newStock = liveVariant.stock_quantity - item.quantity;
+      const { error: deductError } = await supabase
+        .from('product_variants')
+        .update({ stock_quantity: newStock })
+        .eq('id', item.variant.id);
+        
+      if (deductError) {
+         throw new Error("Failed to reserve inventory. Please try again.");
+      }
     }
 
-    // 1. Insert the master order tracking header row
+    // 2. Insert the master order tracking header row
     const { data: newOrderHeader, error: orderInsertError } = await supabase
       .from('orders')
       .insert([{
@@ -95,7 +107,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error(`Order Header processing failure: ${orderInsertError?.message}`);
     }
 
-    // 2. Format and inject individual item line maps directly to your database columns
+    // 3. Format and inject individual item line maps directly to your database columns
     const formattedItemRows = cartItemsList.map(item => ({
       order_id: newOrderHeader.id,
       variant_id: item.variant.id,
@@ -113,7 +125,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error(`Line Items tracking injection failure: ${linesInsertError.message}`);
     }
 
-    // 3. CONNECT SECURELY TO PAYSTACK: Initialize Live Transaction Session Engine
+    // 4. CONNECT SECURELY TO PAYSTACK: Initialize Live Transaction Session Engine
     const siteDomainBaseUrl = process.env.NODE_ENV === 'production' 
       ? 'https://sparklebeverages.com' 
       : 'http://localhost:3000';
@@ -145,6 +157,17 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
 
   } catch (err) {
     console.error("CRITICAL CHECKOUT SERVER ACTION CRASH ->", err);
+    
+    // 🚨 5. SAFETY ROLLBACK: If Paystack fails to open, return the reserved stock to the shelf.
+    if (cartItemsList && cartItemsList.length > 0) {
+       for (const item of cartItemsList) {
+          const { data: currentVariant } = await supabase.from('product_variants').select('stock_quantity').eq('id', item.variant.id).single();
+          if (currentVariant) {
+             await supabase.from('product_variants').update({ stock_quantity: currentVariant.stock_quantity + parseInt(item.quantity) }).eq('id', item.variant.id);
+          }
+       }
+    }
+    
     return { success: false, error: err.message };
   }
 }
@@ -240,30 +263,8 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
       }
     }
 
-    // 🚨 DEDUCT INVENTORY UPON SUCCESSFUL PAYMENT
-    // We only deduct inventory once they actually pay to prevent malicious users from holding your stock hostage in abandoned carts.
-    const { data: paidItems } = await supabase
-      .from('order_items')
-      .select('variant_id, quantity')
-      .eq('order_id', orderId);
-
-    if (paidItems && paidItems.length > 0) {
-      for (const item of paidItems) {
-        const { data: currentVariant } = await supabase
-          .from('product_variants')
-          .select('stock_quantity')
-          .eq('id', item.variant_id)
-          .single();
-          
-        if (currentVariant) {
-          const newStock = Math.max(0, currentVariant.stock_quantity - item.quantity);
-          await supabase
-            .from('product_variants')
-            .update({ stock_quantity: newStock })
-            .eq('id', item.variant_id);
-        }
-      }
-    }
+    // 🚨 DEDUCTION LOGIC REMOVED HERE 
+    // Stock is now safely deducted upfront during order creation to prevent race conditions!
 
     try {
       await resend.emails.send({
