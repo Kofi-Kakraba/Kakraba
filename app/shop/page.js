@@ -705,19 +705,19 @@ function ShopStorefront() {
                   ))}
                 </div>
 
+                {/* 🚨 REMOVED grayscale FROM PARENT DIV SO RED STAMP STAYS VIBRANT */}
                 {activeVariant.image_url && (
-                  <div className={`h-56 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 py-4 ${isOutOfStock ? 'grayscale opacity-60' : ''}`}>
+                  <div className="h-56 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 py-4">
                     <Image 
                       src={activeVariant.image_url} 
                       alt={activeVariant.sku} 
                       width={400} 
                       height={400} 
                       priority={true} 
-                      className="h-full object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transform transition-transform duration-500 group-hover:scale-105 group-hover:-translate-y-2 z-10" 
+                      className={`h-full object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transform transition-transform duration-500 group-hover:scale-105 group-hover:-translate-y-2 z-10 ${isOutOfStock ? 'grayscale opacity-60' : ''}`} 
                     />
-                    <div className="w-1/2 h-2.5 bg-black/20 blur-md rounded-[50%] absolute bottom-2 transition-all duration-500 group-hover:w-2/3 group-hover:opacity-40"></div>
+                    <div className={`w-1/2 h-2.5 bg-black/20 blur-md rounded-[50%] absolute bottom-2 transition-all duration-500 group-hover:w-2/3 group-hover:opacity-40 ${isOutOfStock ? 'opacity-30' : ''}`}></div>
                     
-                    {/* 🚨 BIG ANIMATED SOLD OUT STAMP OVER THE IMAGE */}
                     {isOutOfStock && (
                       <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
                         <div className="bg-red-600 text-white font-black text-3xl px-6 py-2 rounded-2xl transform -rotate-12 uppercase tracking-widest animate-pulse border-4 border-white shadow-2xl">
