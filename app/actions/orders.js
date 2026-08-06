@@ -3,7 +3,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 
-// Initialize the Resend Client utilizing your secure environment key
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 function getServiceSupabaseClient() {
@@ -46,14 +45,9 @@ async function fireSMSOnlineGHGateway(targetPhone, messageContent) {
   }
 }
 
-/**
- * 🚨 THE AUTO-JANITOR: Finds abandoned checkouts (older than 15 mins) and returns their stock to the shelf
- */
 async function releaseAbandonedStockReservations(supabase) {
   try {
     const fifteenMinsAgo = new Date(Date.now() - 15 * 60000).toISOString();
-    
-    // Find all unpaid orders older than 15 minutes
     const { data: abandonedOrders } = await supabase
       .from('orders')
       .select('id')
@@ -63,10 +57,7 @@ async function releaseAbandonedStockReservations(supabase) {
     if (!abandonedOrders || abandonedOrders.length === 0) return;
 
     for (const order of abandonedOrders) {
-      // 1. Mark as cancelled so it doesn't get processed again
       await supabase.from('orders').update({ status: 'cancelled', payment_status: 'abandoned' }).eq('id', order.id);
-      
-      // 2. Fetch the reserved items and put them back in stock
       const { data: items } = await supabase.from('order_items').select('variant_id, quantity').eq('order_id', order.id);
       if (items) {
         for (const item of items) {
@@ -82,13 +73,34 @@ async function releaseAbandonedStockReservations(supabase) {
   }
 }
 
-/**
- * Processes customer checkout pipelines and initializes a live Paystack payment gateway authorization transaction
- */
+// 🚨 NEW: INSTANT FRONT-END CANCEL ACTION
+export async function cancelAbandonedOrderServerAction(orderId) {
+  try {
+    const supabase = getServiceSupabaseClient();
+    const { data: order } = await supabase.from('orders').select('status').eq('id', orderId).single();
+    
+    if (order && order.status === 'pending_payment') {
+      await supabase.from('orders').update({ status: 'cancelled', payment_status: 'abandoned' }).eq('id', orderId);
+      
+      const { data: items } = await supabase.from('order_items').select('variant_id, quantity').eq('order_id', orderId);
+      if (items) {
+        for (const item of items) {
+          const { data: variant } = await supabase.from('product_variants').select('stock_quantity').eq('id', item.variant_id).single();
+          if (variant) {
+            await supabase.from('product_variants').update({ stock_quantity: variant.stock_quantity + item.quantity }).eq('id', item.variant_id);
+          }
+        }
+      }
+    }
+    return { success: true };
+  } catch (err) {
+    console.error("Cancel abandon failed:", err);
+    return { success: false };
+  }
+}
+
 export async function createCustomerOrderServerAction(orderPayload, cartItemsList) {
   const supabase = getServiceSupabaseClient();
-  
-  // 🚨 TRACKER: We will only put back items we ACTUALLY deducted.
   let successfullyReservedItems = [];
   
   try {
@@ -98,10 +110,8 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error("Server Configuration Error: Missing Paystack processing keys tokens.");
     }
 
-    // 1. RUN THE AUTO-JANITOR BEFORE WE DO ANYTHING ELSE
     await releaseAbandonedStockReservations(supabase);
 
-    // 2. THE BOUNCER & RESERVATION: Verify Stock and Deduct Immediately
     for (const item of cartItemsList) {
       const { data: liveVariant, error: variantError } = await supabase
         .from('product_variants')
@@ -113,11 +123,18 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
         throw new Error("Could not verify live inventory. Please try checking out again.");
       }
 
+      // 🚨 UPDATED ERROR ALERT STRUCTURE FOR BOLD FORMATTING
       if (item.quantity > liveVariant.stock_quantity) {
-        throw new Error(`Stock Alert: We only have ${liveVariant.stock_quantity} units left for the ${item.variant.size} size. Please adjust your cart to proceed.`);
+        return {
+          success: false,
+          errorType: 'stock_alert',
+          requested: item.quantity,
+          remaining: liveVariant.stock_quantity,
+          productName: item.product.name,
+          size: item.variant.size
+        };
       }
 
-      // Automatically reserve the stock right now so nobody else can take it!
       const newStock = liveVariant.stock_quantity - item.quantity;
       const { error: deductError } = await supabase
         .from('product_variants')
@@ -128,11 +145,9 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
          throw new Error("Failed to reserve inventory. Please try again.");
       }
       
-      // ✅ SUCCESS! Add this to our tracker so we know we took it.
       successfullyReservedItems.push(item);
     }
 
-    // 3. Insert the master order tracking header row
     const { data: newOrderHeader, error: orderInsertError } = await supabase
       .from('orders')
       .insert([{
@@ -152,7 +167,6 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error(`Order Header processing failure: ${orderInsertError?.message}`);
     }
 
-    // 4. Format and inject individual item line maps directly to your database columns
     const formattedItemRows = cartItemsList.map(item => ({
       order_id: newOrderHeader.id,
       variant_id: item.variant.id,
@@ -170,7 +184,6 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error(`Line Items tracking injection failure: ${linesInsertError.message}`);
     }
 
-    // 5. CONNECT SECURELY TO PAYSTACK: Initialize Live Transaction Session Engine
     const siteDomainBaseUrl = process.env.NODE_ENV === 'production' 
       ? 'https://sparklebeverages.com' 
       : 'http://localhost:3000';
@@ -197,13 +210,12 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
 
     return { 
       success: true, 
-      authorizationUrl: paystackJson.data.authorization_url 
+      authorizationUrl: paystackJson.data.authorization_url,
+      orderId: newOrderHeader.id // Returned for the auto-cancel tracking
     };
 
   } catch (err) {
     console.error("CRITICAL CHECKOUT SERVER ACTION CRASH ->", err);
-    
-    // 🚨 6. SMART ROLLBACK: ONLY rollback items we ACTUALLY deducted before the crash occurred!
     if (successfullyReservedItems.length > 0) {
        for (const item of successfullyReservedItems) {
           const { data: currentVariant } = await supabase.from('product_variants').select('stock_quantity').eq('id', item.variant.id).single();
@@ -212,14 +224,10 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
           }
        }
     }
-    
     return { success: false, error: err.message };
   }
 }
 
-/**
- * Verifies transaction integrity with Paystack APIs, updates order row columns to paid, logs conversion analytics and fires alerts
- */
 export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
   try {
     const supabase = getServiceSupabaseClient();
@@ -241,7 +249,6 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
       return { success: true, data: orderHeader };
     }
 
-    // Query Paystack directly to verify the transaction status
     const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${orderId}`, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${paystackSecret}` }
@@ -253,7 +260,6 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
       return { success: false, error: `Paystack Verification Pending: ${verifyJson.message || 'Awaiting cleared funds.'}` };
     }
 
-    // Update the database order rows to 'paid' and 'processing'
     const { data: updatedOrder, error: updateError } = await supabase
       .from('orders')
       .update({
@@ -266,7 +272,6 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
 
     if (updateError) throw updateError;
 
-    // AMBASSADOR WALLET EARNINGS PROCESSING PIPELINE
     const metadata = updatedOrder.metadata || {};
     const appliedCodeId = metadata.code_id;
 
@@ -339,16 +344,10 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
   }
 }
 
-/**
- * ============================================================================
- * ADMIN ACTION: Updates Fulfillment Status & Fires Ready SMS via SMSOnlineGH
- * ============================================================================
- */
 export async function updateOrderStatusAdmin(orderId, targetState) {
   try {
     const supabase = getServiceSupabaseClient(); 
 
-    // 🚨 ADMIN RESTOCK FIX: If the Admin cancels an order, put the stock back on the shelf!
     if (targetState === 'cancelled') {
       const { data: items } = await supabase.from('order_items').select('variant_id, quantity').eq('order_id', orderId);
       if (items) {
@@ -361,7 +360,6 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
       }
     }
 
-    // 2. Update the database status
     const { error: updateError } = await supabase
       .from('orders')
       .update({ status: targetState })
@@ -369,7 +367,6 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
 
     if (updateError) throw updateError;
 
-    // 3. Trigger SMSOnlineGH text message if state changed to 'ready'
     if (targetState === 'ready') {
       const { data: orderData } = await supabase
         .from('orders')
@@ -385,12 +382,6 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
         const smsMessage = `Hi ${firstName}, your Sparkle order is packed and READY for pickup at our HQ Depot! Present code (#${orderRef}). Track live status: ${magicLink}`;
 
         const smsSent = await fireSMSOnlineGHGateway(orderData.customer_phone, smsMessage);
-        
-        if (smsSent) {
-          console.log(`[SMS LOG] Pickup SMS fired to ${orderData.customer_phone}`);
-        } else {
-          console.error(`[SMS LOG] SMSOnlineGH Gateway failed to send to ${orderData.customer_phone}`);
-        }
       }
     }
 
