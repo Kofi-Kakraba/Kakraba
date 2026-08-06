@@ -14,6 +14,7 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata = {
   title: "Sparkle Beverages | Chill. Sip. Sparkle.",
   description: "Must be Chill. Sip. Sparkle. Your ultimate campus fuel packed in grab-and-go pouches.",
+  manifest: "/manifest.json", // 🚨 THIS TURNS YOUR SITE INTO A NATIVE APP
 };
 
 export default function RootLayout({ children }) {
