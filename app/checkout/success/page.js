@@ -159,14 +159,14 @@ function SuccessReceiptContent() {
           </p>
         </div>
 
-        {/* 🚨 THE RECEIPT CARD (Styled to match the brand) */}
+        {/* 🚨 THE RECEIPT CARD */}
         <div 
           ref={receiptRef}
           className="bg-white border-2 border-stone-200 rounded-[40px] overflow-hidden shadow-2xl relative text-stone-950"
         >
-          {/* Receipt Header */}
+          {/* 🚨 Receipt Header (Removed ALL brightness filters so your logo is raw & full-color) */}
           <div className="bg-stone-50 border-b-2 border-dashed border-stone-200 p-8 flex flex-col items-center justify-center text-center">
-            <img src="/SPARKLE%20BEV.%20LOGO%20A%20No%20BG.png" crossOrigin="anonymous" alt="Sparkle Beverages Logo" className="h-10 w-auto object-contain brightness-0 opacity-80" />
+            <img src="/SPARKLE%20BEV.%20LOGO%20A%20No%20BG.png" crossOrigin="anonymous" alt="Sparkle Beverages Logo" className="h-14 w-auto object-contain" />
             <p className="text-[9px] text-stone-400 font-black uppercase tracking-widest mt-4">Official Transaction Receipt</p>
           </div>
 
@@ -183,7 +183,7 @@ function SuccessReceiptContent() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-stone-400 uppercase font-bold">Payment:</span>
-                <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black uppercase tracking-widest">Paid / Gateway</span>
+                <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black uppercase tracking-widest">Paid via Paystack</span>
               </div>
             </div>
 
