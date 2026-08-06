@@ -47,7 +47,7 @@ export default function SmartSupportBot() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[90] font-sans flex flex-col items-end">
+    <div className="fixed bottom-24 md:bottom-6 right-4 z-[90] font-sans flex flex-col items-end">
       
       {!hasBeenOpened && !isOpen && (
         <button 
