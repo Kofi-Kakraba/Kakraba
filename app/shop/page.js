@@ -125,10 +125,7 @@ function ShopStorefront() {
     }
   };
 
-  // 🚨 SMART SESSION MANAGER: Wipes slate clean if you arrive normally
   useEffect(() => {
-    
-    // 🚨 SPINS UP THE AUTO-JANITOR TO CLEAN ABANDONED ORDERS THE MOMENT SHOP OPENS
     runAutoJanitorServerAction();
 
     async function fetchStoreCatalog() {
@@ -170,7 +167,6 @@ function ShopStorefront() {
     const paymentReference = searchParams.get('reference');
     const paymentTrxRef = searchParams.get('trxref');
     
-    // SCENARIO A: A Successful Payment Completed
     if (paymentReference || paymentTrxRef) {
       setCheckoutAlert(<span>Payment Successful! 🎉<br/><br/>Your drop has been securely logged. You will receive an SMS with your dispatch details shortly.</span>);
       window.history.replaceState(null, '', window.location.pathname);
@@ -186,7 +182,6 @@ function ShopStorefront() {
     const isHandoff = sessionStorage.getItem('sparkle_checkout_handoff');
     const pendingOrderId = sessionStorage.getItem('sparkle_pending_order');
 
-    // SCENARIO B: Returning User from abandoned Paystack Checkout!
     if (isHandoff === 'true') {
       sessionStorage.removeItem('sparkle_checkout_handoff');
       
@@ -212,7 +207,6 @@ function ShopStorefront() {
         fetchStoreCatalog();
       }
 
-    // SCENARIO C: Clean Fresh Visit (Wipes cart & forces gateway reset)
     } else {
       const urlPromo = searchParams.get('promo');
       if (urlPromo) {
@@ -221,7 +215,6 @@ function ShopStorefront() {
         verifyAndApplyCode(cleanPromo, true);
         supabase.from('campaign_scans').insert([{ promo_code: cleanPromo }]).then();
       } else {
-        // 🚨 WIPES EVERYTHING FOR A FRESH START
         setCart([]);
         sessionStorage.removeItem('sparkle_cart');
         sessionStorage.removeItem('sparkle_promo_skipped');
@@ -684,20 +677,22 @@ function ShopStorefront() {
 
             const activeBtnStatus = buttonStatuses[activeVariant.id] || 'idle';
 
+            // 🚨 UPDATED SOLD-OUT STYLING CARD
             return (
-              <div key={product.id} className={`bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} hover:-translate-y-1 transition-transform duration-300 relative overflow-hidden group`}>
+              <div key={product.id} className={`bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} ${isOutOfStock ? 'bg-stone-50' : 'hover:-translate-y-1'} transition-transform duration-300 relative overflow-hidden group`}>
                 
-                <div className={`absolute top-0 right-0 w-64 h-64 ${theme.bg} rounded-full blur-3xl opacity-50 pointer-events-none -mr-20 -mt-20`} />
+                <div className={`absolute top-0 right-0 w-64 h-64 ${theme.bg} rounded-full blur-3xl opacity-50 pointer-events-none -mr-20 -mt-20 ${isOutOfStock ? 'grayscale' : ''}`} />
 
                 <div className="flex justify-between items-start relative z-10">
                   <div>
-                    <h4 className={`font-black uppercase text-lg leading-tight tracking-tight pr-2 ${theme.title}`}>{product.name}</h4>
+                    <h4 className={`font-black uppercase text-lg leading-tight tracking-tight pr-2 ${theme.title} ${isOutOfStock ? 'opacity-50' : ''}`}>{product.name}</h4>
                   </div>
-                  <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${isOutOfStock ? 'bg-stone-100 text-stone-400' : theme.stockBadge}`}>
+                  <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${isOutOfStock ? 'bg-stone-200 text-stone-500' : theme.stockBadge}`}>
                     {isOutOfStock ? 'Sold Out' : 'In Stock'}
                   </span>
                 </div>
 
+                {/* 🚨 SIZES REMAIN CLICKABLE SO THEY CAN SWITCH VARIANTS */}
                 <div className="relative z-20 flex flex-wrap gap-2">
                   {product.product_variants.map(v => (
                     <button
@@ -713,7 +708,7 @@ function ShopStorefront() {
                 </div>
 
                 {activeVariant.image_url && (
-                  <div className="h-56 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 py-4">
+                  <div className={`h-56 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 py-4 ${isOutOfStock ? 'grayscale opacity-60' : ''}`}>
                     <Image 
                       src={activeVariant.image_url} 
                       alt={activeVariant.sku} 
@@ -723,10 +718,20 @@ function ShopStorefront() {
                       className="h-full object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transform transition-transform duration-500 group-hover:scale-105 group-hover:-translate-y-2 z-10" 
                     />
                     <div className="w-1/2 h-2.5 bg-black/20 blur-md rounded-[50%] absolute bottom-2 transition-all duration-500 group-hover:w-2/3 group-hover:opacity-40"></div>
+                    
+                    {/* 🚨 BIG ANIMATED SOLD OUT STAMP OVER THE IMAGE */}
+                    {isOutOfStock && (
+                      <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                        <div className="bg-stone-900/90 text-rose-500 font-black text-3xl px-6 py-2 rounded-2xl transform -rotate-12 uppercase tracking-widest animate-pulse border-4 border-stone-900 shadow-2xl backdrop-blur-sm">
+                          Sold Out
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                <div className="space-y-4 relative z-10 mt-auto">
+                {/* 🚨 CHECKOUT SECTION GRAYED OUT AND DISABLED */}
+                <div className={`space-y-4 relative z-10 mt-auto ${isOutOfStock ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
                   <div className="bg-[#FDFBF7] border border-stone-200 p-4 rounded-2xl text-xs font-medium space-y-1.5 transition-all duration-300">
                     {appliedCoupon ? (
                       <div className="space-y-1">
