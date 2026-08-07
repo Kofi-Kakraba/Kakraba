@@ -6,9 +6,10 @@ self.addEventListener('push', function (event) {
       icon: '/SPARKLE BEV. LOGO A No BG.png', 
       badge: '/SPARKLE BEV. LOGO A No BG.png',
       vibrate: [200, 100, 200, 100, 200, 100, 200], 
+      requireInteraction: true, // 🚨 NEW: Forces the alert to stay permanently on the screen until acknowledged!
       data: {
         dateOfArrival: Date.now(),
-        url: data.url || '/'
+        url: data.url || '/admin'
       }
     };
     event.waitUntil(self.registration.showNotification(data.title, options));
