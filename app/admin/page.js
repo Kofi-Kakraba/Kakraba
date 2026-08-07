@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   CheckCircle2, Clock, Truck, MapPin, Phone, User, Search, Calendar, ToggleLeft, ToggleRight,
   ShieldAlert, PackageCheck, RefreshCw, AlertCircle, Download, Camera, CreditCard,
@@ -38,7 +39,19 @@ const urlBase64ToUint8Array = (base64String) => {
   return outputArray;
 };
 
+// 1. Wrapper Component to handle Suspense (Required when using useSearchParams to break cache)
 export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-stone-950 flex items-center justify-center text-emerald-500 font-mono font-bold">Loading Operations Hub Data...</div>}>
+      <AdminDashboardContent />
+    </Suspense>
+  );
+}
+
+// 2. The Main Content Component
+function AdminDashboardContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams(); // 🚨 THE FIX: Calling this hook forces Next.js to treat the page as fully dynamic, bypassing the stubborn static cache.
   const supabase = createBrowserSupabaseClient();
 
   // Core Data States
@@ -430,6 +443,7 @@ export default function AdminDashboardPage() {
       setDispatchOrder(null);
       setSelectedOrderIds([]); 
       await loadDashboardData(); 
+      router.refresh();
     } catch (err) {
       alert(`Network Error: ${err.message}`);
     } finally { 
@@ -475,6 +489,7 @@ export default function AdminDashboardPage() {
       alert(`PROMO CAMPAIGN NODE ${newCode.toUpperCase()} LAUNCHED LIVE!`);
       setNewCode(''); setNewCampaign('');
       await loadDashboardData();
+      router.refresh();
     } catch (err) { 
       alert(`Failed: ${err.message}`); 
     }
@@ -509,6 +524,7 @@ export default function AdminDashboardPage() {
       alert(`AMBASSADOR ACCOUNT ALLOCATED LIVE!\nCode handle: #${newCode.trim().toUpperCase()}\nPassword: ${passToUse}`);
       setNewCode(''); setNewAmbassadorName(''); setNewAmbassadorPhone(''); setNewAmbassadorEmail(''); setNewAmbassadorMomo(''); setNewAmbassadorPassword('');
       await loadDashboardData();
+      router.refresh();
     } else { 
       alert(`Database rejected entry: ${error.message}`); 
     }
@@ -554,6 +570,7 @@ export default function AdminDashboardPage() {
 
       alert(`Success! The new password has been securely emailed to ${email}.`);
       await loadDashboardData();
+      router.refresh();
 
     } catch (error) {
       console.error(error);
@@ -573,6 +590,7 @@ export default function AdminDashboardPage() {
       const inventoryRes = await getStoreInventoryAdmin();
       if (inventoryRes.success) setProducts(inventoryRes.data || []);
       alert("New flavor line deployed successfully!");
+      router.refresh();
     } else { 
       alert(`Failed: ${result.error}`); 
     }
@@ -584,6 +602,7 @@ export default function AdminDashboardPage() {
     const result = await updateOrderStatusAdmin(orderId, targetState);
     if (result.success) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: targetState } : o));
+      router.refresh();
     } else { 
       alert(`Fulfillment Error: ${result.error}`); 
     }
@@ -607,6 +626,7 @@ export default function AdminDashboardPage() {
       alert("Campaign Parameters custom discounts overrides modified live!");
       setEditingPromoId(null);
       await loadDashboardData();
+      router.refresh();
     } catch (err) { 
       alert(`Override failure: ${err.message}`); 
     }
@@ -619,6 +639,7 @@ export default function AdminDashboardPage() {
     if (result.success) {
       alert("Verification Cleared: Account status set to approved.");
       await loadDashboardData();
+      router.refresh();
     } else { 
       alert(`Gateway Refusal: ${result.error}`); 
     }
@@ -631,6 +652,7 @@ export default function AdminDashboardPage() {
     if (result.success) {
       alert("Application Declined: Rejection advisory log fired.");
       await loadDashboardData();
+      router.refresh();
     } else { 
       alert(`Gateway Refusal: ${result.error}`); 
     }
@@ -657,6 +679,7 @@ export default function AdminDashboardPage() {
         product_variants: p.product_variants.map(v => v.id === variantId ? { ...v, ...updates } : v) 
       })));
       setEditingVariantId(null);
+      router.refresh();
     } else { 
       alert(`Update failed: ${result.error}`); 
     }
@@ -756,6 +779,7 @@ export default function AdminDashboardPage() {
     if (result.success) {
       alert("DELETED successfully.");
       await loadDashboardData();
+      router.refresh();
     }
     setUpdatingId(null);
   };
@@ -800,6 +824,7 @@ export default function AdminDashboardPage() {
     const { error } = await supabase.from('referral_codes').update({ [field]: !currentVal }).eq('id', id);
     if (!error) {
       setReferrals(prev => prev.map(r => r.id === id ? { ...r, [field]: !currentVal } : r));
+      router.refresh();
     } else { alert(`Toggle failed: ${error.message}`); }
     setUpdatingId(null);
   };
@@ -1584,7 +1609,12 @@ export default function AdminDashboardPage() {
 
         {/* TAB 7: Web CMS */}
         {activeTab === 'cms' && (
-          <form onSubmit={(e) => { e.preventDefault(); updateSiteSettingsAdmin(cmsContent).then(() => alert("All Web CMS Content Published Live Successfully!")); }} className="space-y-8 max-w-4xl mx-auto font-mono text-xs text-left">
+          <form onSubmit={async (e) => { 
+            e.preventDefault(); 
+            await updateSiteSettingsAdmin(cmsContent);
+            alert("All Web CMS Content Published Live Successfully!"); 
+            router.refresh();
+          }} className="space-y-8 max-w-4xl mx-auto font-mono text-xs text-left">
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4">
               <h3 className="font-bold text-cyan-400 uppercase text-[10px] tracking-wider flex items-center gap-1"><Printer className="h-4 w-4" /> Receipt Header Brand Configurations</h3>
               <div className="space-y-3">
