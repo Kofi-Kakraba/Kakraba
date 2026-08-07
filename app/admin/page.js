@@ -297,12 +297,13 @@ export default function AdminDashboardPage() {
     return textMatch && dateMatch && locationMatch && statusMatch && deliveryMatch;
   });
 
+  // 🚨 THE FIX: Added "variant.is_active !== false" to ignore paused items
   const lowStockAlertInventoryBin = products.flatMap(flavor => 
     (flavor.product_variants || []).map(variant => ({
       ...variant,
       flavorName: flavor.name
     }))
-  ).filter(variant => variant.stock_quantity <= (variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20));
+  ).filter(variant => variant.is_active !== false && variant.stock_quantity <= (variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20));
 
   // Core Methods
   async function loadDashboardData() {
