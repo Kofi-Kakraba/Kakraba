@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@supabase/supabase-js';
+import { revalidatePath } from 'next/cache';
 
 function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -74,6 +75,8 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
     }
     const { error: updateError } = await supabase.from('orders').update({ status: targetState, metadata: metadata }).eq('id', orderId);
     if (updateError) return { success: false, error: updateError.message };
+    
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -98,6 +101,8 @@ export async function createNewReferralCodeAdmin(formPayload) {
       .from('referral_codes').insert([{ code: cleanCode, campaign_name: campaignName.trim(), is_active: true, is_verified: true, total_earnings: 0.00, password: generatedPassword, status: 'approved' }]);
 
     if (codeInsertError) return { success: false, error: codeInsertError.message };
+    
+    revalidatePath('/admin');
     return { success: true, generatedPassword };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -113,6 +118,8 @@ export async function processReferrerApprovalAdminAction(profileId) {
     if (!smsFired) return { success: false, error: "SMS Gateway processing failure. Verify your credits." };
 
     await supabase.from('referral_codes').update({ is_active: true, is_verified: true, status: 'approved' }).eq('id', profileId);
+    
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -128,6 +135,8 @@ export async function processReferrerRejectionAdminAction(profileId) {
     if (!smsFired) return { success: false, error: "SMS processing failure. Check your balance parameters." };
 
     await supabase.from('referral_codes').update({ is_active: false, is_verified: false, status: 'rejected' }).eq('id', profileId);
+    
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -137,6 +146,8 @@ export async function deleteReferrerAdminAction(profileId) {
     const supabase = getAdminClient();
     const { error } = await supabase.from('referral_codes').delete().eq('id', profileId);
     if (error) return { success: false, error: error.message };
+    
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -146,6 +157,8 @@ export async function toggleReferralStateAdmin(codeId, updatePayload) {
     const supabase = getAdminClient();
     const { error } = await supabase.from('referral_codes').update(updatePayload).eq('id', codeId);
     if (error) return { success: false, error: error.message };
+    
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -164,6 +177,8 @@ export async function updateVariantInventoryAdmin(variantId, fieldsToUpdate) {
     const supabase = getAdminClient();
     const { error } = await supabase.from('product_variants').update(fieldsToUpdate).eq('id', variantId);
     if (error) return { success: false, error: error.message };
+    
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -218,6 +233,7 @@ export async function executePaystackMobileMoneyPayoutAdminAction(ticketId) {
     const PAID_TEXT = `Sparkle Wallet Alert: Your withdrawal has been processed! ₵${ticket.net_payout} Net has been transferred straight to your mobile wallet.`;
     await fireSMSOnlineGHGateway(ticket.referral_codes.phone_number, PAID_TEXT);
 
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -241,6 +257,7 @@ export async function processWithdrawalDeclineAndRollbackAdminAction(ticketId) {
     const DENIED_TEXT = `Sparkle Wallet Notification: Your withdrawal request for ₵${historicalGrossValue} has been declined. The full amount has been refunded back to your available dashboard balance.`;
     await fireSMSOnlineGHGateway(ticket.referral_codes.phone_number, DENIED_TEXT);
 
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -257,8 +274,10 @@ export async function getSiteSettingsAdmin() {
 export async function updateSiteSettingsAdmin(contentJson) {
   try {
     const supabase = getAdminClient();
-    const { error: error } = await supabase.from('site_settings').update({ content: contentJson }).eq('id', 'homepage');
+    const { error } = await supabase.from('site_settings').update({ content: contentJson }).eq('id', 'homepage');
     if (error) return { success: false, error: error.message };
+    
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -280,6 +299,8 @@ export async function createNewProductWithVariantsAdmin(name, description) {
     const variantRows = standardSizes.map(item => ({ product_id: newProduct.id, size: item.size, sku: `SPK-${skuSlug}-${item.size}`, retail_price: item.retail, wholesale_price: item.wholesale, stock_quantity: 0, size_moq_floor: 30, moq_floor: item.floor, client_discount: 1.00, referrer_earnings: 1.00, is_in_stock: false }));
     const { error: variantError } = await supabase.from('product_variants').insert(variantRows);
     if (variantError) return { success: false, error: `Product variant creation failed: ${variantError.message}` };
+    
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
@@ -291,7 +312,7 @@ export async function forceResetAmbassadorPasswordAdminAction(profileId, newPass
     
     if (error) return { success: false, error: error.message };
 
-    // You can keep the SMS fallback here if you want, but the Admin UI now triggers the email!
+    revalidatePath('/admin');
     return { success: true };
   } catch (err) { 
     return { success: false, error: err.message }; 
