@@ -47,8 +47,9 @@ export async function subscribeAdminToPushNotifications(subscriptionPayload) {
 
 /**
  * Fires the actual real-time alert to all registered Admin devices
+ * 🚨 FIX: Changed the default redirectUrl to '/admin' instead of '/'
  */
-export async function fireAdminPushAlert(title, messageBody, redirectUrl = '/') {
+export async function fireAdminPushAlert(title, messageBody, redirectUrl = '/admin') {
   try {
     const supabase = getServiceSupabaseClient();
     
