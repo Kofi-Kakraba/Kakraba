@@ -23,7 +23,7 @@ import {
 import { updateOrderStatusAdmin } from '../actions/orders';
 import { confirmDispatchLogisticsServerAction } from '../actions/logistics';
 
-// 🚨 NEW: Import the Push Notification Action
+// Push Notification Action
 import { subscribeAdminToPushNotifications } from '../actions/notifications';
 
 // Helper to decode the VAPID Public Key for the browser PushManager
@@ -120,7 +120,7 @@ export default function AdminDashboardPage() {
   const [editClientDiscount, setEditClientDiscount] = useState(0); 
   const [editReferrerEarnings, setEditReferrerEarnings] = useState(0); 
   
-  // 🚨 NEW EDITING STATES FOR INVENTORY CONTROL
+  // EDITING STATES FOR INVENTORY CONTROL
   const [editLowStockTrigger, setEditLowStockTrigger] = useState(20);
   const [editIsActive, setEditIsActive] = useState(true);
 
@@ -155,7 +155,6 @@ export default function AdminDashboardPage() {
     checkPushSubscriptionStatus();
   }, []);
 
-  // 🚨 CHECK IF PHONE IS ALREADY SUBSCRIBED TO PUSH ALERTS
   const checkPushSubscriptionStatus = async () => {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       const swReg = await navigator.serviceWorker.register('/sw.js');
@@ -164,7 +163,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 🚨 TRIGGER TO ACTIVATE PHONE NOTIFICATIONS
   const handleEnablePushAlerts = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       alert("Push notifications are not supported on this browser/device.");
@@ -638,7 +636,6 @@ export default function AdminDashboardPage() {
     setUpdatingId(null);
   };
 
-  // 🚨 UPDATED SAVE FUNCTION TO INCLUDE NEW DB FIELDS
   const handleSaveVariantChanges = async (variantId) => {
     setUpdatingId(variantId);
     const updates = { 
@@ -810,7 +807,7 @@ export default function AdminDashboardPage() {
   const printDate = selectedPrintMeta.preferred_delivery_date;
 
   return (
-    <div className="min-h-screen bg-stone-955 text-stone-100 font-sans antialiased pb-12 print:bg-white print:text-stone-900">
+    <div className="min-h-screen bg-stone-950 text-stone-100 font-sans antialiased pb-12 print:bg-white print:text-stone-900">
       <nav className="bg-stone-900 border-b border-stone-800 py-4 px-6 flex flex-col xl:flex-row justify-between items-center gap-4 sticky top-0 z-40 shadow-xl print:hidden">
         <div className="flex items-center gap-3 w-full xl:w-auto justify-between xl:justify-start">
           <div className="flex items-center gap-3">
@@ -822,9 +819,8 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           
-          {/* 🚨 THE NEW NOTIFICATIONS TOGGLE IN THE HEADER */}
           <div className="xl:hidden flex items-center gap-2">
-            <button onClick={handleEnablePushAlerts} disabled={updatingId === 'push-alert'} className={`p-2 rounded-xl shrink-0 flex items-center gap-1.5 border transition-colors ${isPushSubscribed ? 'bg-emerald-955/20 border-emerald-900/40 text-emerald-400' : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-300'}`}>
+            <button onClick={handleEnablePushAlerts} disabled={updatingId === 'push-alert'} className={`p-2 rounded-xl shrink-0 flex items-center gap-1.5 border transition-colors ${isPushSubscribed ? 'bg-emerald-950 border-emerald-900/40 text-emerald-400' : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-300'}`}>
               {isPushSubscribed ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
             </button>
             <button onClick={loadDashboardData} className="p-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl shrink-0"><RefreshCw className="h-4 w-4" /></button>
@@ -833,7 +829,7 @@ export default function AdminDashboardPage() {
         
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-end text-xs font-bold font-mono w-full xl:w-auto overflow-hidden">
           <div className="w-full overflow-x-auto pb-1 -mb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            <div className="bg-stone-955 p-1 rounded-xl border border-stone-800 flex gap-1 w-max">
+            <div className="bg-stone-900 p-1 rounded-xl border border-stone-800 flex gap-1 w-max">
               <button onClick={() => setActiveTab('orders')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'orders' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Orders ({orders.length})</button>
               <button onClick={() => setActiveTab('ambassadors')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'ambassadors' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Ambassadors ({humanAmbassadorsList.length})</button>
               <button onClick={() => setActiveTab('promocodes')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'promocodes' ? 'bg-stone-800 text-white text-cyan-400' : 'text-stone-400'}`}>Promo Codes ({purePromoCodesList.length})</button>
@@ -847,8 +843,7 @@ export default function AdminDashboardPage() {
           </div>
           
           <div className="hidden xl:flex items-center gap-2">
-            {/* 🚨 DESKTOP ALERTS BUTTON */}
-            <button onClick={handleEnablePushAlerts} disabled={updatingId === 'push-alert'} className={`px-3 py-2 rounded-xl shrink-0 flex items-center gap-1.5 border transition-colors ${isPushSubscribed ? 'bg-emerald-955/20 border-emerald-900/40 text-emerald-400' : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-300'}`}>
+            <button onClick={handleEnablePushAlerts} disabled={updatingId === 'push-alert'} className={`px-3 py-2 rounded-xl shrink-0 flex items-center gap-1.5 border transition-colors ${isPushSubscribed ? 'bg-emerald-950 border-emerald-900/40 text-emerald-400' : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-300'}`}>
               {isPushSubscribed ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
               <span className="text-[10px] uppercase tracking-wider font-bold">{isPushSubscribed ? 'Alerts On' : 'Enable Alerts'}</span>
             </button>
@@ -883,15 +878,15 @@ export default function AdminDashboardPage() {
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 font-mono text-xs shadow-md">
               <div>
                 <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1"><Search className="h-3 w-3" /> Search Customer / Ref ID</label>
-                <input type="text" value={orderSearchText} onChange={(e) => setOrderSearchText(e.target.value)} placeholder="e.g. Benjamin..." className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" />
+                <input type="text" value={orderSearchText} onChange={(e) => setOrderSearchText(e.target.value)} placeholder="e.g. Benjamin..." className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" />
               </div>
               <div>
                 <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1"><Calendar className="h-3 w-3" /> Filter By Date</label>
-                <input type="text" value={orderDateText} onChange={(e) => setOrderDateText(e.target.value)} placeholder="e.g. 10/07/2026" className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" />
+                <input type="text" value={orderDateText} onChange={(e) => setOrderDateText(e.target.value)} placeholder="e.g. 10/07/2026" className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" />
               </div>
               <div>
                 <label className="block text-cyan-400 uppercase text-[9px] mb-1 font-bold flex items-center gap-1"><MapPin className="h-3 w-3 text-cyan-400" /> Filter By Landmark Location</label>
-                <input type="text" value={orderLocationText} onChange={(e) => setOrderLocationText(e.target.value)} placeholder="e.g. Airport Shell" className="w-full bg-stone-955 border border-cyan-900/40 rounded-xl px-3 py-2 text-cyan-400 outline-none" />
+                <input type="text" value={orderLocationText} onChange={(e) => setOrderLocationText(e.target.value)} placeholder="e.g. Airport Shell" className="w-full bg-stone-950 border border-cyan-900/40 rounded-xl px-3 py-2 text-cyan-400 outline-none" />
               </div>
               
               <div className="relative" ref={statusDropdownRef}>
@@ -901,7 +896,7 @@ export default function AdminDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                  className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-1.5 h-9 text-[10px] text-stone-300 font-bold outline-none flex items-center justify-between transition-colors hover:border-emerald-500"
+                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-1.5 h-9 text-[10px] text-stone-300 font-bold outline-none flex items-center justify-between transition-colors hover:border-emerald-500"
                 >
                   <span>{statusOptions.find(o => o.value === filterStatus)?.label}</span>
                   <span className="text-[8px] opacity-70">▼</span>
@@ -934,7 +929,7 @@ export default function AdminDashboardPage() {
 
               <div>
                 <label className="block text-stone-500 uppercase text-[9px] mb-1 font-bold flex items-center gap-1"><Truck className="h-3 w-3" /> Type</label>
-                <div className="bg-stone-955 p-0.5 rounded-xl border border-stone-800 grid grid-cols-3 gap-0.5 text-[9px] font-bold text-center h-9 items-center">
+                <div className="bg-stone-950 p-0.5 rounded-xl border border-stone-800 grid grid-cols-3 gap-0.5 text-[9px] font-bold text-center h-9 items-center">
                   {['all', 'delivery', 'pickup'].map((type) => (
                     <button 
                       key={type} 
@@ -980,7 +975,7 @@ export default function AdminDashboardPage() {
                       <div className="flex justify-between items-start gap-2 pl-7">
                         <div>
                           <h4 className="text-xs font-bold font-mono text-stone-200 flex items-center gap-1"><User className="h-3.5 w-3.5 text-stone-500" /> {order.customer_name}</h4>
-                          <p className="text-[9px] text-stone-500 font-mono mt-0.5">Ref: {order.id.substring(0,8).toUpperCase()}... {referralTrack && <span className="text-emerald-400 bg-emerald-955 px-1 py-0.5 rounded ml-1 font-bold">Code: {referralTrack}</span>}</p>
+                          <p className="text-[9px] text-stone-500 font-mono mt-0.5">Ref: {order.id.substring(0,8).toUpperCase()}... {referralTrack && <span className="text-emerald-400 bg-emerald-950 px-1 py-0.5 rounded ml-1 font-bold">Code: {referralTrack}</span>}</p>
                         </div>
                         <div className="text-right flex flex-col items-end gap-1">
                           <span className={`inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase ${isPaid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>{order.payment_status}</span>
@@ -998,17 +993,17 @@ export default function AdminDashboardPage() {
                         </div>
                       </div>
                       
-                      <div className="text-[9px] text-stone-500 font-mono font-bold bg-stone-955 px-2 py-1 rounded border border-stone-850/40 flex items-center gap-1.5">
+                      <div className="text-[9px] text-stone-500 font-mono font-bold bg-stone-950 px-2 py-1 rounded border border-stone-850/40 flex items-center gap-1.5">
                         <Clock className="h-3 w-3 text-stone-500" />
                         <span>Placed: {new Date(order.created_at).toLocaleString('en-GH')}</span>
                       </div>
 
-                      <div className="bg-stone-955 border border-stone-800/85 rounded-xl p-3 text-[11px] font-mono space-y-1.5 text-stone-300">
+                      <div className="bg-stone-950 border border-stone-800/85 rounded-xl p-3 text-[11px] font-mono space-y-1.5 text-stone-300">
                         <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-stone-500" /><span>{order.customer_phone}</span></div>
                         <div className="flex items-center gap-2">{isDeliveryType ? <Truck className="h-3.5 w-3.5 text-blue-400" /> : <MapPin className="h-3.5 w-3.5 text-amber-400" />}<span>{order.delivery_type} Option</span></div>
                         
                         {preferredDeliveryDate && preferredDeliveryDate !== 'HQ Pickup' && (
-                          <div className="flex items-center gap-2 text-emerald-400 font-bold bg-emerald-955/20 px-2 py-1 rounded-md border border-emerald-900/30">
+                          <div className="flex items-center gap-2 text-emerald-400 font-bold bg-emerald-950/20 px-2 py-1 rounded-md border border-emerald-900/30">
                             <Calendar className="h-3.5 w-3.5" />
                             <span>Req. Date: {new Date(preferredDeliveryDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
                           </div>
@@ -1017,7 +1012,7 @@ export default function AdminDashboardPage() {
                         <div className="text-[10px] text-cyan-400/90 truncate pt-1 border-t border-stone-900 flex items-center gap-1"><MapPin className="h-3 w-3 text-cyan-500" /> <span>Dest: {order.landmark || 'HQ Self-Pickup Depot'}</span></div>
                       </div>
 
-                      <div className="bg-stone-955 border border-stone-800 p-3 rounded-xl space-y-1.5 shadow-inner">
+                      <div className="bg-stone-950 border border-stone-800 p-3 rounded-xl space-y-1.5 shadow-inner">
                         <span className="text-[8px] text-emerald-400 uppercase font-mono font-bold block border-b border-stone-850 pb-1 tracking-wider">Client Purchase Breakdown Manifest</span>
                         {manifestLines.length === 0 ? (
                           <span className="text-[10px] text-amber-500 font-mono flex items-center gap-1 italic"><AlertTriangle className="h-3.5 w-3.5" /> No items tracked under client session payload</span>
@@ -1040,7 +1035,7 @@ export default function AdminDashboardPage() {
                       )}
                       
                       {isCompleted && !isDeliveryType && (
-                        <div className="bg-blue-955/20 border border-blue-900/30 p-2.5 rounded-xl text-[10px] font-mono text-blue-400 space-y-1 mt-2 shadow-inner">
+                        <div className="bg-blue-950/20 border border-blue-900/30 p-2.5 rounded-xl text-[10px] font-mono text-blue-400 space-y-1 mt-2 shadow-inner">
                           <span className="uppercase font-bold tracking-wider border-b border-blue-900/50 pb-0.5 block flex items-center gap-1"><MapPin className="h-3 w-3" /> HQ Pickup Complete</span>
                           <p className="text-blue-300 leading-tight">Order securely handed over to client at the depot.</p>
                         </div>
@@ -1049,7 +1044,7 @@ export default function AdminDashboardPage() {
                     
                     <div className="border-t border-stone-800 pt-3 flex items-center justify-between gap-2">
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => setSelectedPrintOrder(order)} className="bg-stone-955 hover:bg-stone-800 border border-stone-800 text-stone-300 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1">
+                        <button type="button" onClick={() => setSelectedPrintOrder(order)} className="bg-stone-950 hover:bg-stone-800 border border-stone-800 text-stone-300 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1">
                           <Printer className="h-3.5 w-3.5 text-cyan-400" /> 
                           <span>Print</span>
                         </button>
@@ -1063,7 +1058,7 @@ export default function AdminDashboardPage() {
                                 handleUpdateFulfillmentState(order.id, 'cancelled');
                               }
                             }}
-                            className="bg-red-955/20 hover:bg-red-900/40 border border-red-900/30 text-red-400 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1 transition-colors"
+                            className="bg-red-950/20 hover:bg-red-900/40 border border-red-900/30 text-red-400 font-mono text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1 transition-colors"
                           >
                             <XCircle className="h-3.5 w-3.5" />
                             <span>Cancel</span>
@@ -1132,8 +1127,8 @@ export default function AdminDashboardPage() {
               <h3 className="text-xs font-bold font-mono text-stone-400 uppercase tracking-wider flex items-center gap-1.5"><PlusCircle className="h-4 w-4 text-emerald-500" /> Onboard Human Ambassador Row</h3>
               <form onSubmit={handleCreateAmbassadorManualSubmit} className="space-y-4 font-mono text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Ambassador Name</label><input type="text" required placeholder="e.g. Benjamin Baah Amoakwa" value={newAmbassadorName} onChange={(e) => setNewAmbassadorName(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold outline-none" /></div>
-                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Unique Code Handle</label><input type="text" required placeholder="e.g. SPK-BEN7" value={newCode} onChange={(e) => setNewCode(e.target.value.toUpperCase())} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold outline-none uppercase tracking-widest" /></div>
+                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Ambassador Name</label><input type="text" required placeholder="e.g. Benjamin Baah Amoakwa" value={newAmbassadorName} onChange={(e) => setNewAmbassadorName(e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold outline-none" /></div>
+                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Unique Code Handle</label><input type="text" required placeholder="e.g. SPK-BEN7" value={newCode} onChange={(e) => setNewCode(e.target.value.toUpperCase())} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold outline-none uppercase tracking-widest" /></div>
                   
                   <div>
                     <label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Contact Phone Line</label>
@@ -1145,13 +1140,13 @@ export default function AdminDashboardPage() {
                       placeholder="e.g. 0547664422" 
                       value={newAmbassadorPhone} 
                       onChange={(e) => setNewAmbassadorPhone(e.target.value.replace(/\D/g, '').substring(0, 10))} 
-                      className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" 
+                      className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" 
                     />
                   </div>
                   
-                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Contact Email</label><input type="email" placeholder="e.g. email@example.com" value={newAmbassadorEmail} onChange={(e) => setNewAmbassadorEmail(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" /></div>
-                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">MoMo Wallet Number</label><input type="tel" placeholder="e.g. 0547664422" value={newAmbassadorMomo} onChange={(e) => setNewAmbassadorMomo(e.target.value)} className="w-full bg-stone-955 border border-stone-850 rounded-xl px-3 py-2 text-white outline-none" /></div>
-                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Account Password</label><input type="text" placeholder="Leave blank to auto-generate" value={newAmbassadorPassword} onChange={(e) => setNewAmbassadorPassword(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" /></div>
+                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Contact Email</label><input type="email" placeholder="e.g. email@example.com" value={newAmbassadorEmail} onChange={(e) => setNewAmbassadorEmail(e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" /></div>
+                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">MoMo Wallet Number</label><input type="tel" placeholder="e.g. 0547664422" value={newAmbassadorMomo} onChange={(e) => setNewAmbassadorMomo(e.target.value)} className="w-full bg-stone-950 border border-stone-850 rounded-xl px-3 py-2 text-white outline-none" /></div>
+                  <div><label className="block text-stone-500 mb-1 font-bold text-[9px] uppercase">Account Password</label><input type="text" placeholder="Leave blank to auto-generate" value={newAmbassadorPassword} onChange={(e) => setNewAmbassadorPassword(e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" /></div>
                 </div>
                 <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl flex items-center justify-center uppercase text-[10px]">Deploy Partner Profile</button>
               </form>
@@ -1170,7 +1165,7 @@ export default function AdminDashboardPage() {
                         {ref.is_active ? <ToggleRight className="h-6 w-6 text-emerald-500 fill-emerald-500/10" /> : <ToggleLeft className="h-6 w-6 text-stone-600" />}
                       </button>
                     </div>
-                    <div className="bg-stone-955 border border-stone-800/60 rounded-xl p-3 text-[11px] font-mono space-y-1 text-stone-400">
+                    <div className="bg-stone-950 border border-stone-800/60 rounded-xl p-3 text-[11px] font-mono space-y-1 text-stone-400">
                       <div className="flex justify-between"><span>Email:</span><strong className="text-stone-200 truncate ml-2">{ref.email || 'None'}</strong></div>
                       <div className="flex justify-between"><span>Phone Line:</span><strong className="text-stone-200">{ref.phone_number}</strong></div>
                       <div className="flex justify-between"><span>Wallet Route:</span><strong className="text-stone-300">{ref.momo_number} ({ref.momo_network})</strong></div>
@@ -1179,7 +1174,7 @@ export default function AdminDashboardPage() {
                     </div>
 
                     {(ref.portrait_url || ref.ghana_card_url) && (
-                      <div className="bg-stone-955 p-2.5 rounded-xl border border-stone-850/60 space-y-2">
+                      <div className="bg-stone-950 p-2.5 rounded-xl border border-stone-850/60 space-y-2">
                         <span className="text-[8px] text-stone-500 uppercase font-mono font-bold block border-b border-stone-900 pb-1">KYC Visual Attachments</span>
                         <div className="grid grid-cols-2 gap-2 text-[9px] text-center font-bold">
                           {ref.portrait_url ? (
@@ -1195,7 +1190,7 @@ export default function AdminDashboardPage() {
 
                   {!ref.is_verified && ref.status === 'pending_review' && (
                     <div className="grid grid-cols-2 gap-2 pt-1 font-mono">
-                      <button type="button" onClick={() => handleDeclineAmbassadorKYC(ref.id)} className="bg-red-955/40 hover:bg-red-900/40 text-red-400 border border-red-900/20 py-2 rounded-xl font-bold uppercase text-[9px] tracking-wider">Decline</button>
+                      <button type="button" onClick={() => handleDeclineAmbassadorKYC(ref.id)} className="bg-red-950/40 hover:bg-red-900/40 text-red-400 border border-red-900/20 py-2 rounded-xl font-bold uppercase text-[9px] tracking-wider">Decline</button>
                       <button type="button" onClick={() => handleApproveAmbassadorKYC(ref.id)} className="bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl font-bold uppercase text-[9px] tracking-wider shadow-md">Approve KYC</button>
                     </div>
                   )}
@@ -1204,7 +1199,7 @@ export default function AdminDashboardPage() {
                     <button 
                       onClick={() => handleForceResetPassword(ref.id, ref.legal_name, ref.email, ref.code)} 
                       disabled={updatingId === `reset-${ref.id}`} 
-                      className="text-[9px] text-stone-400 hover:text-white flex items-center gap-1 font-bold uppercase tracking-widest bg-stone-955 px-2 py-1.5 rounded border border-stone-800 transition-colors"
+                      className="text-[9px] text-stone-400 hover:text-white flex items-center gap-1 font-bold uppercase tracking-widest bg-stone-950 px-2 py-1.5 rounded border border-stone-800 transition-colors"
                     >
                       <Mail className="h-3 w-3" /> Auto-Reset Pass
                     </button>
@@ -1225,15 +1220,15 @@ export default function AdminDashboardPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-stone-500 mb-1 font-bold uppercase text-[9px]">Promo Code Token</label>
-                    <input type="text" required placeholder="e.g. BEMYVAL26" value={newCode} onChange={(e) => setNewCode(e.target.value.toUpperCase())} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold outline-none uppercase tracking-widest" />
+                    <input type="text" required placeholder="e.g. BEMYVAL26" value={newCode} onChange={(e) => setNewCode(e.target.value.toUpperCase())} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold outline-none uppercase tracking-widest" />
                   </div>
                   <div>
                     <label className="block text-stone-500 mb-1 font-bold uppercase text-[9px]">Campaign Context Brief</label>
-                    <input type="text" required placeholder="e.g. Valentine Day 2026 Special Pool" value={newCampaign} onChange={(e) => setNewCampaign(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
+                    <input type="text" required placeholder="e.g. Valentine Day 2026 Special Pool" value={newCampaign} onChange={(e) => setNewCampaign(e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
                   </div>
                 </div>
 
-                <div className="bg-stone-955 p-4 border border-stone-850 rounded-xl space-y-3">
+                <div className="bg-stone-950 p-4 border border-stone-850 rounded-xl space-y-3">
                   <span className="font-bold text-cyan-400 text-[9px] uppercase tracking-wider block border-b border-stone-900 pb-1">Define Client Markdown Values (GHS Off Retail Price)</span>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-stone-400">
                     <div><label className="text-[8px] font-bold block mb-1">300ml Discount</label><input type="number" step="0.01" value={promo300mlDiscount} onChange={(e)=>setPromo300mlDiscount(e.target.value)} className="w-full bg-stone-900 border text-white rounded px-2 py-1" /></div>
@@ -1257,12 +1252,12 @@ export default function AdminDashboardPage() {
                       <div className="flex justify-between items-start">
                         <span className="text-sm font-black font-mono text-cyan-400 tracking-widest uppercase">#{ref.code}</span>
                         <button onClick={() => handleToggleCodeFlag(ref.id, 'is_active', ref.is_active)} className="text-stone-500">
-                          {ref.is_active ? <span className="text-[8px] font-bold bg-cyan-955 text-cyan-400 border border-cyan-900 px-2 py-0.5 rounded">Active</span> : <span className="text-[8px] font-bold bg-stone-955 text-stone-600 border border-stone-850 px-2 py-0.5 rounded">Disabled</span>}
+                          {ref.is_active ? <span className="text-[8px] font-bold bg-cyan-950 text-cyan-400 border border-cyan-900 px-2 py-0.5 rounded">Active</span> : <span className="text-[8px] font-bold bg-stone-950 text-stone-600 border border-stone-850 px-2 py-0.5 rounded">Disabled</span>}
                         </button>
                       </div>
                       <p className="text-xs text-stone-400 font-mono mt-2 leading-relaxed"><strong className="text-stone-300">Context:</strong> {ref.campaign_name}</p>
 
-                      <div className="mt-3 bg-stone-955 border border-stone-850 rounded-xl p-3 text-[10px] font-mono space-y-2 shadow-inner">
+                      <div className="mt-3 bg-stone-950 border border-stone-850 rounded-xl p-3 text-[10px] font-mono space-y-2 shadow-inner">
                         <div className="flex justify-between items-center border-b border-stone-900 pb-1">
                           <span className="text-[8px] text-stone-500 font-bold uppercase tracking-wider">Multi-Tier Parameter Overrides (GHS Off)</span>
                           {!isEditingPromo && (
@@ -1330,17 +1325,17 @@ export default function AdminDashboardPage() {
                         </span>
                         <h4 className="text-sm font-black text-white uppercase tracking-widest">{ref.code}</h4>
                       </div>
-                      <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black tracking-wider border shadow-inner ${convRate > 0 ? 'bg-purple-900/20 text-purple-400 border-purple-900/30' : 'bg-stone-955 text-stone-500 border-stone-800'}`}>
+                      <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black tracking-wider border shadow-inner ${convRate > 0 ? 'bg-purple-900/20 text-purple-400 border-purple-900/30' : 'bg-stone-950 text-stone-500 border-stone-800'}`}>
                         {convRate}% CVR
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-3 text-center">
-                      <div className="bg-stone-955 border border-stone-850 p-4 rounded-xl flex flex-col items-center justify-center space-y-1">
+                      <div className="bg-stone-950 border border-stone-850 p-4 rounded-xl flex flex-col items-center justify-center space-y-1">
                         <span className="text-[9px] text-stone-500 uppercase font-bold tracking-wider">Raw Scans</span>
                         <span className="text-2xl font-black text-stone-200">{scansCount}</span>
                       </div>
-                      <div className="bg-stone-955 border border-stone-850 p-4 rounded-xl flex flex-col items-center justify-center space-y-1">
+                      <div className="bg-stone-950 border border-stone-850 p-4 rounded-xl flex flex-col items-center justify-center space-y-1">
                         <span className="text-[9px] text-stone-500 uppercase font-bold tracking-wider">Paid Sales</span>
                         <span className="text-2xl font-black text-purple-400">{conversionsCount}</span>
                       </div>
@@ -1386,7 +1381,7 @@ export default function AdminDashboardPage() {
                     {cashouts.map((ticket) => {
                       const isPending = ticket.status === 'pending';
                       return (
-                        <tr key={ticket.id} className="hover:bg-stone-955/40">
+                        <tr key={ticket.id} className="hover:bg-stone-950/40">
                           <td className="py-3.5">
                             <div className="font-bold text-white uppercase">{ticket.referral_codes?.legal_name || 'System Admin'}</div>
                             <div className="text-[10px] text-emerald-400 font-bold">{ticket.referral_codes?.code}</div>
@@ -1402,7 +1397,7 @@ export default function AdminDashboardPage() {
                           <td className="py-3.5 text-center">
                             {isPending ? (
                               <div className="flex items-center justify-center gap-2">
-                                <button onClick={() => handleTriggerCashoutDeclineRollback(ticket.id, ticket.referral_codes?.legal_name)} disabled={updatingId === `payout-${ticket.id}`} className="bg-red-955/40 hover:bg-red-900/40 text-red-400 border border-red-900/20 px-2 py-1.5 rounded-lg font-bold">Decline & Refund</button>
+                                <button onClick={() => handleTriggerCashoutDeclineRollback(ticket.id, ticket.referral_codes?.legal_name)} disabled={updatingId === `payout-${ticket.id}`} className="bg-red-950/40 hover:bg-red-900/40 text-red-400 border border-red-900/20 px-2 py-1.5 rounded-lg font-bold">Decline & Refund</button>
                                 <button onClick={() => handleTriggerPaystackMoMoTransfer(ticket.id)} disabled={updatingId === `payout-${ticket.id}`} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg shadow-md">
                                   Release Payout
                                 </button>
@@ -1425,26 +1420,45 @@ export default function AdminDashboardPage() {
         {activeTab === 'inventory' && (
           <div className="space-y-6">
             {lowStockAlertInventoryBin.length > 0 && (
-              <div className="bg-red-955/20 border-2 border-red-900/40 rounded-[24px] p-5 space-y-3 font-mono text-xs shadow-xl animate-pulse">
+              <div className="bg-red-950/20 border-2 border-red-900/40 rounded-[24px] p-5 space-y-3 font-mono text-xs shadow-xl animate-pulse">
                 <div className="flex items-center gap-2 text-red-400 font-black tracking-wider uppercase text-[10px]">
                   <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
                   <span>⚠️ System Critical: Automated Low Stock Alerts Threshold Tripped</span>
                 </div>
                 <p className="text-stone-400 font-sans text-[11px] font-light leading-relaxed">
-                  The following flavor variations have breached their minimum system safety ceilings and require immediate batch brewing.
+                  The following flavor variations have breached their minimum system safety ceilings. <span className="font-bold text-red-300">Click a card below to instantly edit it.</span>
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
                   {lowStockAlertInventoryBin.map(variant => (
-                    <div key={`alert-card-${variant.id}`} className="bg-stone-955 border border-red-900/30 p-3 rounded-xl flex justify-between items-center text-[11px] font-bold">
-                      <div className="space-y-0.5">
-                        <span className="text-white uppercase truncate block max-w-[120px]">{variant.flavorName}</span>
-                        <span className="text-[9px] bg-stone-900 text-stone-455 border px-1.5 py-0.2 rounded uppercase inline-block">{variant.size}</span>
+                    <button 
+                      key={`alert-card-${variant.id}`} 
+                      type="button"
+                      onClick={() => {
+                        const targetCard = document.getElementById(`variant-${variant.id}`);
+                        if (targetCard) {
+                          targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          setEditingVariantId(variant.id); 
+                          setEditStock(variant.stock_quantity); 
+                          setEditRetail(variant.retail_price); 
+                          setEditWholesale(variant.wholesale_price);
+                          setEditWholesaleTrigger(variant.moq_floor || 50);
+                          setEditClientDiscount(variant.client_discount || 0);
+                          setEditReferrerEarnings(variant.referrer_earnings || 0);
+                          setEditLowStockTrigger(variant.low_stock_trigger ?? 20);
+                          setEditIsActive(variant.is_active !== false);
+                        }
+                      }}
+                      className="bg-stone-950 hover:bg-stone-900 border border-red-900/50 p-3 rounded-xl flex justify-between items-center text-[11px] font-bold cursor-pointer transition-all text-left shadow-md group"
+                    >
+                      <div className="space-y-1">
+                        <span className="text-stone-100 uppercase truncate block max-w-[140px] group-hover:text-red-400 transition-colors">{variant.flavorName}</span>
+                        <span className="text-[9px] bg-red-950 text-red-400 border border-red-900 px-1.5 py-0.5 rounded uppercase inline-block">{variant.size}</span>
                       </div>
                       <div className="text-right">
                         <span className="text-[8px] text-stone-500 uppercase block font-black">Remaining:</span>
                         <span className="text-sm font-black text-red-400">{variant.stock_quantity} Btls</span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -1454,8 +1468,8 @@ export default function AdminDashboardPage() {
               <h3 className="text-xs font-bold font-mono text-stone-400 uppercase tracking-wider flex items-center gap-1.5"><PlusCircle className="h-4 w-4 text-emerald-500" /> Launch New Flavor Line Natively</h3>
               <form onSubmit={handleAddNewProductFlavor} className="space-y-3 font-mono text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input type="text" required placeholder="Flavor Name" value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" />
-                  <input type="text" placeholder="Description Copy" value={newProductDesc} onChange={(e) => setNewProductDesc(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
+                  <input type="text" required placeholder="Flavor Name" value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white outline-none" />
+                  <input type="text" placeholder="Description Copy" value={newProductDesc} onChange={(e) => setNewProductDesc(e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
                 </div>
                 <button type="submit" className="bg-emerald-600 text-white font-mono text-[10px] font-bold py-2 px-4 rounded-xl">Deploy Flavor</button>
               </form>
@@ -1473,9 +1487,8 @@ export default function AdminDashboardPage() {
                       const isPaused = variant.is_active === false;
                       
                       return (
-                        <div key={variant.id} className={`bg-stone-955 border ${isPaused ? 'border-amber-900/50 opacity-80' : isLowStock ? 'border-red-950 bg-gradient-to-b from-stone-955 to-red-950/10' : 'border-stone-800'} rounded-xl p-5 flex flex-col justify-between space-y-3 relative`}>
+                        <div id={`variant-${variant.id}`} key={variant.id} className={`bg-stone-950 border ${isPaused ? 'border-amber-900/50 opacity-80' : isLowStock ? 'border-red-950 bg-gradient-to-b from-stone-950 to-red-950/10' : 'border-stone-800'} rounded-xl p-5 flex flex-col justify-between space-y-3 relative transition-all duration-300`}>
                           
-                          {/* 🚨 DYNAMIC BADGING */}
                           <div className="flex justify-between items-start">
                             <span className="text-[10px] bg-stone-800 text-stone-200 px-2 py-0.5 rounded font-mono font-bold uppercase">{variant.size}</span>
                             <span className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border ${isPaused ? 'bg-amber-500/10 text-amber-400 border-amber-900/30' : isLowStock ? 'bg-red-500/10 text-red-400 border-red-900/30 animate-pulse' : 'bg-stone-900 text-stone-500 border-stone-800'}`}>
@@ -1493,7 +1506,6 @@ export default function AdminDashboardPage() {
                             {isEditing ? (
                               <div className="space-y-2 text-stone-400">
                                 
-                                {/* 🚨 NEW FRONTEND CONTROLS: PUSH TRIGGER AND STATUS TOGGLE */}
                                 <div className="grid grid-cols-2 gap-2 pb-1 border-b border-stone-800 mb-2">
                                   <div>
                                     <label className="text-[8px] text-rose-400 font-bold uppercase">Push Alert Trigger</label>
@@ -1518,7 +1530,6 @@ export default function AdminDashboardPage() {
                               <div className="space-y-1.5 text-stone-400 font-medium">
                                 <div className="flex justify-between"><span>Stock Remaining:</span><strong className={isLowStock ? 'text-red-400 font-black' : 'text-white'}>{variant.stock_quantity} units</strong></div>
                                 
-                                {/* 🚨 DISPLAY THE CUSTOM PUSH TRIGGER */}
                                 <div className="flex justify-between text-rose-400/80"><span>Alert Trigger:</span><strong>{triggerLvl} units</strong></div>
                                 
                                 <div className="flex justify-between text-blue-400/90"><span>Wholesale Trigger:</span><strong>{variant.moq_floor || 50} units</strong></div>
@@ -1555,8 +1566,8 @@ export default function AdminDashboardPage() {
                                 setEditWholesaleTrigger(variant.moq_floor || 50);
                                 setEditClientDiscount(variant.client_discount || 0);
                                 setEditReferrerEarnings(variant.referrer_earnings || 0);
-                                setEditLowStockTrigger(variant.low_stock_trigger ?? 20); // 🚨 Load Custom Trigger
-                                setEditIsActive(variant.is_active !== false); // 🚨 Load Paused State
+                                setEditLowStockTrigger(variant.low_stock_trigger ?? 20); 
+                                setEditIsActive(variant.is_active !== false); 
                               }} className="w-full bg-stone-800 text-stone-300 hover:text-white font-mono text-[10px] font-bold py-1 rounded-lg border border-stone-750 transition-colors">Edit Parameters</button>
                             )}
                           </div>
@@ -1577,16 +1588,16 @@ export default function AdminDashboardPage() {
               <h3 className="font-bold text-cyan-400 uppercase text-[10px] tracking-wider flex items-center gap-1"><Printer className="h-4 w-4" /> Receipt Header Brand Configurations</h3>
               <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input type="text" value={cmsContent.receipt_name || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, receipt_name: e.target.value }))} placeholder="Receipt Company Header Title" className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold" />
-                  <input type="text" value={cmsContent.receipt_subtitle || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, receipt_subtitle: e.target.value }))} placeholder="Fulfillment Node Subtitle Address" className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300" />
+                  <input type="text" value={cmsContent.receipt_name || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, receipt_name: e.target.value }))} placeholder="Receipt Company Header Title" className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold" />
+                  <input type="text" value={cmsContent.receipt_subtitle || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, receipt_subtitle: e.target.value }))} placeholder="Fulfillment Node Subtitle Address" className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-stone-300" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input type="email" value={cmsContent.receipt_email || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, receipt_email: e.target.value }))} placeholder="Support Desk Email Line" className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white" />
-                  <input type="text" value={cmsContent.receipt_phone || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, receipt_phone: e.target.value }))} placeholder="Hotline Dispatch Contact Number" className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white" />
+                  <input type="email" value={cmsContent.receipt_email || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, receipt_email: e.target.value }))} placeholder="Support Desk Email Line" className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white" />
+                  <input type="text" value={cmsContent.receipt_phone || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, receipt_phone: e.target.value }))} placeholder="Hotline Dispatch Contact Number" className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white" />
                 </div>
                 <div className="pt-1.5 space-y-1">
                   <label className="text-[9px] text-stone-400 uppercase block font-bold">Dynamic Receipt Brand Logo Graphic</label>
-                  <label className="cursor-pointer bg-stone-955 hover:bg-stone-850 border border-stone-800/80 rounded-xl p-3 text-center flex items-center justify-center gap-1.5 font-bold text-stone-300 transition-colors shadow-inner">
+                  <label className="cursor-pointer bg-stone-950 hover:bg-stone-850 border border-stone-800/80 rounded-xl p-3 text-center flex items-center justify-center gap-1.5 font-bold text-stone-300 transition-colors shadow-inner">
                     <Upload className="h-4 w-4 text-emerald-500" />
                     <span>{cmsContent.receipt_logo ? 'Receipt Custom Logo Loaded ✓' : 'Upload Receipt Slip Branding Image'}</span>
                     <input 
@@ -1603,9 +1614,9 @@ export default function AdminDashboardPage() {
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4">
               <h3 className="font-bold text-white uppercase text-[10px] tracking-wider text-emerald-400 flex items-center gap-1"><LayoutGrid className="h-3.5 w-3.5" /> Section 1: Hero Cover Elements</h3>
               <div className="space-y-3">
-                <input type="text" required placeholder="Main Heading Title Text" value={cmsContent.hero_title || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, hero_title: e.target.value }))} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold" />
-                <textarea rows="2" required placeholder="Hero Subtext Subtitle Paragraph Copy..." value={cmsContent.hero_subtitle || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, hero_subtitle: e.target.value }))} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
-                <label className="w-full bg-stone-955 hover:bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-stone-300 text-center flex items-center justify-center gap-2 font-bold cursor-pointer">
+                <input type="text" required placeholder="Main Heading Title Text" value={cmsContent.hero_title || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, hero_title: e.target.value }))} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold" />
+                <textarea rows="2" required placeholder="Hero Subtext Subtitle Paragraph Copy..." value={cmsContent.hero_subtitle || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, hero_subtitle: e.target.value }))} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
+                <label className="w-full bg-stone-950 hover:bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-stone-300 text-center flex items-center justify-center gap-2 font-bold cursor-pointer">
                   <Upload className="h-4 w-4 text-emerald-500" />
                   <span>Browse & Upload Background Cover Image</span>
                   <input 
@@ -1621,11 +1632,11 @@ export default function AdminDashboardPage() {
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4">
               <h3 className="font-bold text-white uppercase text-[10px] tracking-wider text-emerald-400 flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Section 2: Founders Narrative Block</h3>
               <div className="space-y-3">
-                <input type="text" required placeholder="Story Block Headline Title" value={cmsContent.story_title || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_title: e.target.value }))} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold" />
-                <textarea rows="3" required placeholder="Paragraph 1 Body Copy Text..." value={cmsContent.story_p1 || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_p1: e.target.value }))} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
-                <textarea rows="3" required placeholder="Paragraph 2 Body Copy Text..." value={cmsContent.story_p2 || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_p2: e.target.value }))} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
+                <input type="text" required placeholder="Story Block Headline Title" value={cmsContent.story_title || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_title: e.target.value }))} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white font-bold" />
+                <textarea rows="3" required placeholder="Paragraph 1 Body Copy Text..." value={cmsContent.story_p1 || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_p1: e.target.value }))} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
+                <textarea rows="3" required placeholder="Paragraph 2 Body Copy Text..." value={cmsContent.story_p2 || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, story_p2: e.target.value }))} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-stone-300 outline-none" />
                 
-                <label className="w-full bg-stone-955 hover:bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-stone-300 text-center flex items-center justify-center gap-2 font-bold cursor-pointer transition-colors">
+                <label className="w-full bg-stone-950 hover:bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-stone-300 text-center flex items-center justify-center gap-2 font-bold cursor-pointer transition-colors">
                   <Upload className="h-4 w-4 text-emerald-500" />
                   <span>{cmsContent.story_img ? 'Image Loaded ✓ (Click to change)' : 'Browse & Upload Brand Story Image'}</span>
                   <input 
@@ -1642,7 +1653,7 @@ export default function AdminDashboardPage() {
               <h3 className="font-bold text-white uppercase text-[10px] tracking-wider text-emerald-400 flex items-center gap-1"><User className="h-3.5 w-3.5" /> Section 3: Executive Leadership Profiles</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[1, 2, 3].map((num) => (
-                  <div key={num} className="bg-stone-955 p-4 border border-stone-850 rounded-xl space-y-2.5">
+                  <div key={num} className="bg-stone-950 p-4 border border-stone-850 rounded-xl space-y-2.5">
                     <span className="font-bold text-stone-400 text-[9px] uppercase tracking-wide block border-b border-stone-900 pb-1">Leader Profile #{num}</span>
                     <input type="text" required placeholder="Full Legal Name" value={cmsContent[`team_m${num}_name`] || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, [`team_m${num}_name`]: e.target.value }))} className="w-full bg-stone-900 border border-stone-800 rounded px-2 py-1 text-white" />
                     <input type="text" required placeholder="Corporate Role / Title" value={cmsContent[`team_m${num}_role`] || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, [`team_m${num}_role`]: e.target.value }))} className="w-full bg-stone-900 border border-stone-800 rounded px-2 py-1 text-stone-400" />
@@ -1665,7 +1676,7 @@ export default function AdminDashboardPage() {
               <h3 className="font-bold text-white uppercase text-[10px] tracking-wider text-emerald-400 flex items-center gap-1"><Layers className="h-3.5 w-3.5" /> Section 4: Curated Media Gallery Framework</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[1, 2, 3, 4].map((gNum) => (
-                  <div key={gNum} className="bg-stone-955 p-3 border border-stone-850 rounded-xl space-y-2 flex flex-col justify-between">
+                  <div key={gNum} className="bg-stone-950 p-3 border border-stone-850 rounded-xl space-y-2 flex flex-col justify-between">
                     <div>
                       <span className="font-bold text-cyan-400 text-[8px] uppercase tracking-wider block">Gallery Item {gNum}</span>
                       <input type="text" required placeholder="Artwork Caption" value={cmsContent[`gallery_${gNum}_title`] || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, [`gallery_${gNum}_title`]: e.target.value }))} className="w-full bg-stone-900 border border-stone-850 rounded px-2 py-1 text-white text-[10px] mt-1" />
@@ -1689,7 +1700,7 @@ export default function AdminDashboardPage() {
               <h3 className="font-bold text-white uppercase text-[10px] tracking-wider text-emerald-400 flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Section 5: Custom Event Packaging Settings</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[1, 2].map((pkgNum) => (
-                  <div key={pkgNum} className="bg-stone-955 p-4 border border-stone-850 rounded-xl space-y-3 flex flex-col justify-between">
+                  <div key={pkgNum} className="bg-stone-950 p-4 border border-stone-850 rounded-xl space-y-3 flex flex-col justify-between">
                     <div className="space-y-2.5">
                       <span className="font-bold text-emerald-400 text-[10px] block border-b border-stone-900 pb-1 uppercase tracking-wider">Custom Option Tier {pkgNum}</span>
                       <input type="text" placeholder="Package Display Title" value={cmsContent[`pkg_${pkgNum}_title`] || ''} onChange={(e) => setCmsContent(prev => ({ ...prev, [`pkg_${pkgNum}_title`]: e.target.value }))} className="w-full bg-stone-900 border border-stone-800 rounded px-2 py-1.5 text-white" />
@@ -1720,9 +1731,9 @@ export default function AdminDashboardPage() {
 
       {/* RIDER DISPATCH & BULK LOGISTICS MODAL OVERLAY */}
       {dispatchOrder && (
-        <div className="fixed inset-0 bg-stone-955/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-stone-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-stone-900 border border-stone-800 text-stone-100 rounded-[32px] max-w-sm w-full p-6 space-y-6 shadow-2xl relative font-sans">
-            <button type="button" onClick={() => setDispatchOrder(null)} className="absolute right-4 top-4 p-1 rounded-lg bg-stone-955 hover:bg-stone-850 text-stone-400 border border-stone-800"><X className="h-4 w-4" /></button>
+            <button type="button" onClick={() => setDispatchOrder(null)} className="absolute right-4 top-4 p-1 rounded-lg bg-stone-950 hover:bg-stone-850 text-stone-400 border border-stone-800"><X className="h-4 w-4" /></button>
             
             <div className="space-y-1">
               <h2 className="text-sm font-black uppercase text-emerald-400 tracking-wider">
@@ -1741,7 +1752,7 @@ export default function AdminDashboardPage() {
                 <>
                   <div>
                     <label className="block text-stone-500 font-bold uppercase text-[9px] mb-1">Rider Full Name</label>
-                    <input type="text" required value={riderName} onChange={(e) => setRiderName(e.target.value)} placeholder="e.g. Samuel Osei" className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500" />
+                    <input type="text" required value={riderName} onChange={(e) => setRiderName(e.target.value)} placeholder="e.g. Samuel Osei" className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500" />
                   </div>
                   
                   <div>
@@ -1754,14 +1765,14 @@ export default function AdminDashboardPage() {
                       value={riderPhone} 
                       onChange={(e) => setRiderPhone(e.target.value.replace(/\D/g, '').substring(0, 10))} 
                       placeholder="e.g. 0244123456" 
-                      className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500" 
+                      className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500" 
                     />
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-stone-500 font-bold uppercase text-[9px] mb-1">Vehicle Type</label>
-                      <select value={vehicleType} onChange={(e) => setVehicleType(e.target.value)} className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 text-white focus:border-emerald-500 appearance-none">
+                      <select value={vehicleType} onChange={(e) => setVehicleType(e.target.value)} className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white focus:border-emerald-500 appearance-none">
                         <option value="Motorbike">Motorbike</option>
                         <option value="Car">Car</option>
                         <option value="Van/Truck">Van/Truck</option>
@@ -1769,12 +1780,12 @@ export default function AdminDashboardPage() {
                     </div>
                     <div>
                       <label className="block text-stone-500 font-bold uppercase text-[9px] mb-1">Vehicle Color</label>
-                      <input type="text" required value={vehicleColor} onChange={(e) => setVehicleColor(e.target.value)} placeholder="e.g. Blue" className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500" />
+                      <input type="text" required value={vehicleColor} onChange={(e) => setVehicleColor(e.target.value)} placeholder="e.g. Blue" className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-stone-500 font-bold uppercase text-[9px] mb-1">License Plate Number</label>
-                    <input type="text" required value={plateNumber} onChange={(e) => setPlateNumber(e.target.value.toUpperCase())} placeholder="e.g. GT-1234-21" className="w-full bg-stone-955 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500 uppercase tracking-widest" />
+                    <input type="text" required value={plateNumber} onChange={(e) => setPlateNumber(e.target.value.toUpperCase())} placeholder="e.g. GT-1234-21" className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 outline-none text-white focus:border-emerald-500 uppercase tracking-widest" />
                   </div>
 
                   <div className="bg-emerald-950/30 p-3 rounded-xl border border-emerald-900/40 text-[9px] text-emerald-400 leading-relaxed font-sans mt-2 shadow-inner">
@@ -1806,7 +1817,7 @@ export default function AdminDashboardPage() {
         const printDeliveryFee = printMeta.delivery_fee_charged || 0;
 
         return (
-          <div className="fixed inset-0 bg-stone-955/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:absolute print:inset-0 print:bg-white print:p-0">
+          <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:absolute print:inset-0 print:bg-white print:p-0">
             <div className="bg-white text-stone-950 rounded-[32px] border border-stone-200 max-w-2xl w-full p-6 md:p-8 space-y-6 shadow-2xl relative print:border-0 print:shadow-none print:p-0 font-sans">
               <div className="flex justify-between items-center border-b border-stone-100 pb-3 print:hidden">
                 <span className="font-bold text-xs font-mono">LOGISTICAL MANIFEST SLIP</span>
@@ -1822,7 +1833,7 @@ export default function AdminDashboardPage() {
                     <img src={cmsContent.receipt_logo || "/SPARKLE%20BEV.%20LOGO%20A%20No%20BG.png"} alt="Sparkle Beverages Logo" className="h-14 sm:h-16 w-auto object-contain" />
                   </div>
                   <div className="text-right font-mono">
-                    <div className="text-xs font-black text-stone-955">#SPK-{selectedPrintOrder.id.substring(0, 8).toUpperCase()}</div>
+                    <div className="text-xs font-black text-stone-950">#SPK-{selectedPrintOrder.id.substring(0, 8).toUpperCase()}</div>
                     <div className="text-[9px] text-stone-400">{new Date(selectedPrintOrder.created_at).toLocaleString('en-GH')}</div>
                   </div>
                 </div>
@@ -1845,7 +1856,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
                 <div className="border border-stone-200 rounded-xl overflow-hidden font-mono text-[11px]">
-                  <div className="bg-stone-955 text-white font-bold grid grid-cols-4 p-2.5 uppercase text-[9px] print:bg-stone-900 text-center">
+                  <div className="bg-stone-950 text-white font-bold grid grid-cols-4 p-2.5 uppercase text-[9px] print:bg-stone-900 text-center">
                     <div className="col-span-2 text-left">Fulfillment Package Selection</div>
                     <div>Sizing</div>
                     <div className="text-right">Price Allocation</div>
@@ -1853,7 +1864,7 @@ export default function AdminDashboardPage() {
                   <div className="divide-y divide-stone-100 px-1 text-stone-700">
                     {printOrderItems.length === 0 ? (
                       <div className="grid grid-cols-4 py-3 text-center items-center font-sans font-medium text-stone-900 px-2">
-                        <div className="col-span-2 text-left font-bold uppercase text-emerald-955 flex flex-col">
+                        <div className="col-span-2 text-left font-bold uppercase text-emerald-950 flex flex-col">
                           <span>Sparkle Fresh Mixed Beverages</span>
                           <span className="text-[9px] font-mono text-stone-400 font-light">Custom Storefront Checkout Manifest Batch</span>
                         </div>
@@ -1863,7 +1874,7 @@ export default function AdminDashboardPage() {
                     ) : (
                       printOrderItems.map((item) => (
                         <div key={item.id} className="grid grid-cols-4 py-2.5 text-center items-center font-sans font-medium text-stone-900 text-[11px] px-2">
-                          <div className="col-span-2 text-left font-bold uppercase text-emerald-955 flex flex-col">
+                          <div className="col-span-2 text-left font-bold uppercase text-emerald-950 flex flex-col">
                             <span>{item.flavor_title}</span>
                             <span className="text-[9px] font-mono text-stone-400 font-light">ID: #{item.id.substring(0,6).toUpperCase()}</span>
                           </div>
