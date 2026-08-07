@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { 
   CheckCircle2, Clock, Truck, MapPin, Phone, User, Search, Calendar, ToggleLeft, ToggleRight,
   ShieldAlert, PackageCheck, RefreshCw, AlertCircle, Download, Camera, CreditCard,
-  Tag, PlusCircle, ListFilter, Layers, Edit3, Save, LayoutGrid, FileText, Upload, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Mail, Activity, CheckSquare, Square
+  Tag, PlusCircle, ListFilter, Layers, Edit3, Save, LayoutGrid, FileText, Upload, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Mail, Activity, CheckSquare, Square, Bell, BellRing
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 
@@ -22,6 +22,21 @@ import {
 // Logistics Actions
 import { updateOrderStatusAdmin } from '../actions/orders';
 import { confirmDispatchLogisticsServerAction } from '../actions/logistics';
+
+// 🚨 NEW: Import the Push Notification Action
+import { subscribeAdminToPushNotifications } from '../actions/notifications';
+
+// Helper to decode the VAPID Public Key for the browser PushManager
+const urlBase64ToUint8Array = (base64String) => {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+};
 
 export default function AdminDashboardPage() {
   const supabase = createBrowserSupabaseClient();
@@ -42,9 +57,12 @@ export default function AdminDashboardPage() {
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const statusDropdownRef = useRef(null);
 
+  // Push Notification States
+  const [isPushSubscribed, setIsPushSubscribed] = useState(false);
+
   // Bulk Dispatch States
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
-  const [dispatchOrder, setDispatchOrder] = useState(null); // Can hold { isBulk: true, count: number }
+  const [dispatchOrder, setDispatchOrder] = useState(null); 
   
   // Order Filters
   const [filterStatus, setFilterStatus] = useState('active'); 
@@ -101,6 +119,10 @@ export default function AdminDashboardPage() {
   const [editWholesaleTrigger, setEditWholesaleTrigger] = useState(0); 
   const [editClientDiscount, setEditClientDiscount] = useState(0); 
   const [editReferrerEarnings, setEditReferrerEarnings] = useState(0); 
+  
+  // 🚨 NEW EDITING STATES FOR INVENTORY CONTROL
+  const [editLowStockTrigger, setEditLowStockTrigger] = useState(20);
+  const [editIsActive, setEditIsActive] = useState(true);
 
   // Derived Lists
   const humanAmbassadorsList = referrals.filter(r => r.legal_name && r.legal_name.trim() !== '');
@@ -130,7 +152,64 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     loadDashboardData();
+    checkPushSubscriptionStatus();
   }, []);
+
+  // 🚨 CHECK IF PHONE IS ALREADY SUBSCRIBED TO PUSH ALERTS
+  const checkPushSubscriptionStatus = async () => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      const swReg = await navigator.serviceWorker.register('/sw.js');
+      const subscription = await swReg.pushManager.getSubscription();
+      if (subscription) setIsPushSubscribed(true);
+    }
+  };
+
+  // 🚨 TRIGGER TO ACTIVATE PHONE NOTIFICATIONS
+  const handleEnablePushAlerts = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert("Push notifications are not supported on this browser/device.");
+      return;
+    }
+
+    try {
+      setUpdatingId('push-alert');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert("Permission to send notifications was denied. You may need to enable it in your phone settings.");
+        setUpdatingId(null);
+        return;
+      }
+
+      const swReg = await navigator.serviceWorker.ready;
+      let subscription = await swReg.pushManager.getSubscription();
+
+      if (!subscription) {
+        const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!publicKey) {
+          alert("Missing VAPID Public Key in environment variables!");
+          setUpdatingId(null);
+          return;
+        }
+        subscription = await swReg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey)
+        });
+      }
+
+      const res = await subscribeAdminToPushNotifications(subscription.toJSON());
+      if (res.success) {
+        setIsPushSubscribed(true);
+        alert("🚨 SECURE ALERTS ENABLED!\n\nYou will now receive real-time push notifications on this device for low stock events and new paid orders.");
+      } else {
+        alert("Failed to register device: " + res.error);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error enabling push alerts: " + e.message);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   useEffect(() => {
     if (orders.length === 0 || products.length === 0) return;
@@ -225,7 +304,7 @@ export default function AdminDashboardPage() {
       ...variant,
       flavorName: flavor.name
     }))
-  ).filter(variant => variant.stock_quantity <= 20);
+  ).filter(variant => variant.stock_quantity <= (variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20));
 
   // Core Methods
   async function loadDashboardData() {
@@ -559,6 +638,7 @@ export default function AdminDashboardPage() {
     setUpdatingId(null);
   };
 
+  // 🚨 UPDATED SAVE FUNCTION TO INCLUDE NEW DB FIELDS
   const handleSaveVariantChanges = async (variantId) => {
     setUpdatingId(variantId);
     const updates = { 
@@ -568,7 +648,9 @@ export default function AdminDashboardPage() {
       moq_floor: parseInt(editWholesaleTrigger) || 0, 
       client_discount: parseFloat(editClientDiscount) || 0,
       referrer_earnings: parseFloat(editReferrerEarnings) || 0,
-      is_in_stock: parseInt(editStock) > 0 
+      is_in_stock: parseInt(editStock) > 0,
+      low_stock_trigger: parseInt(editLowStockTrigger) || 0,
+      is_active: editIsActive
     };
     const result = await updateVariantInventoryAdmin(variantId, updates);
     if (result.success) {
@@ -730,14 +812,25 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-stone-955 text-stone-100 font-sans antialiased pb-12 print:bg-white print:text-stone-900">
       <nav className="bg-stone-900 border-b border-stone-800 py-4 px-6 flex flex-col xl:flex-row justify-between items-center gap-4 sticky top-0 z-40 shadow-xl print:hidden">
-        <div className="flex items-center gap-3">
-          <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" className="h-12 w-auto object-contain brightness-110" />
-          <div className="h-6 w-px bg-stone-800 hidden xl:block" />
-          <div>
-            <h1 className="text-sm font-bold tracking-tight uppercase font-mono text-white flex items-center gap-1.5"><ShieldAlert className="h-4 w-4 text-emerald-500" /> Sparkle Operations Hub</h1>
-            <p className="text-[10px] text-stone-400 font-medium">Unified Fulfillment, KYC Onboarding & Paystack MoMo Payouts</p>
+        <div className="flex items-center gap-3 w-full xl:w-auto justify-between xl:justify-start">
+          <div className="flex items-center gap-3">
+            <img src="/SPARKLE BEV. LOGO A No BG.png" alt="Sparkle Logo" className="h-12 w-auto object-contain brightness-110" />
+            <div className="h-6 w-px bg-stone-800 hidden xl:block" />
+            <div className="hidden sm:block">
+              <h1 className="text-sm font-bold tracking-tight uppercase font-mono text-white flex items-center gap-1.5"><ShieldAlert className="h-4 w-4 text-emerald-500" /> Sparkle Operations Hub</h1>
+              <p className="text-[10px] text-stone-400 font-medium">Unified Fulfillment, KYC Onboarding & Paystack MoMo Payouts</p>
+            </div>
+          </div>
+          
+          {/* 🚨 THE NEW NOTIFICATIONS TOGGLE IN THE HEADER */}
+          <div className="xl:hidden flex items-center gap-2">
+            <button onClick={handleEnablePushAlerts} disabled={updatingId === 'push-alert'} className={`p-2 rounded-xl shrink-0 flex items-center gap-1.5 border transition-colors ${isPushSubscribed ? 'bg-emerald-955/20 border-emerald-900/40 text-emerald-400' : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-300'}`}>
+              {isPushSubscribed ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+            </button>
+            <button onClick={loadDashboardData} className="p-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl shrink-0"><RefreshCw className="h-4 w-4" /></button>
           </div>
         </div>
+        
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-end text-xs font-bold font-mono w-full xl:w-auto overflow-hidden">
           <div className="w-full overflow-x-auto pb-1 -mb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <div className="bg-stone-955 p-1 rounded-xl border border-stone-800 flex gap-1 w-max">
@@ -752,7 +845,15 @@ export default function AdminDashboardPage() {
               <button onClick={() => setActiveTab('cms')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'cms' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Web CMS</button>
             </div>
           </div>
-          <button onClick={loadDashboardData} className="p-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl shrink-0"><RefreshCw className="h-4 w-4" /></button>
+          
+          <div className="hidden xl:flex items-center gap-2">
+            {/* 🚨 DESKTOP ALERTS BUTTON */}
+            <button onClick={handleEnablePushAlerts} disabled={updatingId === 'push-alert'} className={`px-3 py-2 rounded-xl shrink-0 flex items-center gap-1.5 border transition-colors ${isPushSubscribed ? 'bg-emerald-955/20 border-emerald-900/40 text-emerald-400' : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-300'}`}>
+              {isPushSubscribed ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+              <span className="text-[10px] uppercase tracking-wider font-bold">{isPushSubscribed ? 'Alerts On' : 'Enable Alerts'}</span>
+            </button>
+            <button onClick={loadDashboardData} className="p-2 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-xl shrink-0"><RefreshCw className="h-4 w-4" /></button>
+          </div>
         </div>
       </nav>
 
@@ -1330,7 +1431,7 @@ export default function AdminDashboardPage() {
                   <span>⚠️ System Critical: Automated Low Stock Alerts Threshold Tripped</span>
                 </div>
                 <p className="text-stone-400 font-sans text-[11px] font-light leading-relaxed">
-                  The following flavor variations are at or below the minimum system safety ceiling (**20 units remaining**).
+                  The following flavor variations have breached their minimum system safety ceilings and require immediate batch brewing.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-1">
                   {lowStockAlertInventoryBin.map(variant => (
@@ -1367,16 +1468,23 @@ export default function AdminDashboardPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {product.product_variants?.map((variant) => {
                       const isEditing = editingVariantId === variant.id;
-                      const isLowStock = variant.stock_quantity <= 20;
+                      const triggerLvl = variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20;
+                      const isLowStock = variant.stock_quantity <= triggerLvl;
+                      const isPaused = variant.is_active === false;
+                      
                       return (
-                        <div key={variant.id} className={`bg-stone-955 border ${isLowStock ? 'border-red-950 bg-gradient-to-b from-stone-955 to-red-950/10' : 'border-stone-800'} rounded-xl p-5 flex flex-col justify-between space-y-3`}>
+                        <div key={variant.id} className={`bg-stone-955 border ${isPaused ? 'border-amber-900/50 opacity-80' : isLowStock ? 'border-red-950 bg-gradient-to-b from-stone-955 to-red-950/10' : 'border-stone-800'} rounded-xl p-5 flex flex-col justify-between space-y-3 relative`}>
+                          
+                          {/* 🚨 DYNAMIC BADGING */}
                           <div className="flex justify-between items-start">
                             <span className="text-[10px] bg-stone-800 text-stone-200 px-2 py-0.5 rounded font-mono font-bold uppercase">{variant.size}</span>
-                            <span className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border ${isLowStock ? 'bg-red-500/10 text-red-400 border-red-900/30 animate-pulse' : 'bg-stone-900 text-stone-500 border-stone-800'}`}>{isLowStock ? 'Low Stock' : 'Stable'}</span>
+                            <span className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border ${isPaused ? 'bg-amber-500/10 text-amber-400 border-amber-900/30' : isLowStock ? 'bg-red-500/10 text-red-400 border-red-900/30 animate-pulse' : 'bg-stone-900 text-stone-500 border-stone-800'}`}>
+                              {isPaused ? 'Paused' : isLowStock ? 'Low Stock' : 'Stable'}
+                            </span>
                           </div>
 
                           {variant.image_url && (
-                            <div className="h-24 w-full bg-stone-950 rounded-xl border border-stone-850 p-1 flex items-center justify-center overflow-hidden">
+                            <div className={`h-24 w-full bg-stone-950 rounded-xl border border-stone-850 p-1 flex items-center justify-center overflow-hidden ${isPaused ? 'grayscale' : ''}`}>
                               <img src={variant.image_url} alt={variant.sku} className="h-full object-contain" />
                             </div>
                           )}
@@ -1384,16 +1492,35 @@ export default function AdminDashboardPage() {
                           <div className="border-t border-stone-900 pt-2 space-y-1.5 text-[11px] font-mono">
                             {isEditing ? (
                               <div className="space-y-2 text-stone-400">
-                                <div><label className="text-[8px] font-bold uppercase">Stock Count</label><input type="number" value={editStock} onChange={(e)=>setEditStock(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-blue-400 font-bold uppercase">Wholesale Volume Trigger</label><input type="number" value={editWholesaleTrigger} onChange={(e)=>setEditWholesaleTrigger(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-red-400 font-bold uppercase">Default Referral Discount</label><input type="number" step="0.01" value={editClientDiscount} onChange={(e)=>setEditClientDiscount(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-purple-400 font-bold uppercase">Ambassador Bonus Earning</label><input type="number" step="0.01" value={editReferrerEarnings} onChange={(e)=>setEditReferrerEarnings(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-emerald-400 font-bold uppercase">Retail Price (₵)</label><input type="number" step="0.01" value={editRetail} onChange={(e)=>setEditRetail(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
-                                <div><label className="text-[8px] text-amber-500 font-bold uppercase">Wholesale Price (₵)</label><input type="number" step="0.01" value={editWholesale} onChange={(e)=>setEditWholesale(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded" /></div>
+                                
+                                {/* 🚨 NEW FRONTEND CONTROLS: PUSH TRIGGER AND STATUS TOGGLE */}
+                                <div className="grid grid-cols-2 gap-2 pb-1 border-b border-stone-800 mb-2">
+                                  <div>
+                                    <label className="text-[8px] text-rose-400 font-bold uppercase">Push Alert Trigger</label>
+                                    <input type="number" value={editLowStockTrigger} onChange={(e)=>setEditLowStockTrigger(e.target.value)} className="w-full bg-stone-900 border border-rose-900/50 text-white px-2 py-0.5 rounded outline-none" />
+                                  </div>
+                                  <div className="flex flex-col justify-end items-end pb-0.5">
+                                    <span className="text-[8px] font-bold uppercase text-stone-400 mb-1">Storefront Status</span>
+                                    <button type="button" onClick={() => setEditIsActive(!editIsActive)}>
+                                      {editIsActive ? <ToggleRight className="h-6 w-6 text-emerald-500" /> : <ToggleLeft className="h-6 w-6 text-amber-500" />}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div><label className="text-[8px] font-bold uppercase">Stock Count</label><input type="number" value={editStock} onChange={(e)=>setEditStock(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                <div><label className="text-[8px] text-blue-400 font-bold uppercase">Wholesale Volume Trigger</label><input type="number" value={editWholesaleTrigger} onChange={(e)=>setEditWholesaleTrigger(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                <div><label className="text-[8px] text-red-400 font-bold uppercase">Default Referral Discount</label><input type="number" step="0.01" value={editClientDiscount} onChange={(e)=>setEditClientDiscount(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                <div><label className="text-[8px] text-purple-400 font-bold uppercase">Ambassador Bonus Earning</label><input type="number" step="0.01" value={editReferrerEarnings} onChange={(e)=>setEditReferrerEarnings(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                <div><label className="text-[8px] text-emerald-400 font-bold uppercase">Retail Price (₵)</label><input type="number" step="0.01" value={editRetail} onChange={(e)=>setEditRetail(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                <div><label className="text-[8px] text-amber-500 font-bold uppercase">Wholesale Price (₵)</label><input type="number" step="0.01" value={editWholesale} onChange={(e)=>setEditWholesale(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
                               </div>
                             ) : (
                               <div className="space-y-1.5 text-stone-400 font-medium">
                                 <div className="flex justify-between"><span>Stock Remaining:</span><strong className={isLowStock ? 'text-red-400 font-black' : 'text-white'}>{variant.stock_quantity} units</strong></div>
+                                
+                                {/* 🚨 DISPLAY THE CUSTOM PUSH TRIGGER */}
+                                <div className="flex justify-between text-rose-400/80"><span>Alert Trigger:</span><strong>{triggerLvl} units</strong></div>
+                                
                                 <div className="flex justify-between text-blue-400/90"><span>Wholesale Trigger:</span><strong>{variant.moq_floor || 50} units</strong></div>
                                 <div className="flex justify-between text-red-400/90 border-t border-stone-900 pt-1"><span>Referral Discount:</span><th>₵{Number(variant.client_discount || 0).toFixed(2)}</th></div>
                                 <div className="flex justify-between text-purple-400/90"><span>Ambassador Bonus:</span><strong>₵{Number(variant.referrer_earnings || 0).toFixed(2)}</strong></div>
@@ -1418,7 +1545,7 @@ export default function AdminDashboardPage() {
                           </div>
                           <div className="pt-2">
                             {isEditing ? (
-                              <button onClick={() => handleSaveVariantChanges(variant.id)} className="w-full bg-emerald-600 text-white font-mono text-[10px] font-bold py-1 rounded-lg">Save</button>
+                              <button onClick={() => handleSaveVariantChanges(variant.id)} className="w-full bg-emerald-600 text-white font-mono text-[10px] font-bold py-1 rounded-lg">Save Config</button>
                             ) : (
                               <button onClick={() => { 
                                 setEditingVariantId(variant.id); 
@@ -1428,7 +1555,9 @@ export default function AdminDashboardPage() {
                                 setEditWholesaleTrigger(variant.moq_floor || 50);
                                 setEditClientDiscount(variant.client_discount || 0);
                                 setEditReferrerEarnings(variant.referrer_earnings || 0);
-                              }} className="w-full bg-stone-800 text-stone-300 font-mono text-[10px] font-bold py-1 rounded-lg border border-stone-750">Edit</button>
+                                setEditLowStockTrigger(variant.low_stock_trigger ?? 20); // 🚨 Load Custom Trigger
+                                setEditIsActive(variant.is_active !== false); // 🚨 Load Paused State
+                              }} className="w-full bg-stone-800 text-stone-300 hover:text-white font-mono text-[10px] font-bold py-1 rounded-lg border border-stone-750 transition-colors">Edit Parameters</button>
                             )}
                           </div>
                         </div>

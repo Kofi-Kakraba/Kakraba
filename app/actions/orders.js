@@ -2,8 +2,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { fireAdminPushAlert } from './notifications'; // 🚨 NEW: Import the Push Alert brain!
 
-// Initialize the Resend Client utilizing your secure environment key
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 function getServiceSupabaseClient() {
@@ -46,14 +46,10 @@ async function fireSMSOnlineGHGateway(targetPhone, messageContent) {
   }
 }
 
-/**
- * 🚨 THE AUTO-JANITOR: Finds abandoned checkouts (older than 10 mins) and returns their stock to the shelf
- */
 async function releaseAbandonedStockReservations(supabase) {
   try {
     const tenMinsAgo = new Date(Date.now() - 10 * 60000).toISOString();
     
-    // Find all unpaid orders older than 10 minutes
     const { data: abandonedOrders } = await supabase
       .from('orders')
       .select('id')
@@ -63,10 +59,8 @@ async function releaseAbandonedStockReservations(supabase) {
     if (!abandonedOrders || abandonedOrders.length === 0) return;
 
     for (const order of abandonedOrders) {
-      // 1. Mark as cancelled so it doesn't get processed again
       await supabase.from('orders').update({ status: 'cancelled', payment_status: 'abandoned' }).eq('id', order.id);
       
-      // 2. Fetch the reserved items and put them back in stock
       const { data: items } = await supabase.from('order_items').select('variant_id, quantity').eq('order_id', order.id);
       if (items) {
         for (const item of items) {
@@ -82,14 +76,12 @@ async function releaseAbandonedStockReservations(supabase) {
   }
 }
 
-// 🚨 EXPORT THE JANITOR SO THE SHOP CAN TRIGGER IT ON LOAD
 export async function runAutoJanitorServerAction() {
   const supabase = getServiceSupabaseClient();
   await releaseAbandonedStockReservations(supabase);
   return { success: true };
 }
 
-// INSTANT FRONT-END CANCEL ACTION
 export async function cancelAbandonedOrderServerAction(orderId) {
   try {
     const supabase = getServiceSupabaseClient();
@@ -131,7 +123,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
     for (const item of cartItemsList) {
       const { data: liveVariant, error: variantError } = await supabase
         .from('product_variants')
-        .select('stock_quantity')
+        .select('stock_quantity, low_stock_trigger')
         .eq('id', item.variant.id)
         .single();
 
@@ -150,7 +142,10 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
         };
       }
 
-      const newStock = liveVariant.stock_quantity - item.quantity;
+      const previousStock = liveVariant.stock_quantity;
+      const newStock = previousStock - item.quantity;
+      const triggerLimit = liveVariant.low_stock_trigger !== null ? liveVariant.low_stock_trigger : 20;
+
       const { error: deductError } = await supabase
         .from('product_variants')
         .update({ stock_quantity: newStock })
@@ -161,6 +156,19 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       }
       
       successfullyReservedItems.push(item);
+
+      // 🚨 SMART NOTIFICATIONS: Run asynchronously so they don't slow down the customer's checkout!
+      if (newStock === 0) {
+        fireAdminPushAlert(
+          '🚨 ZERO STOCK FATAL',
+          `${item.product.name} (${item.variant.size}) has completely sold out! The storefront is now empty for this drop.`
+        ).catch(e => console.error(e));
+      } else if (previousStock > triggerLimit && newStock <= triggerLimit) {
+        fireAdminPushAlert(
+          '⚠️ LOW STOCK WARNING',
+          `${item.product.name} (${item.variant.size}) just dropped below your trigger limit. Only ${newStock} units left!`
+        ).catch(e => console.error(e));
+      }
     }
 
     const { data: newOrderHeader, error: orderInsertError } = await supabase
@@ -329,6 +337,12 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
     }
 
     try {
+      // 🚨 FIRE A PUSH NOTIFICATION FOR NEW PAID ORDERS TOO!
+      fireAdminPushAlert(
+        '💰 NEW PAID ORDER SECURED',
+        `A payment of ₵${Number(updatedOrder.total_amount).toFixed(2)} just cleared for ${updatedOrder.customer_name}.`
+      ).catch(e => console.error(e));
+
       await resend.emails.send({
         from: 'Sparkle Admin <admin@sparklebeverages.com>',
         to: ['orders@sparklebeverages.com'], 
@@ -346,7 +360,6 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
           </div>
         `
       });
-      console.log("Admin email notification dispatched successfully!");
     } catch (emailError) {
       console.error("Failed to send admin email:", emailError);
     }

@@ -134,7 +134,7 @@ function ShopStorefront() {
           .from('products')
           .select(`
             id, name, description, is_active,
-            product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, moq_floor, client_discount, referrer_earnings, image_url )
+            product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, is_active, moq_floor, client_discount, referrer_earnings, image_url )
           `)
           .eq('is_active', true)
           .order('name', { ascending: true });
@@ -643,7 +643,12 @@ function ShopStorefront() {
             
             if (!activeVariant) return null;
 
+            // 🚨 Check for both Out of Stock AND Paused States
             const isOutOfStock = !activeVariant.is_in_stock || activeVariant.stock_quantity <= 0;
+            const isPaused = activeVariant.is_active === false; 
+            
+            const isUnbuyable = isOutOfStock || isPaused;
+
             const theme = getFlavorTheme(product.name);
             
             const activeUnitDiscount = appliedCoupon 
@@ -678,16 +683,20 @@ function ShopStorefront() {
             const activeBtnStatus = buttonStatuses[activeVariant.id] || 'idle';
 
             return (
-              <div key={product.id} className={`bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} ${isOutOfStock ? 'bg-stone-50' : 'hover:-translate-y-1'} transition-transform duration-300 relative overflow-hidden group`}>
+              <div key={product.id} className={`bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} ${isUnbuyable ? 'bg-stone-50' : 'hover:-translate-y-1'} transition-transform duration-300 relative overflow-hidden group`}>
                 
-                <div className={`absolute top-0 right-0 w-64 h-64 ${theme.bg} rounded-full blur-3xl opacity-50 pointer-events-none -mr-20 -mt-20 ${isOutOfStock ? 'grayscale' : ''}`} />
+                <div className={`absolute top-0 right-0 w-64 h-64 ${theme.bg} rounded-full blur-3xl opacity-50 pointer-events-none -mr-20 -mt-20 ${isUnbuyable ? 'grayscale' : ''}`} />
 
                 <div className="flex justify-between items-start relative z-10">
                   <div>
-                    <h4 className={`font-black uppercase text-lg leading-tight tracking-tight pr-2 ${theme.title} ${isOutOfStock ? 'opacity-50' : ''}`}>{product.name}</h4>
+                    <h4 className={`font-black uppercase text-lg leading-tight tracking-tight pr-2 ${theme.title} ${isUnbuyable ? 'opacity-50' : ''}`}>{product.name}</h4>
                   </div>
-                  <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${isOutOfStock ? 'bg-stone-200 text-stone-500' : theme.stockBadge}`}>
-                    {isOutOfStock ? 'Sold Out' : 'In Stock'}
+                  
+                  {/* 🚨 DYNAMIC MINI BADGE updated to "Not Available" */}
+                  <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${
+                    isPaused ? 'bg-amber-400 text-amber-950' : isOutOfStock ? 'bg-stone-200 text-stone-500' : theme.stockBadge
+                  }`}>
+                    {isPaused ? 'Not Available' : isOutOfStock ? 'Sold Out' : 'In Stock'}
                   </span>
                 </div>
 
@@ -705,7 +714,6 @@ function ShopStorefront() {
                   ))}
                 </div>
 
-                {/* 🚨 REMOVED grayscale FROM PARENT DIV SO RED STAMP STAYS VIBRANT */}
                 {activeVariant.image_url && (
                   <div className="h-56 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 py-4">
                     <Image 
@@ -714,21 +722,28 @@ function ShopStorefront() {
                       width={400} 
                       height={400} 
                       priority={true} 
-                      className={`h-full object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transform transition-transform duration-500 group-hover:scale-105 group-hover:-translate-y-2 z-10 ${isOutOfStock ? 'grayscale opacity-60' : ''}`} 
+                      className={`h-full object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transform transition-transform duration-500 group-hover:scale-105 group-hover:-translate-y-2 z-10 ${isUnbuyable ? 'grayscale opacity-60' : ''}`} 
                     />
-                    <div className={`w-1/2 h-2.5 bg-black/20 blur-md rounded-[50%] absolute bottom-2 transition-all duration-500 group-hover:w-2/3 group-hover:opacity-40 ${isOutOfStock ? 'opacity-30' : ''}`}></div>
+                    <div className={`w-1/2 h-2.5 bg-black/20 blur-md rounded-[50%] absolute bottom-2 transition-all duration-500 group-hover:w-2/3 group-hover:opacity-40 ${isUnbuyable ? 'opacity-30' : ''}`}></div>
                     
-                    {isOutOfStock && (
+                    {/* 🚨 DYNAMIC BIG STAMP updated to "Not Available" */}
+                    {isPaused ? (
+                      <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                        <div className="bg-amber-400 text-amber-950 font-black text-2xl px-6 py-3 rounded-2xl transform -rotate-12 uppercase tracking-widest animate-pulse border-4 border-amber-950 shadow-2xl text-center">
+                          Not Available
+                        </div>
+                      </div>
+                    ) : isOutOfStock ? (
                       <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
                         <div className="bg-red-600 text-white font-black text-3xl px-6 py-2 rounded-2xl transform -rotate-12 uppercase tracking-widest animate-pulse border-4 border-white shadow-2xl">
                           Sold Out
                         </div>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 )}
 
-                <div className={`space-y-4 relative z-10 mt-auto ${isOutOfStock ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+                <div className={`space-y-4 relative z-10 mt-auto ${isUnbuyable ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
                   <div className="bg-[#FDFBF7] border border-stone-200 p-4 rounded-2xl text-xs font-medium space-y-1.5 transition-all duration-300">
                     {appliedCoupon ? (
                       <div className="space-y-1">
@@ -783,10 +798,10 @@ function ShopStorefront() {
 
                     <button 
                       type="button" 
-                      disabled={isOutOfStock || activeBtnStatus !== 'idle' || !!cartItem || currentPickerCount === ''}
+                      disabled={isUnbuyable || activeBtnStatus !== 'idle' || !!cartItem || currentPickerCount === ''}
                       onClick={() => handleAddItemToCartChannel(product, activeVariant, currentPickerCount)}
                       className={`flex-1 font-black text-xs h-14 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest transition-all duration-300 ${
-                        isOutOfStock 
+                        isUnbuyable
                           ? 'bg-stone-100 text-stone-400 cursor-not-allowed shadow-none' 
                           : !!cartItem
                             ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-200 shadow-none'
