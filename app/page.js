@@ -114,7 +114,9 @@ export default function BrandWelcomeHomePage() {
                 <h1 className="text-6xl md:text-8xl font-black tracking-tighter uppercase text-white mb-6 leading-none drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]">
                   {slide.title}
                 </h1>
-                <Link href="/shop">
+                
+                {/* 🚨 THE FIX: Passes the specific slide ID (sobolo, lemonade, pinezest) to trigger the storefront modal */}
+                <Link href={`/shop?focus=${slide.id}`}>
                   <button className={`${slide.buttonColor} text-white px-8 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 group drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]`}>
                     Shop The Drop <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </button>
@@ -141,7 +143,8 @@ export default function BrandWelcomeHomePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link href="/shop" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
+          {/* 🚨 THE FIX: Added ?focus=sobolo */}
+          <Link href="/shop?focus=sobolo" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
             <Image src="/Sparkle 500ml high-def ad.jpeg" alt="Sobolo" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent flex flex-col justify-end p-8">
               <h3 className="text-white font-black uppercase text-2xl tracking-tighter">Sobolo</h3>
@@ -149,7 +152,8 @@ export default function BrandWelcomeHomePage() {
             </div>
           </Link>
 
-          <Link href="/shop" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
+          {/* 🚨 THE FIX: Added ?focus=lemonade */}
+          <Link href="/shop?focus=lemonade" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
             <Image src="/lemonade 500ml 2.jpeg" alt="Lemonade" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent flex flex-col justify-end p-8">
               <h3 className="text-white font-black uppercase text-2xl tracking-tighter">Lemonade</h3>
@@ -157,7 +161,8 @@ export default function BrandWelcomeHomePage() {
             </div>
           </Link>
 
-          <Link href="/shop" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
+          {/* 🚨 THE FIX: Added ?focus=pinezest */}
+          <Link href="/shop?focus=pinezest" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
             <Image src="/pinezest.jpeg" alt="Pinezest" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent flex flex-col justify-end p-8">
               <h3 className="text-white font-black uppercase text-2xl tracking-tighter">Pinezest</h3>
