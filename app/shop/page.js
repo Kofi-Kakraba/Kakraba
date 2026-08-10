@@ -42,6 +42,9 @@ function ShopStorefront() {
   
   const [activeFilter, setActiveFilter] = useState('All Drops');
   const [selectedVariantIds, setSelectedVariantIds] = useState({});
+  
+  // 🚨 NEW: State to control the Quick-View Modal Pop-out
+  const [focusedProductId, setFocusedProductId] = useState(null);
 
   useEffect(() => {
     sessionStorage.setItem('sparkle_cart', JSON.stringify(cart));
@@ -155,6 +158,15 @@ function ShopStorefront() {
             }
           });
           setSelectedVariantIds(initialVariants);
+
+          // 🚨 NEW: Detect if a user clicked a specific drink from the homepage
+          const focusParam = searchParams.get('focus');
+          if (focusParam) {
+            const matchedProduct = data.find(p => p.name.toLowerCase().includes(focusParam.toLowerCase()));
+            if (matchedProduct) {
+              setFocusedProductId(matchedProduct.id);
+            }
+          }
         }
         setProducts(data || []);
       } catch (err) {
@@ -399,7 +411,6 @@ function ShopStorefront() {
 
   const { compiledItemsList, finalOrderBillTotal } = computeItemizedCartSummaryValues();
   const globalTotalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-
   const grandTotal = deliveryType === 'delivery' ? finalOrderBillTotal + deliveryFee : finalOrderBillTotal;
 
   const handleLaunchPaystackPaymentPortalGateway = async (e) => {
@@ -443,7 +454,6 @@ function ShopStorefront() {
       sessionStorage.setItem('sparkle_pending_order', response.orderId);
       window.location.href = response.authorizationUrl; 
     } else {
-      
       if (response.errorType === 'stock_alert') {
         if (response.remaining === 0) {
           setCheckoutAlert(
@@ -537,6 +547,199 @@ function ShopStorefront() {
     return base;
   };
 
+  // 🚨 NEW: Reusable Component to render a product card natively or in the Modal
+  const renderProductCard = (product, isModal = false) => {
+    const activeVariant = product.product_variants?.find(v => v.id === selectedVariantIds[product.id]) || product.product_variants?.[0];
+    if (!activeVariant) return null;
+
+    const isOutOfStock = !activeVariant.is_in_stock || activeVariant.stock_quantity <= 0;
+    const isPaused = activeVariant.is_active === false; 
+    const isUnbuyable = isOutOfStock || isPaused;
+
+    const theme = getFlavorTheme(product.name);
+    
+    const activeUnitDiscount = appliedCoupon 
+      ? (appliedCoupon.customDiscountsMap[activeVariant.size] !== undefined ? Number(appliedCoupon.customDiscountsMap[activeVariant.size]) : Number(activeVariant.client_discount || 0))
+      : 0;
+    const displayedCostPaidPerBottle = Number(activeVariant.retail_price) - activeUnitDiscount;
+
+    const cartItem = cart.find(item => item.variant.id === activeVariant.id);
+    
+    const currentPickerCount = cartItem 
+      ? cartItem.quantity 
+      : (localQuantities[activeVariant.id] !== undefined ? localQuantities[activeVariant.id] : 1);
+    
+    const handleMinusClick = () => {
+      if (cartItem) {
+        handleAdjustCartQuantityIndex(activeVariant.id, -1, activeVariant.stock_quantity);
+      } else {
+        setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: Math.max(1, (Number(currentPickerCount) || 1) - 1) }));
+      }
+    };
+
+    const handlePlusClick = () => {
+      if (cartItem) {
+        handleAdjustCartQuantityIndex(activeVariant.id, 1, activeVariant.stock_quantity);
+      } else {
+        const currentVal = Number(currentPickerCount) || 1;
+        const newVal = currentVal + 1;
+        setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: Math.min(newVal, activeVariant.stock_quantity) }));
+      }
+    };
+
+    const activeBtnStatus = buttonStatuses[activeVariant.id] || 'idle';
+
+    const wrapperClasses = isModal 
+      ? `bg-white border-2 ${theme.border} rounded-[40px] p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-2xl ${theme.shadow} relative overflow-hidden w-full group`
+      : `bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} ${isUnbuyable ? 'bg-stone-50' : 'hover:-translate-y-1'} transition-transform duration-300 relative overflow-hidden group`;
+
+    return (
+      <div key={isModal ? `modal-${product.id}` : product.id} className={wrapperClasses}>
+        
+        <div className={`absolute top-0 right-0 w-64 h-64 ${theme.bg} rounded-full blur-3xl opacity-50 pointer-events-none -mr-20 -mt-20 ${isUnbuyable ? 'grayscale' : ''}`} />
+
+        <div className="flex justify-between items-start relative z-10">
+          <div>
+            <h4 className={`font-black uppercase text-lg leading-tight tracking-tight pr-2 ${theme.title} ${isUnbuyable ? 'opacity-50' : ''}`}>{product.name}</h4>
+          </div>
+          
+          <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${
+            isPaused ? 'bg-amber-400 text-amber-950' : isOutOfStock ? 'bg-stone-200 text-stone-500' : theme.stockBadge
+          }`}>
+            {isPaused ? 'Not Available' : isOutOfStock ? 'Sold Out' : 'In Stock'}
+          </span>
+        </div>
+
+        <div className="relative z-20 flex flex-wrap gap-2">
+          {product.product_variants.map(v => (
+            <button
+              key={v.id}
+              onClick={() => setSelectedVariantIds(prev => ({ ...prev, [product.id]: v.id }))}
+              className={`px-3 py-2 text-xs font-black uppercase tracking-widest rounded-lg border-2 transition-all ${
+                activeVariant.id === v.id ? theme.sizeActive : theme.sizeInactive
+              }`}
+            >
+              {v.size} {getSizeSlang(v.size) && `// ${getSizeSlang(v.size)}`}
+            </button>
+          ))}
+        </div>
+
+        {activeVariant.image_url && (
+          <div className="h-56 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 py-4">
+            <Image 
+              src={activeVariant.image_url} 
+              alt={activeVariant.sku} 
+              width={400} 
+              height={400} 
+              priority={true} 
+              className={`h-full object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transform transition-transform duration-500 group-hover:scale-105 group-hover:-translate-y-2 z-10 ${isUnbuyable ? 'grayscale opacity-60' : ''}`} 
+            />
+            <div className={`w-1/2 h-2.5 bg-black/20 blur-md rounded-[50%] absolute bottom-2 transition-all duration-500 group-hover:w-2/3 group-hover:opacity-40 ${isUnbuyable ? 'opacity-30' : ''}`}></div>
+            
+            {isPaused ? (
+              <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                <div className="bg-amber-400 text-amber-950 font-black text-2xl px-6 py-3 rounded-2xl transform -rotate-12 uppercase tracking-widest animate-pulse border-4 border-amber-950 shadow-2xl text-center">
+                  Not Available
+                </div>
+              </div>
+            ) : isOutOfStock ? (
+              <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                <div className="bg-red-600 text-white font-black text-3xl px-6 py-2 rounded-2xl transform -rotate-12 uppercase tracking-widest animate-pulse border-4 border-white shadow-2xl">
+                  Sold Out
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        <div className={`space-y-4 relative z-10 mt-auto ${isUnbuyable ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
+          <div className="bg-[#FDFBF7] border border-stone-200 p-4 rounded-2xl text-xs font-medium space-y-1.5 transition-all duration-300">
+            {appliedCoupon ? (
+              <div className="space-y-1">
+                <div className="flex justify-between text-stone-400 line-through"><span>Standard Retail:</span><span>₵{Number(activeVariant.retail_price).toFixed(2)}</span></div>
+                <div className="flex justify-between text-emerald-600 font-black text-sm"><span>Promo Access Rate:</span><span>₵{displayedCostPaidPerBottle.toFixed(2)}</span></div>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex justify-between text-stone-600">
+                  <span>Standard Retail:</span>
+                  <strong className={`font-black text-sm ${theme.price}`}>₵{Number(activeVariant.retail_price).toFixed(2)}</strong>
+                </div>
+                <div className="flex justify-between text-emerald-600 font-bold text-[10px] uppercase">
+                  <span>Wholesale Trigger:</span>
+                  <span>₵{Number(activeVariant.wholesale_price).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center border-2 rounded-2xl overflow-hidden h-14 shadow-sm shrink-0 w-28 transition-colors ${cartItem ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-stone-200'}`}>
+              <button 
+                type="button"
+                disabled={activeBtnStatus !== 'idle'}
+                onClick={handleMinusClick}
+                className={`flex-1 h-full transition-colors flex items-center justify-center disabled:opacity-20 ${cartItem ? 'text-emerald-700 hover:bg-emerald-100' : 'text-stone-500 hover:bg-stone-50'}`}
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              
+              <input 
+                type="number"
+                min="1"
+                max={activeVariant.stock_quantity}
+                value={currentPickerCount}
+                onChange={(e) => handleManualQuantityChange(activeVariant.id, !!cartItem, e.target.value, activeVariant.stock_quantity)}
+                onBlur={(e) => handleQuantityBlur(activeVariant.id, !!cartItem, currentPickerCount)}
+                className={`font-black text-sm w-10 text-center bg-transparent outline-none appearance-none ${cartItem ? 'text-emerald-950' : 'text-stone-950'}`}
+                style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
+              />
+
+              <button 
+                type="button"
+                disabled={activeBtnStatus !== 'idle'}
+                onClick={handlePlusClick}
+                className={`flex-1 h-full transition-colors flex items-center justify-center disabled:opacity-20 ${cartItem ? 'text-emerald-700 hover:bg-emerald-100' : 'text-stone-500 hover:bg-stone-50'}`}
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+
+            <button 
+              type="button" 
+              disabled={isUnbuyable || activeBtnStatus !== 'idle' || !!cartItem || currentPickerCount === ''}
+              onClick={() => handleAddItemToCartChannel(product, activeVariant, currentPickerCount)}
+              className={`flex-1 font-black text-xs h-14 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest transition-all duration-300 ${
+                isUnbuyable
+                  ? 'bg-stone-100 text-stone-400 cursor-not-allowed shadow-none' 
+                  : !!cartItem
+                    ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-200 shadow-none'
+                    : activeBtnStatus === 'adding'
+                      ? 'bg-stone-800 text-stone-300 cursor-wait'
+                      : activeBtnStatus === 'added'
+                        ? 'bg-emerald-500 text-white animate-pulse'
+                        : `${theme.addBtn} text-white hover:-translate-y-0.5`
+              }`}
+            >
+              {!!cartItem ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span>In Your Drop</span>
+                </>
+              ) : activeBtnStatus === 'idle' ? (
+                <span>Add To Cart</span>
+              ) : activeBtnStatus === 'adding' ? (
+                <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5 text-white animate-bounce" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-900 antialiased font-sans pb-24 selection:bg-rose-500 selection:text-white relative">
       
@@ -552,7 +755,7 @@ function ShopStorefront() {
         </div>
       )}
 
-      <div className="sticky top-0 z-[70] bg-white/95 shadow-sm border-b border-stone-200">
+      <div className="sticky top-0 z-[70] bg-white/95 backdrop-blur-md shadow-sm border-b border-stone-200">
         <div className="flex justify-between items-center w-full pr-6">
           <div className="flex-1">
              <Navbar />
@@ -638,200 +841,33 @@ function ShopStorefront() {
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 pb-20 relative z-10">
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredProducts.map((product) => {
-            const activeVariant = product.product_variants?.find(v => v.id === selectedVariantIds[product.id]) || product.product_variants?.[0];
-            
-            if (!activeVariant) return null;
-
-            // 🚨 Check for both Out of Stock AND Paused States
-            const isOutOfStock = !activeVariant.is_in_stock || activeVariant.stock_quantity <= 0;
-            const isPaused = activeVariant.is_active === false; 
-            
-            const isUnbuyable = isOutOfStock || isPaused;
-
-            const theme = getFlavorTheme(product.name);
-            
-            const activeUnitDiscount = appliedCoupon 
-              ? (appliedCoupon.customDiscountsMap[activeVariant.size] !== undefined ? Number(appliedCoupon.customDiscountsMap[activeVariant.size]) : Number(activeVariant.client_discount || 0))
-              : 0;
-            const displayedCostPaidPerBottle = Number(activeVariant.retail_price) - activeUnitDiscount;
-
-            const cartItem = cart.find(item => item.variant.id === activeVariant.id);
-            
-            const currentPickerCount = cartItem 
-              ? cartItem.quantity 
-              : (localQuantities[activeVariant.id] !== undefined ? localQuantities[activeVariant.id] : 1);
-            
-            const handleMinusClick = () => {
-              if (cartItem) {
-                handleAdjustCartQuantityIndex(activeVariant.id, -1, activeVariant.stock_quantity);
-              } else {
-                setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: Math.max(1, (Number(currentPickerCount) || 1) - 1) }));
-              }
-            };
-
-            const handlePlusClick = () => {
-              if (cartItem) {
-                handleAdjustCartQuantityIndex(activeVariant.id, 1, activeVariant.stock_quantity);
-              } else {
-                const currentVal = Number(currentPickerCount) || 1;
-                const newVal = currentVal + 1;
-                setLocalQuantities(prev => ({ ...prev, [activeVariant.id]: Math.min(newVal, activeVariant.stock_quantity) }));
-              }
-            };
-
-            const activeBtnStatus = buttonStatuses[activeVariant.id] || 'idle';
-
-            return (
-              <div key={product.id} className={`bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} ${isUnbuyable ? 'bg-stone-50' : 'hover:-translate-y-1'} transition-transform duration-300 relative overflow-hidden group`}>
-                
-                <div className={`absolute top-0 right-0 w-64 h-64 ${theme.bg} rounded-full blur-3xl opacity-50 pointer-events-none -mr-20 -mt-20 ${isUnbuyable ? 'grayscale' : ''}`} />
-
-                <div className="flex justify-between items-start relative z-10">
-                  <div>
-                    <h4 className={`font-black uppercase text-lg leading-tight tracking-tight pr-2 ${theme.title} ${isUnbuyable ? 'opacity-50' : ''}`}>{product.name}</h4>
-                  </div>
-                  
-                  {/* 🚨 DYNAMIC MINI BADGE updated to "Not Available" */}
-                  <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${
-                    isPaused ? 'bg-amber-400 text-amber-950' : isOutOfStock ? 'bg-stone-200 text-stone-500' : theme.stockBadge
-                  }`}>
-                    {isPaused ? 'Not Available' : isOutOfStock ? 'Sold Out' : 'In Stock'}
-                  </span>
-                </div>
-
-                <div className="relative z-20 flex flex-wrap gap-2">
-                  {product.product_variants.map(v => (
-                    <button
-                      key={v.id}
-                      onClick={() => setSelectedVariantIds(prev => ({ ...prev, [product.id]: v.id }))}
-                      className={`px-3 py-2 text-xs font-black uppercase tracking-widest rounded-lg border-2 transition-all ${
-                        activeVariant.id === v.id ? theme.sizeActive : theme.sizeInactive
-                      }`}
-                    >
-                      {v.size} {getSizeSlang(v.size) && `// ${getSizeSlang(v.size)}`}
-                    </button>
-                  ))}
-                </div>
-
-                {activeVariant.image_url && (
-                  <div className="h-56 w-full relative flex flex-col items-center justify-end transition-all duration-500 z-10 py-4">
-                    <Image 
-                      src={activeVariant.image_url} 
-                      alt={activeVariant.sku} 
-                      width={400} 
-                      height={400} 
-                      priority={true} 
-                      className={`h-full object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.3)] transform transition-transform duration-500 group-hover:scale-105 group-hover:-translate-y-2 z-10 ${isUnbuyable ? 'grayscale opacity-60' : ''}`} 
-                    />
-                    <div className={`w-1/2 h-2.5 bg-black/20 blur-md rounded-[50%] absolute bottom-2 transition-all duration-500 group-hover:w-2/3 group-hover:opacity-40 ${isUnbuyable ? 'opacity-30' : ''}`}></div>
-                    
-                    {/* 🚨 DYNAMIC BIG STAMP updated to "Not Available" */}
-                    {isPaused ? (
-                      <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-                        <div className="bg-amber-400 text-amber-950 font-black text-2xl px-6 py-3 rounded-2xl transform -rotate-12 uppercase tracking-widest animate-pulse border-4 border-amber-950 shadow-2xl text-center">
-                          Not Available
-                        </div>
-                      </div>
-                    ) : isOutOfStock ? (
-                      <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-                        <div className="bg-red-600 text-white font-black text-3xl px-6 py-2 rounded-2xl transform -rotate-12 uppercase tracking-widest animate-pulse border-4 border-white shadow-2xl">
-                          Sold Out
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-
-                <div className={`space-y-4 relative z-10 mt-auto ${isUnbuyable ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
-                  <div className="bg-[#FDFBF7] border border-stone-200 p-4 rounded-2xl text-xs font-medium space-y-1.5 transition-all duration-300">
-                    {appliedCoupon ? (
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-stone-400 line-through"><span>Standard Retail:</span><span>₵{Number(activeVariant.retail_price).toFixed(2)}</span></div>
-                        <div className="flex justify-between text-emerald-600 font-black text-sm"><span>Promo Access Rate:</span><span>₵{displayedCostPaidPerBottle.toFixed(2)}</span></div>
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-stone-600">
-                          <span>Standard Retail:</span>
-                          <strong className={`font-black text-sm ${theme.price}`}>₵{Number(activeVariant.retail_price).toFixed(2)}</strong>
-                        </div>
-                        <div className="flex justify-between text-emerald-600 font-bold text-[10px] uppercase">
-                          <span>Wholesale Trigger:</span>
-                          <span>₵{Number(activeVariant.wholesale_price).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className={`flex items-center border-2 rounded-2xl overflow-hidden h-14 shadow-sm shrink-0 w-28 transition-colors ${cartItem ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-stone-200'}`}>
-                      <button 
-                        type="button"
-                        disabled={activeBtnStatus !== 'idle'}
-                        onClick={handleMinusClick}
-                        className={`flex-1 h-full transition-colors flex items-center justify-center disabled:opacity-20 ${cartItem ? 'text-emerald-700 hover:bg-emerald-100' : 'text-stone-500 hover:bg-stone-50'}`}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      
-                      <input 
-                        type="number"
-                        min="1"
-                        max={activeVariant.stock_quantity}
-                        value={currentPickerCount}
-                        onChange={(e) => handleManualQuantityChange(activeVariant.id, !!cartItem, e.target.value, activeVariant.stock_quantity)}
-                        onBlur={(e) => handleQuantityBlur(activeVariant.id, !!cartItem, currentPickerCount)}
-                        className={`font-black text-sm w-10 text-center bg-transparent outline-none appearance-none ${cartItem ? 'text-emerald-950' : 'text-stone-950'}`}
-                        style={{ MozAppearance: 'textfield', WebkitAppearance: 'none' }}
-                      />
-
-                      <button 
-                        type="button"
-                        disabled={activeBtnStatus !== 'idle'}
-                        onClick={handlePlusClick}
-                        className={`flex-1 h-full transition-colors flex items-center justify-center disabled:opacity-20 ${cartItem ? 'text-emerald-700 hover:bg-emerald-100' : 'text-stone-500 hover:bg-stone-50'}`}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <button 
-                      type="button" 
-                      disabled={isUnbuyable || activeBtnStatus !== 'idle' || !!cartItem || currentPickerCount === ''}
-                      onClick={() => handleAddItemToCartChannel(product, activeVariant, currentPickerCount)}
-                      className={`flex-1 font-black text-xs h-14 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest transition-all duration-300 ${
-                        isUnbuyable
-                          ? 'bg-stone-100 text-stone-400 cursor-not-allowed shadow-none' 
-                          : !!cartItem
-                            ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-200 shadow-none'
-                            : activeBtnStatus === 'adding'
-                              ? 'bg-stone-800 text-stone-300 cursor-wait'
-                              : activeBtnStatus === 'added'
-                                ? 'bg-emerald-500 text-white animate-pulse'
-                                : `${theme.addBtn} text-white hover:-translate-y-0.5`
-                      }`}
-                    >
-                      {!!cartItem ? (
-                        <>
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                          <span>In Your Drop</span>
-                        </>
-                      ) : activeBtnStatus === 'idle' ? (
-                        <span>Add To Cart</span>
-                      ) : activeBtnStatus === 'adding' ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
-                      ) : (
-                        <CheckCircle2 className="h-5 w-5 text-white animate-bounce" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {filteredProducts.map(product => renderProductCard(product, false))}
         </section>
       </main>
+
+      {/* 🚨 NEW: FOCUS OVERLAY MODAL */}
+      {focusedProductId && (() => {
+        const focusedProduct = products.find(p => p.id === focusedProductId);
+        if (!focusedProduct) return null;
+
+        return (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6">
+            <div 
+              className="absolute inset-0 bg-stone-950/70 backdrop-blur-sm transition-opacity cursor-pointer" 
+              onClick={() => setFocusedProductId(null)} 
+            />
+            <div className="relative z-10 w-full max-w-md mx-auto animate-in fade-in zoom-in-95 duration-300">
+              <button 
+                onClick={() => setFocusedProductId(null)} 
+                className="absolute -top-12 right-0 bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full backdrop-blur-md border border-white/20 transition-all shadow-lg"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              {renderProductCard(focusedProduct, true)}
+            </div>
+          </div>
+        );
+      })()}
 
       {cart.length > 0 && !isCartOpen && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 z-[90] shadow-[0_-10px_30px_rgba(0,0,0,0.1)] flex justify-between items-center">
