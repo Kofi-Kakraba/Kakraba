@@ -12,7 +12,6 @@ function getServiceSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
-  // 🚨 THE FIX: Force Next.js to bypass the Data Cache so inventory checks are 100% live
   return createClient(supabaseUrl, supabaseKey, {
     auth: { persistSession: false },
     global: {
@@ -93,6 +92,9 @@ async function releaseAbandonedStockReservations(supabase) {
         }
       }
     }
+    // 🚨 Push cache clear when Janitor runs
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
   } catch (e) {
     console.error("Auto-cleanup failed:", e);
   }
@@ -124,6 +126,9 @@ export async function cancelAbandonedOrderServerAction(orderId) {
         }
       }
     }
+    // 🚨 Clear cache so returned stock shows on Admin immediately
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
     return { success: true };
   } catch (err) {
     console.error("Cancel abandon failed:", err);
@@ -182,7 +187,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       
       successfullyReservedItems.push(item);
 
-      // 🚨 SMART NOTIFICATIONS: Run asynchronously so they don't slow down the customer's checkout!
+      // 🚨 SMART NOTIFICATIONS: Run asynchronously
       if (newStock === 0) {
         fireAdminPushAlert(
           '🚨 ZERO STOCK FATAL',
@@ -256,6 +261,10 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
     if (!paystackResponse.ok || !paystackJson.status) {
       throw new Error(`Paystack Initialization Rejected: ${paystackJson.message || 'Gateway connection timeout.'}`);
     }
+
+    // 🚨 THE FIX: Force the Admin to revalidate cache now that stock is deducted!
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
 
     return { 
       success: true, 
@@ -365,7 +374,6 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
     }
 
     try {
-      // 🚨 FIRE A PUSH NOTIFICATION FOR NEW PAID ORDERS TOO!
       fireAdminPushAlert(
         '💰 NEW PAID ORDER SECURED',
         `A payment of ₵${Number(updatedOrder.total_amount).toFixed(2)} just cleared for ${updatedOrder.customer_name}.`
@@ -392,7 +400,6 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
       console.error("Failed to send admin email:", emailError);
     }
 
-    // 🚨 THE FIX: Force the Admin and Shop paths to immediately revalidate their caches upon successful payment!
     revalidatePath('/admin', 'layout');
     revalidatePath('/shop', 'layout');
     revalidatePath('/', 'layout');
