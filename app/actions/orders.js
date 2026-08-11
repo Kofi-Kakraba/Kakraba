@@ -2,14 +2,34 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
-import { fireAdminPushAlert } from './notifications'; // 🚨 NEW: Import the Push Alert brain!
+import { fireAdminPushAlert } from './notifications';
+import { revalidatePath } from 'next/cache';
+import { unstable_noStore as noStore } from 'next/cache';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 function getServiceSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return createClient(supabaseUrl, supabaseKey);
+  
+  // 🚨 THE FIX: Force Next.js to bypass the Data Cache so inventory checks are 100% live
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false },
+    global: {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'x-timestamp': Date.now().toString()
+      },
+      fetch: (url, options) => {
+        return fetch(url, { 
+          ...options, 
+          cache: 'no-store',
+          next: { revalidate: 0 } 
+        });
+      }
+    }
+  });
 }
 
 function formatGhanaianPhoneNumber(rawPhone) {
@@ -21,6 +41,7 @@ function formatGhanaianPhoneNumber(rawPhone) {
 }
 
 async function fireSMSOnlineGHGateway(targetPhone, messageContent) {
+  noStore();
   try {
     const apiKey = process.env.SMS_ONLINE_GH_KEY;
     const senderId = process.env.SMS_ONLINE_GH_SENDER_ID || 'SPARKLE';
@@ -38,7 +59,8 @@ async function fireSMSOnlineGHGateway(targetPhone, messageContent) {
         text: messageContent, 
         type: 0, 
         destinations: [formatGhanaianPhoneNumber(targetPhone)] 
-      })
+      }),
+      cache: 'no-store'
     });
     return response.ok;
   } catch (err) { 
@@ -77,12 +99,14 @@ async function releaseAbandonedStockReservations(supabase) {
 }
 
 export async function runAutoJanitorServerAction() {
+  noStore();
   const supabase = getServiceSupabaseClient();
   await releaseAbandonedStockReservations(supabase);
   return { success: true };
 }
 
 export async function cancelAbandonedOrderServerAction(orderId) {
+  noStore();
   try {
     const supabase = getServiceSupabaseClient();
     const { data: order } = await supabase.from('orders').select('status').eq('id', orderId).single();
@@ -108,6 +132,7 @@ export async function cancelAbandonedOrderServerAction(orderId) {
 }
 
 export async function createCustomerOrderServerAction(orderPayload, cartItemsList) {
+  noStore();
   const supabase = getServiceSupabaseClient();
   let successfullyReservedItems = [];
   
@@ -222,7 +247,8 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
         amount: Math.round(Number(orderPayload.totalAmount) * 100), 
         reference: newOrderHeader.id,
         callback_url: `${siteDomainBaseUrl}/checkout/success?orderId=${newOrderHeader.id}`
-      })
+      }),
+      cache: 'no-store'
     });
 
     const paystackJson = await paystackResponse.json();
@@ -252,6 +278,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
 }
 
 export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
+  noStore();
   try {
     const supabase = getServiceSupabaseClient();
     const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
@@ -274,7 +301,8 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
 
     const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${orderId}`, {
       method: 'GET',
-      headers: { 'Authorization': `Bearer ${paystackSecret}` }
+      headers: { 'Authorization': `Bearer ${paystackSecret}` },
+      cache: 'no-store'
     });
 
     const verifyJson = await verifyResponse.json();
@@ -364,6 +392,11 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
       console.error("Failed to send admin email:", emailError);
     }
 
+    // 🚨 THE FIX: Force the Admin and Shop paths to immediately revalidate their caches upon successful payment!
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
+    revalidatePath('/', 'layout');
+
     return { success: true, data: updatedOrder };
 
   } catch (err) {
@@ -373,6 +406,7 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
 }
 
 export async function updateOrderStatusAdmin(orderId, targetState) {
+  noStore();
   try {
     const supabase = getServiceSupabaseClient(); 
 
@@ -409,10 +443,11 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
         const magicLink = `https://sparklebeverages.com/track?id=${orderRef}&phone=${orderData.customer_phone.replace('+', '')}`;
         const smsMessage = `Hi ${firstName}, your Sparkle order is packed and READY for pickup at our HQ Depot! Present code (#${orderRef}). Track live status: ${magicLink}`;
 
-        const smsSent = await fireSMSOnlineGHGateway(orderData.customer_phone, smsMessage);
+        await fireSMSOnlineGHGateway(orderData.customer_phone, smsMessage);
       }
     }
 
+    revalidatePath('/admin', 'layout');
     return { success: true };
 
   } catch (error) {
