@@ -43,7 +43,6 @@ function ShopStorefront() {
   const [activeFilter, setActiveFilter] = useState('All Drops');
   const [selectedVariantIds, setSelectedVariantIds] = useState({});
   
-  // 🚨 NEW: State to control the Quick-View Modal Pop-out
   const [focusedProductId, setFocusedProductId] = useState(null);
 
   useEffect(() => {
@@ -159,10 +158,14 @@ function ShopStorefront() {
           });
           setSelectedVariantIds(initialVariants);
 
-          // 🚨 NEW: Detect if a user clicked a specific drink from the homepage
           const focusParam = searchParams.get('focus');
           if (focusParam) {
-            const matchedProduct = data.find(p => p.name.toLowerCase().includes(focusParam.toLowerCase()));
+            const matchedProduct = data.find(p => {
+              const nameLower = p.name.toLowerCase();
+              const focusLower = focusParam.toLowerCase();
+              if (focusLower === 'sobolo' && nameLower.includes('hibiscus')) return true;
+              return nameLower.includes(focusLower);
+            });
             if (matchedProduct) {
               setFocusedProductId(matchedProduct.id);
             }
@@ -221,6 +224,7 @@ function ShopStorefront() {
 
     } else {
       const urlPromo = searchParams.get('promo');
+
       if (urlPromo) {
         const cleanPromo = urlPromo.trim().toUpperCase();
         localStorage.setItem('sparkle_active_promo', cleanPromo);
@@ -229,10 +233,12 @@ function ShopStorefront() {
       } else {
         setCart([]);
         sessionStorage.removeItem('sparkle_cart');
-        sessionStorage.removeItem('sparkle_promo_skipped');
         localStorage.removeItem('sparkle_active_promo');
-        setGatewayStage('question');
         setAppliedCoupon(null);
+
+        // 🚨 Gateway First! We no longer auto-skip the promo gateway
+        sessionStorage.removeItem('sparkle_promo_skipped');
+        setGatewayStage('question');
       }
       fetchStoreCatalog();
     }
@@ -547,7 +553,6 @@ function ShopStorefront() {
     return base;
   };
 
-  // 🚨 NEW: Reusable Component to render a product card natively or in the Modal
   const renderProductCard = (product, isModal = false) => {
     const activeVariant = product.product_variants?.find(v => v.id === selectedVariantIds[product.id]) || product.product_variants?.[0];
     if (!activeVariant) return null;
@@ -707,13 +712,20 @@ function ShopStorefront() {
 
             <button 
               type="button" 
-              disabled={isUnbuyable || activeBtnStatus !== 'idle' || !!cartItem || currentPickerCount === ''}
-              onClick={() => handleAddItemToCartChannel(product, activeVariant, currentPickerCount)}
+              disabled={isUnbuyable || activeBtnStatus === 'adding' || (!cartItem && currentPickerCount === '')}
+              onClick={() => {
+                if (cartItem) {
+                  setFocusedProductId(null);
+                  setIsCartOpen(true);
+                } else {
+                  handleAddItemToCartChannel(product, activeVariant, currentPickerCount);
+                }
+              }}
               className={`flex-1 font-black text-xs h-14 rounded-2xl flex items-center justify-center gap-2 uppercase tracking-widest transition-all duration-300 ${
                 isUnbuyable
                   ? 'bg-stone-100 text-stone-400 cursor-not-allowed shadow-none' 
                   : !!cartItem
-                    ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-200 shadow-none'
+                    ? 'bg-stone-900 text-white hover:bg-stone-800 shadow-lg' 
                     : activeBtnStatus === 'adding'
                       ? 'bg-stone-800 text-stone-300 cursor-wait'
                       : activeBtnStatus === 'added'
@@ -723,8 +735,8 @@ function ShopStorefront() {
             >
               {!!cartItem ? (
                 <>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span>In Your Drop</span>
+                  <ShoppingBag className="h-4 w-4" />
+                  <span>Checkout Now &rarr;</span>
                 </>
               ) : activeBtnStatus === 'idle' ? (
                 <span>Add To Cart</span>
@@ -755,7 +767,8 @@ function ShopStorefront() {
         </div>
       )}
 
-      <div className="sticky top-0 z-[70] bg-white/95 backdrop-blur-md shadow-sm border-b border-stone-200">
+      {/* 🚨 FIX: Raised z-index to 90 so Navbar is always accessible above the Quick View Modal */}
+      <div className="sticky top-0 z-[90] bg-white/95 backdrop-blur-md shadow-sm border-b border-stone-200">
         <div className="flex justify-between items-center w-full pr-6">
           <div className="flex-1">
              <Navbar />
@@ -785,9 +798,11 @@ function ShopStorefront() {
                   sessionStorage.removeItem('sparkle_promo_skipped');
                   setGatewayStage('input_form'); 
                 }} 
-                className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-rose-500 transition-colors flex items-center gap-1"
+                className="text-[10px] sm:text-xs font-black uppercase tracking-widest bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 px-3 sm:px-4 py-2 rounded-full transition-all flex items-center gap-1.5 shadow-sm"
               >
-                <Key className="h-4 w-4" /> <span className="hidden sm:inline">Add Promo</span>
+                <Key className="h-4 w-4 shrink-0" /> 
+                <span className="hidden sm:inline">Apply Promo Code</span>
+                <span className="sm:hidden">Promo</span>
               </button>
             ) : null}
 
@@ -845,8 +860,8 @@ function ShopStorefront() {
         </section>
       </main>
 
-      {/* 🚨 NEW: FOCUS OVERLAY MODAL */}
-      {focusedProductId && (() => {
+      {/* 🚨 FIX: Modal only reveals itself AFTER the promo gateway is unlocked/skipped */}
+      {gatewayStage === 'unlocked' && focusedProductId && (() => {
         const focusedProduct = products.find(p => p.id === focusedProductId);
         if (!focusedProduct) return null;
 
