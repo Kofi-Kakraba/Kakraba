@@ -18,7 +18,7 @@ import {
   createNewProductWithVariantsAdmin, deleteProductAdminAction, processReferrerApprovalAdminAction,
   processReferrerRejectionAdminAction, deleteReferrerAdminAction,
   getAdminWithdrawalTicketsQueueAction, forceResetAmbassadorPasswordAdminAction,
-  addVariantAdminAction, deleteVariantAdminAction // 🚨 NEW IMPORTS
+  addVariantAdminAction, deleteVariantAdminAction
 } from '../actions/admin';
 
 // Logistics Actions
@@ -136,11 +136,11 @@ function AdminDashboardContent() {
   const [editLowStockTrigger, setEditLowStockTrigger] = useState(20);
   const [editIsActive, setEditIsActive] = useState(true);
 
-  // 🚨 UI Filter States
+  // Filter States
   const [inventoryFilter, setInventoryFilter] = useState('All Drops');
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
 
-  // 🚨 SIZE CREATION STATES
+  // SIZE CREATION STATES
   const [addingSizeToProduct, setAddingSizeToProduct] = useState(null);
   const [newSizeName, setNewSizeName] = useState('');
 
@@ -346,7 +346,6 @@ function AdminDashboardContent() {
     }
   };
 
-  // 🚨 FIX: Allow empty products to show up when "All Status" is selected!
   const filteredInventoryProducts = products.map(p => {
     const filteredVariants = (p.product_variants || []).filter(v => {
       if (inventoryStatusFilter === 'active') return v.is_active !== false;
@@ -674,7 +673,6 @@ function AdminDashboardContent() {
     setUpdatingId(null);
   };
 
-  // 🚨 NEW: HANDLE ADDING A CUSTOM SIZE
   const handleAddNewSize = async (e, productId, productName) => {
     e.preventDefault();
     if (!newSizeName) return;
@@ -695,7 +693,6 @@ function AdminDashboardContent() {
     setUpdatingId(null);
   };
 
-  // 🚨 NEW: HANDLE DELETING A CUSTOM SIZE
   const handleDeleteVariant = async (variantId, sizeName) => {
     if(!confirm(`Are you sure you want to completely delete the ${sizeName} size? This cannot be undone.`)) return;
     setUpdatingId(variantId);
@@ -1613,7 +1610,6 @@ function AdminDashboardContent() {
               </form>
             </div>
 
-            {/* 🚨 Dynamic Inventory Filter UI */}
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row justify-between gap-4">
               <div className="overflow-x-auto pb-1 -mb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <div className="flex gap-2 min-w-max">
@@ -1675,7 +1671,6 @@ function AdminDashboardContent() {
                     </div>
                   </div>
 
-                  {/* 🚨 ADD NEW SIZE FORM */}
                   {addingSizeToProduct === product.id && (
                     <form onSubmit={(e) => handleAddNewSize(e, product.id, product.name)} className="bg-stone-950 p-4 border border-stone-800 rounded-xl flex items-end gap-3 animate-in slide-in-from-top-2">
                       <div className="flex-1">
@@ -1767,7 +1762,10 @@ function AdminDashboardContent() {
                             </div>
                             <div className="pt-2 flex items-center gap-2">
                               {isEditing ? (
-                                <button onClick={() => handleSaveVariantChanges(variant.id)} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg transition-colors shadow-md">Save Config</button>
+                                <>
+                                  <button onClick={() => setEditingVariantId(null)} className="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-300 font-mono text-[10px] font-bold py-1.5 rounded-lg transition-colors border border-stone-700">Cancel</button>
+                                  <button onClick={() => handleSaveVariantChanges(variant.id)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg transition-colors shadow-md">Save</button>
+                                </>
                               ) : (
                                 <>
                                   <button onClick={() => { 
