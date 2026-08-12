@@ -17,7 +17,8 @@ import {
   getSiteSettingsAdmin, updateSiteSettingsAdmin,
   createNewProductWithVariantsAdmin, deleteProductAdminAction, processReferrerApprovalAdminAction,
   processReferrerRejectionAdminAction, deleteReferrerAdminAction,
-  getAdminWithdrawalTicketsQueueAction, forceResetAmbassadorPasswordAdminAction
+  getAdminWithdrawalTicketsQueueAction, forceResetAmbassadorPasswordAdminAction,
+  addVariantAdminAction, deleteVariantAdminAction // 🚨 NEW IMPORTS
 } from '../actions/admin';
 
 // Logistics Actions
@@ -138,6 +139,10 @@ function AdminDashboardContent() {
   // 🚨 UI Filter States
   const [inventoryFilter, setInventoryFilter] = useState('All Drops');
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
+
+  // 🚨 SIZE CREATION STATES
+  const [addingSizeToProduct, setAddingSizeToProduct] = useState(null);
+  const [newSizeName, setNewSizeName] = useState('');
 
   // Derived Lists
   const humanAmbassadorsList = referrals.filter(r => r.legal_name && r.legal_name.trim() !== '');
@@ -341,6 +346,7 @@ function AdminDashboardContent() {
     }
   };
 
+  // 🚨 FIX: Allow empty products to show up when "All Status" is selected!
   const filteredInventoryProducts = products.map(p => {
     const filteredVariants = (p.product_variants || []).filter(v => {
       if (inventoryStatusFilter === 'active') return v.is_active !== false;
@@ -355,7 +361,7 @@ function AdminDashboardContent() {
       if (fNameLower === 'sobolo' && !pNameLower.includes('hibiscus')) return false;
       if (fNameLower !== 'sobolo' && !pNameLower.includes(fNameLower)) return false;
     }
-    // Only show products if they have at least 1 variant (or if they are entirely empty test products)
+    
     if (inventoryStatusFilter !== 'all' && p.product_variants.length === 0) return false;
     return true;
   });
@@ -664,6 +670,41 @@ function AdminDashboardContent() {
       router.refresh();
     } else {
       alert(`Failed to delete: ${res.error}\n\n(Note: You cannot delete a product if customers have already placed orders for it. You must pause it instead.)`);
+    }
+    setUpdatingId(null);
+  };
+
+  // 🚨 NEW: HANDLE ADDING A CUSTOM SIZE
+  const handleAddNewSize = async (e, productId, productName) => {
+    e.preventDefault();
+    if (!newSizeName) return;
+    setUpdatingId(`add-size-${productId}`);
+    
+    const skuSlug = productName.substring(0, 3).toUpperCase().replace(/\s+/g, '');
+    const sku = `SPK-${skuSlug}-${newSizeName.replace(/\s+/g, '').toUpperCase()}`;
+    
+    const res = await addVariantAdminAction(productId, newSizeName.trim(), sku);
+    if (res.success) {
+      setAddingSizeToProduct(null);
+      setNewSizeName('');
+      await loadDashboardData();
+      router.refresh();
+    } else {
+      alert(`Failed to add size: ${res.error}`);
+    }
+    setUpdatingId(null);
+  };
+
+  // 🚨 NEW: HANDLE DELETING A CUSTOM SIZE
+  const handleDeleteVariant = async (variantId, sizeName) => {
+    if(!confirm(`Are you sure you want to completely delete the ${sizeName} size? This cannot be undone.`)) return;
+    setUpdatingId(variantId);
+    const res = await deleteVariantAdminAction(variantId);
+    if (res.success) {
+      await loadDashboardData();
+      router.refresh();
+    } else {
+      alert(`Failed to delete size: ${res.error}\n\n(Cannot delete if customers have previously ordered this size. Pause it instead.)`);
     }
     setUpdatingId(null);
   };
@@ -1572,7 +1613,7 @@ function AdminDashboardContent() {
               </form>
             </div>
 
-            {/* 🚨 UPDATED: Storefront-Styled Filter Pills */}
+            {/* 🚨 Dynamic Inventory Filter UI */}
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row justify-between gap-4">
               <div className="overflow-x-auto pb-1 -mb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <div className="flex gap-2 min-w-max">
@@ -1614,21 +1655,40 @@ function AdminDashboardContent() {
             <div className="space-y-6">
               {filteredInventoryProducts.map((product) => (
                 <div key={product.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4 shadow-lg">
-                  <div className="flex justify-between items-baseline border-b border-stone-800/60 pb-2">
+                  <div className="flex flex-col sm:flex-row justify-between items-baseline border-b border-stone-800/60 pb-2 gap-2">
                     <h3 className="font-sans font-bold text-base text-white">{product.name}</h3>
-                    {/* 🚨 NEW: DELETE PRODUCT BUTTON */}
-                    <button 
-                      onClick={() => handleDeleteFlavorProduct(product.id, product.name)} 
-                      disabled={updatingId === `delete-${product.id}`}
-                      className="text-stone-500 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-500/10 disabled:opacity-50"
-                      title="Permanently Delete Flavor"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setAddingSizeToProduct(product.id)}
+                        className="text-[9px] font-bold uppercase tracking-widest bg-stone-800 border border-stone-700 text-stone-300 hover:text-white hover:bg-stone-700 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        + Add Size
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteFlavorProduct(product.id, product.name)} 
+                        disabled={updatingId === `delete-${product.id}`}
+                        className="text-stone-500 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-500/10 disabled:opacity-50 border border-transparent hover:border-red-900/30"
+                        title="Permanently Delete Flavor"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* 🚨 ADD NEW SIZE FORM */}
+                  {addingSizeToProduct === product.id && (
+                    <form onSubmit={(e) => handleAddNewSize(e, product.id, product.name)} className="bg-stone-950 p-4 border border-stone-800 rounded-xl flex items-end gap-3 animate-in slide-in-from-top-2">
+                      <div className="flex-1">
+                        <label className="text-[9px] text-stone-400 font-bold uppercase mb-1 block">New Size Name</label>
+                        <input type="text" placeholder="e.g. 250ml or 10L" required value={newSizeName} onChange={e => setNewSizeName(e.target.value)} className="bg-stone-900 border border-stone-800 rounded-lg px-3 py-2 text-xs text-white outline-none w-full" />
+                      </div>
+                      <button type="submit" disabled={updatingId === `add-size-${product.id}`} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest h-8 transition-colors">Save</button>
+                      <button type="button" onClick={() => {setAddingSizeToProduct(null); setNewSizeName('');}} className="bg-stone-800 hover:bg-stone-700 text-stone-300 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest h-8 transition-colors">Cancel</button>
+                    </form>
+                  )}
                   
                   {product.product_variants.length === 0 ? (
-                    <div className="text-stone-500 text-xs italic py-4">No variants currently match the status filter.</div>
+                    <div className="text-stone-500 text-xs italic py-4">No variants currently match the status filter. Switch to "All Status" to view hidden sizes.</div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {product.product_variants.map((variant) => {
@@ -1705,21 +1765,32 @@ function AdminDashboardContent() {
                                 </div>
                               )}
                             </div>
-                            <div className="pt-2">
+                            <div className="pt-2 flex items-center gap-2">
                               {isEditing ? (
-                                <button onClick={() => handleSaveVariantChanges(variant.id)} className="w-full bg-emerald-600 text-white font-mono text-[10px] font-bold py-1 rounded-lg">Save Config</button>
+                                <button onClick={() => handleSaveVariantChanges(variant.id)} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg transition-colors shadow-md">Save Config</button>
                               ) : (
-                                <button onClick={() => { 
-                                  setEditingVariantId(variant.id); 
-                                  setEditStock(variant.stock_quantity); 
-                                  setEditRetail(variant.retail_price); 
-                                  setEditWholesale(variant.wholesale_price);
-                                  setEditWholesaleTrigger(variant.moq_floor || 50);
-                                  setEditClientDiscount(variant.client_discount || 0);
-                                  setEditReferrerEarnings(variant.referrer_earnings || 0);
-                                  setEditLowStockTrigger(variant.low_stock_trigger ?? 20); 
-                                  setEditIsActive(variant.is_active !== false); 
-                                }} className="w-full bg-stone-800 text-stone-300 hover:text-white font-mono text-[10px] font-bold py-1 rounded-lg border border-stone-750 transition-colors">Edit Parameters</button>
+                                <>
+                                  <button onClick={() => { 
+                                    setEditingVariantId(variant.id); 
+                                    setEditStock(variant.stock_quantity); 
+                                    setEditRetail(variant.retail_price); 
+                                    setEditWholesale(variant.wholesale_price);
+                                    setEditWholesaleTrigger(variant.moq_floor || 50);
+                                    setEditClientDiscount(variant.client_discount || 0);
+                                    setEditReferrerEarnings(variant.referrer_earnings || 0);
+                                    setEditLowStockTrigger(variant.low_stock_trigger ?? 20); 
+                                    setEditIsActive(variant.is_active !== false); 
+                                  }} className="flex-1 bg-stone-800 text-stone-300 hover:text-white font-mono text-[10px] font-bold py-1.5 rounded-lg border border-stone-750 transition-colors">Edit Parameters</button>
+                                  
+                                  <button 
+                                    onClick={() => handleDeleteVariant(variant.id, variant.size)} 
+                                    disabled={updatingId === variant.id} 
+                                    title="Delete Size"
+                                    className="p-1.5 bg-red-950/20 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-colors border border-red-900/30 disabled:opacity-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </>
                               )}
                             </div>
                           </div>
