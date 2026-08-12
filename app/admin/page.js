@@ -15,7 +15,7 @@ import {
   getAllReferralCodesAdmin, toggleReferralStateAdmin,
   getStoreInventoryAdmin, updateVariantInventoryAdmin,
   getSiteSettingsAdmin, updateSiteSettingsAdmin,
-  createNewProductWithVariantsAdmin, processReferrerApprovalAdminAction,
+  createNewProductWithVariantsAdmin, deleteProductAdminAction, processReferrerApprovalAdminAction,
   processReferrerRejectionAdminAction, deleteReferrerAdminAction,
   getAdminWithdrawalTicketsQueueAction, forceResetAmbassadorPasswordAdminAction
 } from '../actions/admin';
@@ -132,13 +132,12 @@ function AdminDashboardContent() {
   const [editWholesaleTrigger, setEditWholesaleTrigger] = useState(0); 
   const [editClientDiscount, setEditClientDiscount] = useState(0); 
   const [editReferrerEarnings, setEditReferrerEarnings] = useState(0); 
-  
-  // EDITING STATES FOR INVENTORY CONTROL
   const [editLowStockTrigger, setEditLowStockTrigger] = useState(20);
   const [editIsActive, setEditIsActive] = useState(true);
 
-  // 🚨 NEW: Inventory UI Filter State
+  // 🚨 UI Filter States
   const [inventoryFilter, setInventoryFilter] = useState('All Drops');
+  const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
 
   // Derived Lists
   const humanAmbassadorsList = referrals.filter(r => r.legal_name && r.legal_name.trim() !== '');
@@ -319,18 +318,46 @@ function AdminDashboardContent() {
     }))
   ).filter(variant => variant.is_active !== false && variant.stock_quantity <= (variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20));
 
-  // 🚨 NEW: Dynamic Inventory Filters & Computed Product List
+  // Dynamic Inventory Filters
   const dynamicInventoryFilters = ['All Drops', ...Array.from(new Set(products.map(p => {
     if (p.name.toLowerCase().includes('hibiscus')) return 'Sobolo';
     return p.name.replace(/Sparkle/ig, '').replace(/Drink/ig, '').trim();
   })))];
 
-  const filteredInventoryProducts = products.filter(p => {
-    if (inventoryFilter === 'All Drops') return true;
-    const pNameLower = p.name.toLowerCase();
-    const fNameLower = inventoryFilter.toLowerCase();
-    if (fNameLower === 'sobolo' && pNameLower.includes('hibiscus')) return true;
-    return pNameLower.includes(fNameLower);
+  const getInventoryFilterClasses = (filter, isActive) => {
+    const base = "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center justify-center text-center leading-none";
+    if (isActive) {
+      if (filter === 'All Drops') return `${base} bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 text-white border-transparent shadow-md`;
+      if (filter === 'Sobolo') return `${base} bg-rose-600 text-white border-rose-600 shadow-md`;
+      if (filter === 'Lemonade') return `${base} bg-amber-500 text-white border-amber-500 shadow-md`;
+      if (filter === 'Pinezest') return `${base} bg-emerald-600 text-white border-emerald-600 shadow-md`;
+      return `${base} bg-stone-200 text-stone-900 border-stone-200 shadow-md`;
+    } else {
+      if (filter === 'All Drops') return `${base} bg-stone-950 border-stone-800 hover:border-stone-600 text-stone-400 hover:text-white`;
+      if (filter === 'Sobolo') return `${base} bg-stone-950 text-rose-500/70 border-rose-900/30 hover:border-rose-500 hover:text-rose-400`;
+      if (filter === 'Lemonade') return `${base} bg-stone-950 text-amber-500/70 border-amber-900/30 hover:border-amber-500 hover:text-amber-400`;
+      if (filter === 'Pinezest') return `${base} bg-stone-950 text-emerald-500/70 border-emerald-900/30 hover:border-emerald-500 hover:text-emerald-400`;
+      return `${base} bg-stone-950 text-stone-500 border-stone-800 hover:border-stone-600 hover:text-white`;
+    }
+  };
+
+  const filteredInventoryProducts = products.map(p => {
+    const filteredVariants = (p.product_variants || []).filter(v => {
+      if (inventoryStatusFilter === 'active') return v.is_active !== false;
+      if (inventoryStatusFilter === 'paused') return v.is_active === false;
+      return true;
+    });
+    return { ...p, product_variants: filteredVariants };
+  }).filter(p => {
+    if (inventoryFilter !== 'All Drops') {
+      const pNameLower = p.name.toLowerCase();
+      const fNameLower = inventoryFilter.toLowerCase();
+      if (fNameLower === 'sobolo' && !pNameLower.includes('hibiscus')) return false;
+      if (fNameLower !== 'sobolo' && !pNameLower.includes(fNameLower)) return false;
+    }
+    // Only show products if they have at least 1 variant (or if they are entirely empty test products)
+    if (inventoryStatusFilter !== 'all' && p.product_variants.length === 0) return false;
+    return true;
   });
 
   // Core Methods
@@ -368,7 +395,6 @@ function AdminDashboardContent() {
         setOrders(ordersRes.data || []);
         setReferrals(referralsRes.data || []);
         
-        // Fix: Sort variants properly
         const inventoryData = inventoryRes.data || [];
         const sizeOrder = { '300ml': 1, '500ml': 2, '1.5l': 3, '5l': 4 };
         
@@ -624,6 +650,20 @@ function AdminDashboardContent() {
       router.refresh();
     } else { 
       alert(`Failed: ${result.error}`); 
+    }
+    setUpdatingId(null);
+  };
+
+  const handleDeleteFlavorProduct = async (productId, productName) => {
+    if (!confirm(`⚠️ DANGER: Are you sure you want to completely delete "${productName}" and all its sizes? This cannot be undone.`)) return;
+    setUpdatingId(`delete-${productId}`);
+    const res = await deleteProductAdminAction(productId);
+    if (res.success) {
+      alert(`${productName} has been permanently deleted.`);
+      await loadDashboardData();
+      router.refresh();
+    } else {
+      alert(`Failed to delete: ${res.error}\n\n(Note: You cannot delete a product if customers have already placed orders for it. You must pause it instead.)`);
     }
     setUpdatingId(null);
   };
@@ -1532,125 +1572,161 @@ function AdminDashboardContent() {
               </form>
             </div>
 
-            {/* 🚨 NEW: Dynamic Inventory Filter UI */}
-            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 shadow-xl overflow-x-auto">
-              <div className="flex gap-2 min-w-max">
-                {dynamicInventoryFilters.map(filter => (
-                  <button
-                    key={filter}
-                    onClick={() => setInventoryFilter(filter)}
-                    className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
-                      inventoryFilter === filter
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
-                        : 'bg-stone-950 text-stone-400 border-stone-800 hover:border-stone-600 hover:text-white'
-                    }`}
-                  >
-                    {filter}
-                  </button>
-                ))}
+            {/* 🚨 UPDATED: Storefront-Styled Filter Pills */}
+            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row justify-between gap-4">
+              <div className="overflow-x-auto pb-1 -mb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="flex gap-2 min-w-max">
+                  {dynamicInventoryFilters.map(filter => (
+                    <button
+                      key={filter}
+                      onClick={() => setInventoryFilter(filter)}
+                      className={getInventoryFilterClasses(filter, inventoryFilter === filter)}
+                    >
+                      {filter === 'All Drops' && inventoryFilter !== 'All Drops' ? (
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500">All Drops</span>
+                      ) : (
+                        filter
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto pb-1 -mb-1 md:border-l md:border-stone-800 md:pl-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="flex gap-2 min-w-max">
+                  {['all', 'active', 'paused'].map(status => (
+                    <button
+                      key={status}
+                      onClick={() => setInventoryStatusFilter(status)}
+                      className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                        inventoryStatusFilter === status
+                          ? 'bg-stone-200 text-stone-900 border-stone-200 shadow-md'
+                          : 'bg-stone-950 text-stone-400 border-stone-800 hover:border-stone-600 hover:text-white'
+                      }`}
+                    >
+                      {status === 'all' ? 'All Status' : status}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
             <div className="space-y-6">
               {filteredInventoryProducts.map((product) => (
                 <div key={product.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4 shadow-lg">
-                  <div className="flex justify-between items-baseline border-b border-stone-800/60 pb-2"><h3 className="font-sans font-bold text-base text-white">{product.name}</h3></div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {product.product_variants?.map((variant) => {
-                      const isEditing = editingVariantId === variant.id;
-                      const triggerLvl = variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20;
-                      const isLowStock = variant.stock_quantity <= triggerLvl;
-                      const isPaused = variant.is_active === false;
-                      
-                      return (
-                        <div id={`variant-${variant.id}`} key={variant.id} className={`bg-stone-950 border ${isPaused ? 'border-amber-900/50 opacity-80' : isLowStock ? 'border-red-950 bg-gradient-to-b from-stone-950 to-red-950/10' : 'border-stone-800'} rounded-xl p-5 flex flex-col justify-between space-y-3 relative transition-all duration-300`}>
-                          
-                          <div className="flex justify-between items-start">
-                            <span className="text-[10px] bg-stone-800 text-stone-200 px-2 py-0.5 rounded font-mono font-bold uppercase">{variant.size}</span>
-                            <span className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border ${isPaused ? 'bg-amber-500/10 text-amber-400 border-amber-900/30' : isLowStock ? 'bg-red-500/10 text-red-400 border-red-900/30 animate-pulse' : 'bg-stone-900 text-stone-500 border-stone-800'}`}>
-                              {isPaused ? 'Paused' : isLowStock ? 'Low Stock' : 'Stable'}
-                            </span>
-                          </div>
-
-                          {variant.image_url && (
-                            <div className={`h-24 w-full bg-stone-950 rounded-xl border border-stone-850 p-1 flex items-center justify-center overflow-hidden ${isPaused ? 'grayscale' : ''}`}>
-                              <img src={variant.image_url} alt={variant.sku} className="h-full object-contain" />
-                            </div>
-                          )}
-
-                          <div className="border-t border-stone-900 pt-2 space-y-1.5 text-[11px] font-mono">
-                            {isEditing ? (
-                              <div className="space-y-2 text-stone-400">
-                                
-                                <div className="grid grid-cols-2 gap-2 pb-1 border-b border-stone-800 mb-2">
-                                  <div>
-                                    <label className="text-[8px] text-rose-400 font-bold uppercase">Push Alert Trigger</label>
-                                    <input type="number" value={editLowStockTrigger} onChange={(e)=>setEditLowStockTrigger(e.target.value)} className="w-full bg-stone-900 border border-rose-900/50 text-white px-2 py-0.5 rounded outline-none" />
-                                  </div>
-                                  <div className="flex flex-col justify-end items-end pb-0.5">
-                                    <span className="text-[8px] font-bold uppercase text-stone-400 mb-1">Storefront Status</span>
-                                    <button type="button" onClick={() => setEditIsActive(!editIsActive)}>
-                                      {editIsActive ? <ToggleRight className="h-6 w-6 text-emerald-500" /> : <ToggleLeft className="h-6 w-6 text-amber-500" />}
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div><label className="text-[8px] font-bold uppercase">Stock Count</label><input type="number" value={editStock} onChange={(e)=>setEditStock(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                                <div><label className="text-[8px] text-blue-400 font-bold uppercase">Wholesale Volume Trigger</label><input type="number" value={editWholesaleTrigger} onChange={(e)=>setEditWholesaleTrigger(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                                <div><label className="text-[8px] text-red-400 font-bold uppercase">Default Referral Discount</label><input type="number" step="0.01" value={editClientDiscount} onChange={(e)=>setEditClientDiscount(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                                <div><label className="text-[8px] text-purple-400 font-bold uppercase">Ambassador Bonus Earning</label><input type="number" step="0.01" value={editReferrerEarnings} onChange={(e)=>setEditReferrerEarnings(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                                <div><label className="text-[8px] text-emerald-400 font-bold uppercase">Retail Price (₵)</label><input type="number" step="0.01" value={editRetail} onChange={(e)=>setEditRetail(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                                <div><label className="text-[8px] text-amber-500 font-bold uppercase">Wholesale Price (₵)</label><input type="number" step="0.01" value={editWholesale} onChange={(e)=>setEditWholesale(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                              </div>
-                            ) : (
-                              <div className="space-y-1.5 text-stone-400 font-medium">
-                                <div className="flex justify-between"><span>Stock Remaining:</span><strong className={isLowStock ? 'text-red-400 font-black' : 'text-white'}>{variant.stock_quantity} units</strong></div>
-                                
-                                <div className="flex justify-between text-rose-400/80"><span>Alert Trigger:</span><strong>{triggerLvl} units</strong></div>
-                                
-                                <div className="flex justify-between text-blue-400/90"><span>Wholesale Trigger:</span><strong>{variant.moq_floor || 50} units</strong></div>
-                                <div className="flex justify-between text-red-400/90 border-t border-stone-900 pt-1"><span>Referral Discount:</span><th>₵{Number(variant.client_discount || 0).toFixed(2)}</th></div>
-                                <div className="flex justify-between text-purple-400/90"><span>Ambassador Bonus:</span><strong>₵{Number(variant.referrer_earnings || 0).toFixed(2)}</strong></div>
-                                <div className="flex justify-between border-t border-stone-900 pt-1"><span>Retail Cost:</span><strong className="text-emerald-400">₵{Number(variant.retail_price).toFixed(2)}</strong></div>
-                                <div className="flex justify-between"><span>Wholesale Cost:</span><strong className="text-amber-400">₵{Number(variant.wholesale_price).toFixed(2)}</strong></div>
-                                
-                                <div className="pt-2 border-t border-stone-900 flex flex-col gap-1">
-                                  <span className="text-[8px] text-stone-500 uppercase font-bold">Variant Graphic:</span>
-                                  <label className="cursor-pointer bg-stone-900 hover:bg-stone-850 border border-stone-800 px-2 py-1.5 rounded text-center flex items-center justify-center gap-1 text-[10px] text-stone-300 font-bold">
-                                    <Upload className="h-3 w-3 text-emerald-400" />
-                                    <span>Upload Graphic</span>
-                                    <input 
-                                      type="file" 
-                                      accept="image/*" 
-                                      className="hidden" 
-                                      onChange={(e) => handleImageUploadEngine(e, `${variant.id}-img`, 'inventory', variant.id)} 
-                                    />
-                                  </label>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <div className="pt-2">
-                            {isEditing ? (
-                              <button onClick={() => handleSaveVariantChanges(variant.id)} className="w-full bg-emerald-600 text-white font-mono text-[10px] font-bold py-1 rounded-lg">Save Config</button>
-                            ) : (
-                              <button onClick={() => { 
-                                setEditingVariantId(variant.id); 
-                                setEditStock(variant.stock_quantity); 
-                                setEditRetail(variant.retail_price); 
-                                setEditWholesale(variant.wholesale_price);
-                                setEditWholesaleTrigger(variant.moq_floor || 50);
-                                setEditClientDiscount(variant.client_discount || 0);
-                                setEditReferrerEarnings(variant.referrer_earnings || 0);
-                                setEditLowStockTrigger(variant.low_stock_trigger ?? 20); 
-                                setEditIsActive(variant.is_active !== false); 
-                              }} className="w-full bg-stone-800 text-stone-300 hover:text-white font-mono text-[10px] font-bold py-1 rounded-lg border border-stone-750 transition-colors">Edit Parameters</button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="flex justify-between items-baseline border-b border-stone-800/60 pb-2">
+                    <h3 className="font-sans font-bold text-base text-white">{product.name}</h3>
+                    {/* 🚨 NEW: DELETE PRODUCT BUTTON */}
+                    <button 
+                      onClick={() => handleDeleteFlavorProduct(product.id, product.name)} 
+                      disabled={updatingId === `delete-${product.id}`}
+                      className="text-stone-500 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-500/10 disabled:opacity-50"
+                      title="Permanently Delete Flavor"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
+                  
+                  {product.product_variants.length === 0 ? (
+                    <div className="text-stone-500 text-xs italic py-4">No variants currently match the status filter.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {product.product_variants.map((variant) => {
+                        const isEditing = editingVariantId === variant.id;
+                        const triggerLvl = variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20;
+                        const isLowStock = variant.stock_quantity <= triggerLvl;
+                        const isPaused = variant.is_active === false;
+                        
+                        return (
+                          <div id={`variant-${variant.id}`} key={variant.id} className={`bg-stone-950 border ${isPaused ? 'border-amber-900/50 opacity-80' : isLowStock ? 'border-red-950 bg-gradient-to-b from-stone-950 to-red-950/10' : 'border-stone-800'} rounded-xl p-5 flex flex-col justify-between space-y-3 relative transition-all duration-300`}>
+                            
+                            <div className="flex justify-between items-start">
+                              <span className="text-[10px] bg-stone-800 text-stone-200 px-2 py-0.5 rounded font-mono font-bold uppercase">{variant.size}</span>
+                              <span className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border ${isPaused ? 'bg-amber-500/10 text-amber-400 border-amber-900/30' : isLowStock ? 'bg-red-500/10 text-red-400 border-red-900/30 animate-pulse' : 'bg-stone-900 text-stone-500 border-stone-800'}`}>
+                                {isPaused ? 'Paused' : isLowStock ? 'Low Stock' : 'Stable'}
+                              </span>
+                            </div>
+
+                            {variant.image_url && (
+                              <div className={`h-24 w-full bg-stone-950 rounded-xl border border-stone-850 p-1 flex items-center justify-center overflow-hidden ${isPaused ? 'grayscale' : ''}`}>
+                                <img src={variant.image_url} alt={variant.sku} className="h-full object-contain" />
+                              </div>
+                            )}
+
+                            <div className="border-t border-stone-900 pt-2 space-y-1.5 text-[11px] font-mono">
+                              {isEditing ? (
+                                <div className="space-y-2 text-stone-400">
+                                  
+                                  <div className="grid grid-cols-2 gap-2 pb-1 border-b border-stone-800 mb-2">
+                                    <div>
+                                      <label className="text-[8px] text-rose-400 font-bold uppercase">Push Alert Trigger</label>
+                                      <input type="number" value={editLowStockTrigger} onChange={(e)=>setEditLowStockTrigger(e.target.value)} className="w-full bg-stone-900 border border-rose-900/50 text-white px-2 py-0.5 rounded outline-none" />
+                                    </div>
+                                    <div className="flex flex-col justify-end items-end pb-0.5">
+                                      <span className="text-[8px] font-bold uppercase text-stone-400 mb-1">Storefront Status</span>
+                                      <button type="button" onClick={() => setEditIsActive(!editIsActive)}>
+                                        {editIsActive ? <ToggleRight className="h-6 w-6 text-emerald-500" /> : <ToggleLeft className="h-6 w-6 text-amber-500" />}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div><label className="text-[8px] font-bold uppercase">Stock Count</label><input type="number" value={editStock} onChange={(e)=>setEditStock(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                  <div><label className="text-[8px] text-blue-400 font-bold uppercase">Wholesale Volume Trigger</label><input type="number" value={editWholesaleTrigger} onChange={(e)=>setEditWholesaleTrigger(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                  <div><label className="text-[8px] text-red-400 font-bold uppercase">Default Referral Discount</label><input type="number" step="0.01" value={editClientDiscount} onChange={(e)=>setEditClientDiscount(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                  <div><label className="text-[8px] text-purple-400 font-bold uppercase">Ambassador Bonus Earning</label><input type="number" step="0.01" value={editReferrerEarnings} onChange={(e)=>setEditReferrerEarnings(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                  <div><label className="text-[8px] text-emerald-400 font-bold uppercase">Retail Price (₵)</label><input type="number" step="0.01" value={editRetail} onChange={(e)=>setEditRetail(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                  <div><label className="text-[8px] text-amber-500 font-bold uppercase">Wholesale Price (₵)</label><input type="number" step="0.01" value={editWholesale} onChange={(e)=>setEditWholesale(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5 text-stone-400 font-medium">
+                                  <div className="flex justify-between"><span>Stock Remaining:</span><strong className={isLowStock ? 'text-red-400 font-black' : 'text-white'}>{variant.stock_quantity} units</strong></div>
+                                  
+                                  <div className="flex justify-between text-rose-400/80"><span>Alert Trigger:</span><strong>{triggerLvl} units</strong></div>
+                                  
+                                  <div className="flex justify-between text-blue-400/90"><span>Wholesale Trigger:</span><strong>{variant.moq_floor || 50} units</strong></div>
+                                  <div className="flex justify-between text-red-400/90 border-t border-stone-900 pt-1"><span>Referral Discount:</span><th>₵{Number(variant.client_discount || 0).toFixed(2)}</th></div>
+                                  <div className="flex justify-between text-purple-400/90"><span>Ambassador Bonus:</span><strong>₵{Number(variant.referrer_earnings || 0).toFixed(2)}</strong></div>
+                                  <div className="flex justify-between border-t border-stone-900 pt-1"><span>Retail Cost:</span><strong className="text-emerald-400">₵{Number(variant.retail_price).toFixed(2)}</strong></div>
+                                  <div className="flex justify-between"><span>Wholesale Cost:</span><strong className="text-amber-400">₵{Number(variant.wholesale_price).toFixed(2)}</strong></div>
+                                  
+                                  <div className="pt-2 border-t border-stone-900 flex flex-col gap-1">
+                                    <span className="text-[8px] text-stone-500 uppercase font-bold">Variant Graphic:</span>
+                                    <label className="cursor-pointer bg-stone-900 hover:bg-stone-850 border border-stone-800 px-2 py-1.5 rounded text-center flex items-center justify-center gap-1 text-[10px] text-stone-300 font-bold">
+                                      <Upload className="h-3 w-3 text-emerald-400" />
+                                      <span>Upload Graphic</span>
+                                      <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        onChange={(e) => handleImageUploadEngine(e, `${variant.id}-img`, 'inventory', variant.id)} 
+                                      />
+                                    </label>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="pt-2">
+                              {isEditing ? (
+                                <button onClick={() => handleSaveVariantChanges(variant.id)} className="w-full bg-emerald-600 text-white font-mono text-[10px] font-bold py-1 rounded-lg">Save Config</button>
+                              ) : (
+                                <button onClick={() => { 
+                                  setEditingVariantId(variant.id); 
+                                  setEditStock(variant.stock_quantity); 
+                                  setEditRetail(variant.retail_price); 
+                                  setEditWholesale(variant.wholesale_price);
+                                  setEditWholesaleTrigger(variant.moq_floor || 50);
+                                  setEditClientDiscount(variant.client_discount || 0);
+                                  setEditReferrerEarnings(variant.referrer_earnings || 0);
+                                  setEditLowStockTrigger(variant.low_stock_trigger ?? 20); 
+                                  setEditIsActive(variant.is_active !== false); 
+                                }} className="w-full bg-stone-800 text-stone-300 hover:text-white font-mono text-[10px] font-bold py-1 rounded-lg border border-stone-750 transition-colors">Edit Parameters</button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
