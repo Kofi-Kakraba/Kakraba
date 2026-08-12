@@ -39,7 +39,7 @@ const urlBase64ToUint8Array = (base64String) => {
   return outputArray;
 };
 
-// 1. Wrapper Component to handle Suspense (Required when using useSearchParams to break cache)
+// 1. Wrapper Component to handle Suspense
 export default function AdminDashboardPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-stone-950 flex items-center justify-center text-emerald-500 font-mono font-bold">Loading Operations Hub Data...</div>}>
@@ -51,7 +51,7 @@ export default function AdminDashboardPage() {
 // 2. The Main Content Component
 function AdminDashboardContent() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // 🚨 THE FIX: Calling this hook forces Next.js to treat the page as fully dynamic, bypassing the stubborn static cache.
+  const searchParams = useSearchParams();
   const supabase = createBrowserSupabaseClient();
 
   // Core Data States
@@ -136,6 +136,9 @@ function AdminDashboardContent() {
   // EDITING STATES FOR INVENTORY CONTROL
   const [editLowStockTrigger, setEditLowStockTrigger] = useState(20);
   const [editIsActive, setEditIsActive] = useState(true);
+
+  // 🚨 NEW: Inventory UI Filter State
+  const [inventoryFilter, setInventoryFilter] = useState('All Drops');
 
   // Derived Lists
   const humanAmbassadorsList = referrals.filter(r => r.legal_name && r.legal_name.trim() !== '');
@@ -284,7 +287,6 @@ function AdminDashboardContent() {
     pullChildInvoiceLineItems();
   }, [selectedPrintOrder, products]);
 
-  // Filters & Derived States
   const filteredOrders = orders.filter(order => {
     const textMatch = orderSearchText.trim() === '' || 
       order.customer_name.toLowerCase().includes(orderSearchText.toLowerCase()) ||
@@ -310,7 +312,6 @@ function AdminDashboardContent() {
     return textMatch && dateMatch && locationMatch && statusMatch && deliveryMatch;
   });
 
-  // 🚨 THE FIX: Added "variant.is_active !== false" to ignore paused items
   const lowStockAlertInventoryBin = products.flatMap(flavor => 
     (flavor.product_variants || []).map(variant => ({
       ...variant,
@@ -318,15 +319,31 @@ function AdminDashboardContent() {
     }))
   ).filter(variant => variant.is_active !== false && variant.stock_quantity <= (variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20));
 
+  // 🚨 NEW: Dynamic Inventory Filters & Computed Product List
+  const dynamicInventoryFilters = ['All Drops', ...Array.from(new Set(products.map(p => {
+    if (p.name.toLowerCase().includes('hibiscus')) return 'Sobolo';
+    return p.name.replace(/Sparkle/ig, '').replace(/Drink/ig, '').trim();
+  })))];
+
+  const filteredInventoryProducts = products.filter(p => {
+    if (inventoryFilter === 'All Drops') return true;
+    const pNameLower = p.name.toLowerCase();
+    const fNameLower = inventoryFilter.toLowerCase();
+    if (fNameLower === 'sobolo' && pNameLower.includes('hibiscus')) return true;
+    return pNameLower.includes(fNameLower);
+  });
+
   // Core Methods
   async function loadDashboardData() {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const ordersRes = await getAllOrdersForAdmin();
-      const referralsRes = await getAllReferralCodesAdmin();
-      const inventoryRes = await getStoreInventoryAdmin();
-      const cmsRes = await getSiteSettingsAdmin();
+      const now = Date.now(); 
+      
+      const ordersRes = await getAllOrdersForAdmin(now);
+      const referralsRes = await getAllReferralCodesAdmin(now);
+      const inventoryRes = await getStoreInventoryAdmin(now);
+      const cmsRes = await getSiteSettingsAdmin(now);
 
       const { data: scansLog, error: scansErr } = await supabase.from('campaign_scans').select('*');
       const { data: discountRows } = await supabase.from('referral_discounts').select('*');
@@ -350,7 +367,22 @@ function AdminDashboardContent() {
       if (ordersRes.success && referralsRes.success && inventoryRes.success && cmsRes.success) {
         setOrders(ordersRes.data || []);
         setReferrals(referralsRes.data || []);
-        setProducts(inventoryRes.data || []);
+        
+        // Fix: Sort variants properly
+        const inventoryData = inventoryRes.data || [];
+        const sizeOrder = { '300ml': 1, '500ml': 2, '1.5l': 3, '5l': 4 };
+        
+        inventoryData.forEach(p => {
+          if (p.product_variants && p.product_variants.length > 0) {
+            p.product_variants.sort((a, b) => {
+              const aVal = sizeOrder[a.size.toLowerCase().trim()] || 99;
+              const bVal = sizeOrder[b.size.toLowerCase().trim()] || 99;
+              return aVal - bVal;
+            });
+          }
+        });
+        
+        setProducts(inventoryData);
         setCmsContent(cmsRes.data || {});
         
         if (!scansErr && scansLog) {
@@ -360,7 +392,7 @@ function AdminDashboardContent() {
         if (!directQueryErr && directClientCashoutsLog) {
           setCashouts(directClientCashoutsLog);
         } else {
-          const cashoutsRes = await getAdminWithdrawalTicketsQueueAction();
+          const cashoutsRes = await getAdminWithdrawalTicketsQueueAction(now);
           setCashouts(cashoutsRes.data || []);
         }
       } else {
@@ -587,8 +619,7 @@ function AdminDashboardContent() {
     const result = await createNewProductWithVariantsAdmin(newProductName, newProductDesc);
     if (result.success) {
       setNewProductName(''); setNewProductDesc('');
-      const inventoryRes = await getStoreInventoryAdmin();
-      if (inventoryRes.success) setProducts(inventoryRes.data || []);
+      await loadDashboardData();
       alert("New flavor line deployed successfully!");
       router.refresh();
     } else { 
@@ -1501,8 +1532,27 @@ function AdminDashboardContent() {
               </form>
             </div>
 
+            {/* 🚨 NEW: Dynamic Inventory Filter UI */}
+            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 shadow-xl overflow-x-auto">
+              <div className="flex gap-2 min-w-max">
+                {dynamicInventoryFilters.map(filter => (
+                  <button
+                    key={filter}
+                    onClick={() => setInventoryFilter(filter)}
+                    className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                      inventoryFilter === filter
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                        : 'bg-stone-950 text-stone-400 border-stone-800 hover:border-stone-600 hover:text-white'
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-6">
-              {products.map((product) => (
+              {filteredInventoryProducts.map((product) => (
                 <div key={product.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4 shadow-lg">
                   <div className="flex justify-between items-baseline border-b border-stone-800/60 pb-2"><h3 className="font-sans font-bold text-base text-white">{product.name}</h3></div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
