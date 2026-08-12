@@ -8,6 +8,7 @@ function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
+  // Hard disable Next.js fetch caching
   return createClient(supabaseUrl, supabaseKey, {
     auth: { persistSession: false },
     global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
@@ -317,7 +318,8 @@ export async function createNewProductWithVariantsAdmin(name, description) {
       wholesale_threshold: item.floor, 
       client_discount: 1.00, 
       referrer_earnings: 1.00, 
-      is_in_stock: false 
+      is_in_stock: false,
+      image_url: '' // 🚨 FIX: Satisfies the NOT NULL database requirement
     }));
     
     const { error: variantError } = await supabase.from('product_variants').insert(variantRows);
@@ -333,8 +335,12 @@ export async function deleteProductAdminAction(productId) {
   noStore();
   try {
     const supabase = getAdminClient();
+    
+    // Safety check: Delete the sizes/variants first
     const { error: variantErr } = await supabase.from('product_variants').delete().eq('product_id', productId);
     if (variantErr) throw variantErr;
+    
+    // Then delete the main flavor folder
     const { error: prodErr } = await supabase.from('products').delete().eq('id', productId);
     if (prodErr) throw prodErr;
     
@@ -364,7 +370,8 @@ export async function addVariantAdminAction(productId, size, sku) {
       client_discount: 0,
       referrer_earnings: 0,
       is_in_stock: false,
-      is_active: false
+      is_active: false,
+      image_url: '' // 🚨 FIX: Satisfies the NOT NULL database requirement
     };
     
     const { error } = await supabase.from('product_variants').insert([newVariant]);
