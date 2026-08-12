@@ -45,7 +45,6 @@ function ShopStorefront() {
   
   const [focusedProductId, setFocusedProductId] = useState(null);
 
-  // 🚨 NEW: Touch/Swipe Navigation States
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const minSwipeDistance = 50;
@@ -143,7 +142,7 @@ function ShopStorefront() {
             id, name, description, is_active,
             product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, is_active, moq_floor, client_discount, referrer_earnings, image_url )
           `)
-          .eq('is_active', true)
+          .eq('is_active', true) // Only fetches flavors that are Live!
           .order('name', { ascending: true });
 
         if (error) throw error;
@@ -530,6 +529,12 @@ function ShopStorefront() {
     };
   };
 
+  // 🚨 NEW: Dynamic Storefront Filters based on active products!
+  const dynamicStoreFilters = ['All Drops', ...Array.from(new Set(products.map(p => {
+    if (p.name.toLowerCase().includes('hibiscus')) return 'Sobolo';
+    return p.name.replace(/Sparkle/ig, '').replace(/Drink/ig, '').trim();
+  })))];
+
   const filteredProducts = products.filter(p => {
     if (activeFilter === 'All Drops') return true;
     const productNameLower = p.name.toLowerCase();
@@ -547,16 +552,18 @@ function ShopStorefront() {
       if (filter === 'Sobolo') return `${base} bg-rose-600 text-white border-rose-600 shadow-md`;
       if (filter === 'Lemonade') return `${base} bg-amber-500 text-white border-amber-500 shadow-md`;
       if (filter === 'Pinezest') return `${base} bg-emerald-600 text-white border-emerald-600 shadow-md`;
+      // Fallback for custom flavors
+      return `${base} bg-stone-900 text-white border-stone-900 shadow-md`;
     } else {
       if (filter === 'All Drops') return `${base} bg-white border-stone-200 hover:border-stone-300 text-stone-900`;
       if (filter === 'Sobolo') return `${base} bg-white text-rose-500 border-rose-200 hover:bg-rose-50`;
       if (filter === 'Lemonade') return `${base} bg-white text-amber-500 border-amber-200 hover:bg-amber-50`;
       if (filter === 'Pinezest') return `${base} bg-white text-emerald-500 border-emerald-200 hover:bg-emerald-50`;
+      // Fallback for custom flavors
+      return `${base} bg-white text-stone-500 border-stone-200 hover:bg-stone-50`;
     }
-    return base;
   };
 
-  // 🚨 NEW: Swipe & Carousel Navigation Logic
   const handleNextModalItem = () => {
     if (!focusedProductId) return;
     const currentIndex = filteredProducts.findIndex(p => p.id === focusedProductId);
@@ -875,7 +882,7 @@ function ShopStorefront() {
       <div className="sticky top-20 z-30 bg-[#FDFBF7]/95 backdrop-blur-md py-4 mb-8 border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3 pb-2">
-            {['All Drops', 'Sobolo', 'Lemonade', 'Pinezest'].map(filter => (
+            {dynamicStoreFilters.map(filter => (
               <button
                 key={filter}
                 onClick={() => setActiveFilter(filter)}
@@ -898,7 +905,6 @@ function ShopStorefront() {
         </section>
       </main>
 
-      {/* 🚨 FIX: FOCUS OVERLAY MODAL with SWIPE & ARROWS */}
       {gatewayStage === 'unlocked' && focusedProductId && (() => {
         const focusedProduct = products.find(p => p.id === focusedProductId);
         if (!focusedProduct) return null;
@@ -910,7 +916,6 @@ function ShopStorefront() {
               onClick={() => setFocusedProductId(null)} 
             />
             
-            {/* Desktop Left Arrow */}
             <button onClick={handlePrevModalItem} className="hidden md:flex absolute left-4 lg:left-12 z-20 bg-white/10 hover:bg-white/20 text-white p-4 rounded-full backdrop-blur-md border border-white/10 transition-all shadow-lg">
                <ChevronLeft className="h-8 w-8" />
             </button>
@@ -928,15 +933,15 @@ function ShopStorefront() {
                 <X className="h-5 w-5" />
               </button>
               
-              {renderProductCard(focusedProduct, true)}
-              
-              {/* Mobile Swipe Indicator */}
-              <div className="md:hidden absolute -bottom-10 left-0 right-0 flex justify-center text-white/50 text-[10px] font-mono font-bold animate-pulse tracking-widest uppercase">
-                 &larr; Swipe to explore &rarr;
+              <div className="md:hidden flex items-center justify-center gap-2 text-white/80 text-[10px] font-black uppercase tracking-widest mb-4 animate-bounce drop-shadow-md">
+                 <ChevronLeft className="h-4 w-4" />
+                 <span>Swipe for more flavors</span>
+                 <ChevronRight className="h-4 w-4" />
               </div>
+              
+              {renderProductCard(focusedProduct, true)}
             </div>
 
-            {/* Desktop Right Arrow */}
             <button onClick={handleNextModalItem} className="hidden md:flex absolute right-4 lg:right-12 z-20 bg-white/10 hover:bg-white/20 text-white p-4 rounded-full backdrop-blur-md border border-white/10 transition-all shadow-lg">
                <ChevronRight className="h-8 w-8" />
             </button>
