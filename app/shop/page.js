@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { 
   ShoppingBag, Tag, Trash2, Plus, Minus, ArrowRight, 
-  Sparkles, CheckCircle2, AlertCircle, Loader2, ArrowLeft, X, Zap, Key, Phone, Mail, MessageCircle
+  Sparkles, CheckCircle2, AlertCircle, Loader2, ArrowLeft, X, Zap, Key, Phone, Mail, MessageCircle, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
 import { createCustomerOrderServerAction, runAutoJanitorServerAction } from '../actions/orders';
@@ -44,6 +44,11 @@ function ShopStorefront() {
   const [selectedVariantIds, setSelectedVariantIds] = useState({});
   
   const [focusedProductId, setFocusedProductId] = useState(null);
+
+  // 🚨 NEW: Touch/Swipe Navigation States
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const minSwipeDistance = 50;
 
   useEffect(() => {
     sessionStorage.setItem('sparkle_cart', JSON.stringify(cart));
@@ -236,13 +241,11 @@ function ShopStorefront() {
         localStorage.removeItem('sparkle_active_promo');
         setAppliedCoupon(null);
 
-        // 🚨 Gateway First! We no longer auto-skip the promo gateway
         sessionStorage.removeItem('sparkle_promo_skipped');
         setGatewayStage('question');
       }
       fetchStoreCatalog();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, supabase]);
 
   const handlePlaceSelected = async () => {
@@ -553,6 +556,42 @@ function ShopStorefront() {
     return base;
   };
 
+  // 🚨 NEW: Swipe & Carousel Navigation Logic
+  const handleNextModalItem = () => {
+    if (!focusedProductId) return;
+    const currentIndex = filteredProducts.findIndex(p => p.id === focusedProductId);
+    if (currentIndex > -1) {
+      const nextIndex = (currentIndex + 1) % filteredProducts.length;
+      setFocusedProductId(filteredProducts[nextIndex].id);
+    }
+  };
+
+  const handlePrevModalItem = () => {
+    if (!focusedProductId) return;
+    const currentIndex = filteredProducts.findIndex(p => p.id === focusedProductId);
+    if (currentIndex > -1) {
+      const prevIndex = (currentIndex - 1 + filteredProducts.length) % filteredProducts.length;
+      setFocusedProductId(filteredProducts[prevIndex].id);
+    }
+  };
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe) handleNextModalItem();
+    if (isRightSwipe) handlePrevModalItem();
+  };
+
   const renderProductCard = (product, isModal = false) => {
     const activeVariant = product.product_variants?.find(v => v.id === selectedVariantIds[product.id]) || product.product_variants?.[0];
     if (!activeVariant) return null;
@@ -767,7 +806,6 @@ function ShopStorefront() {
         </div>
       )}
 
-      {/* 🚨 FIX: Raised z-index to 90 so Navbar is always accessible above the Quick View Modal */}
       <div className="sticky top-0 z-[90] bg-white/95 backdrop-blur-md shadow-sm border-b border-stone-200">
         <div className="flex justify-between items-center w-full pr-6">
           <div className="flex-1">
@@ -860,7 +898,7 @@ function ShopStorefront() {
         </section>
       </main>
 
-      {/* 🚨 FIX: Modal only reveals itself AFTER the promo gateway is unlocked/skipped */}
+      {/* 🚨 FIX: FOCUS OVERLAY MODAL with SWIPE & ARROWS */}
       {gatewayStage === 'unlocked' && focusedProductId && (() => {
         const focusedProduct = products.find(p => p.id === focusedProductId);
         if (!focusedProduct) return null;
@@ -871,15 +909,37 @@ function ShopStorefront() {
               className="absolute inset-0 bg-stone-950/70 backdrop-blur-sm transition-opacity cursor-pointer" 
               onClick={() => setFocusedProductId(null)} 
             />
-            <div className="relative z-10 w-full max-w-md mx-auto animate-in fade-in zoom-in-95 duration-300">
+            
+            {/* Desktop Left Arrow */}
+            <button onClick={handlePrevModalItem} className="hidden md:flex absolute left-4 lg:left-12 z-20 bg-white/10 hover:bg-white/20 text-white p-4 rounded-full backdrop-blur-md border border-white/10 transition-all shadow-lg">
+               <ChevronLeft className="h-8 w-8" />
+            </button>
+
+            <div 
+              className="relative z-10 w-full max-w-md mx-auto animate-in fade-in zoom-in-95 duration-300"
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+            >
               <button 
                 onClick={() => setFocusedProductId(null)} 
                 className="absolute -top-12 right-0 bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full backdrop-blur-md border border-white/20 transition-all shadow-lg"
               >
                 <X className="h-5 w-5" />
               </button>
+              
               {renderProductCard(focusedProduct, true)}
+              
+              {/* Mobile Swipe Indicator */}
+              <div className="md:hidden absolute -bottom-10 left-0 right-0 flex justify-center text-white/50 text-[10px] font-mono font-bold animate-pulse tracking-widest uppercase">
+                 &larr; Swipe to explore &rarr;
+              </div>
             </div>
+
+            {/* Desktop Right Arrow */}
+            <button onClick={handleNextModalItem} className="hidden md:flex absolute right-4 lg:right-12 z-20 bg-white/10 hover:bg-white/20 text-white p-4 rounded-full backdrop-blur-md border border-white/10 transition-all shadow-lg">
+               <ChevronRight className="h-8 w-8" />
+            </button>
           </div>
         );
       })()}
