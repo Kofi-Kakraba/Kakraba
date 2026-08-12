@@ -18,7 +18,7 @@ import {
   createNewProductWithVariantsAdmin, deleteProductAdminAction, processReferrerApprovalAdminAction,
   processReferrerRejectionAdminAction, deleteReferrerAdminAction,
   getAdminWithdrawalTicketsQueueAction, forceResetAmbassadorPasswordAdminAction,
-  addVariantAdminAction, deleteVariantAdminAction
+  addVariantAdminAction, deleteVariantAdminAction, toggleProductVisibilityAdmin
 } from '../actions/admin';
 
 // Logistics Actions
@@ -488,7 +488,7 @@ function AdminDashboardContent() {
           await confirmDispatchLogisticsServerAction({
             orderId: order.id,
             deliveryType: order.delivery_type,
-            customerPhone: order.customer_phone,
+            customerPhone: order.customer_name,
             customerName: order.customer_name,
             riderName: riderName,
             riderPhone: riderPhone,
@@ -651,7 +651,7 @@ function AdminDashboardContent() {
     if (result.success) {
       setNewProductName(''); setNewProductDesc('');
       await loadDashboardData();
-      alert("New flavor line deployed successfully!");
+      alert("New flavor line deployed successfully in Draft mode!");
       router.refresh();
     } else { 
       alert(`Failed: ${result.error}`); 
@@ -1655,6 +1655,25 @@ function AdminDashboardContent() {
                   <div className="flex flex-col sm:flex-row justify-between items-baseline border-b border-stone-800/60 pb-2 gap-2">
                     <h3 className="font-sans font-bold text-base text-white">{product.name}</h3>
                     <div className="flex items-center gap-2">
+                      
+                      {/* 🚨 THE MASTER DEPLOY TOGGLE */}
+                      <div className="flex items-center gap-1.5 mr-2 bg-stone-950 px-3 py-1.5 rounded-lg border border-stone-800" title="Toggle this to make the entire flavor visible on the storefront">
+                        <span className={`text-[9px] font-bold uppercase tracking-widest ${product.is_active ? 'text-emerald-400' : 'text-stone-500'}`}>
+                          {product.is_active ? 'Live on Store' : 'Draft / Hidden'}
+                        </span>
+                        <button 
+                          onClick={async () => {
+                            setUpdatingId(`toggle-prod-${product.id}`);
+                            await toggleProductVisibilityAdmin(product.id, !product.is_active);
+                            await loadDashboardData();
+                            setUpdatingId(null);
+                          }}
+                          disabled={updatingId === `toggle-prod-${product.id}`}
+                        >
+                          {product.is_active ? <ToggleRight className="h-5 w-5 text-emerald-500" /> : <ToggleLeft className="h-5 w-5 text-stone-600" />}
+                        </button>
+                      </div>
+
                       <button 
                         onClick={() => setAddingSizeToProduct(product.id)}
                         className="text-[9px] font-bold uppercase tracking-widest bg-stone-800 border border-stone-700 text-stone-300 hover:text-white hover:bg-stone-700 px-3 py-1.5 rounded-lg transition-colors"
@@ -1672,7 +1691,6 @@ function AdminDashboardContent() {
                     </div>
                   </div>
 
-                  {/* 🚨 ADD NEW SIZE FORM */}
                   {addingSizeToProduct === product.id && (
                     <form onSubmit={(e) => handleAddNewSize(e, product.id, product.name)} className="bg-stone-950 p-4 border border-stone-800 rounded-xl flex items-end gap-3 animate-in slide-in-from-top-2">
                       <div className="flex-1">
@@ -1700,7 +1718,6 @@ function AdminDashboardContent() {
                             <div className="flex justify-between items-start mb-2">
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] bg-stone-800 text-stone-200 px-2 py-0.5 rounded font-mono font-bold uppercase">{variant.size}</span>
-                                {/* 🚨 CLEARLY VISIBLE INDIVIDUAL SIZE DELETE BUTTON */}
                                 {!isEditing && (
                                   <button 
                                     onClick={() => handleDeleteVariant(variant.id, variant.size)} 
@@ -1778,7 +1795,6 @@ function AdminDashboardContent() {
                             <div className="pt-2 flex items-center gap-2">
                               {isEditing ? (
                                 <>
-                                  {/* 🚨 THE CLEARLY VISIBLE RED CANCEL BUTTON */}
                                   <button onClick={() => setEditingVariantId(null)} className="flex-1 bg-red-950/40 hover:bg-red-900/60 text-red-400 font-mono text-[10px] font-bold py-1.5 rounded-lg border border-red-900/50 transition-colors">Cancel</button>
                                   <button onClick={() => handleSaveVariantChanges(variant.id)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg transition-colors shadow-md">Save Config</button>
                                 </>
