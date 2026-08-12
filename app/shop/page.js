@@ -142,7 +142,7 @@ function ShopStorefront() {
             id, name, description, is_active,
             product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, is_active, moq_floor, client_discount, referrer_earnings, image_url )
           `)
-          .eq('is_active', true) // Only fetches flavors that are Live!
+          .eq('is_active', true)
           .order('name', { ascending: true });
 
         if (error) throw error;
@@ -529,8 +529,14 @@ function ShopStorefront() {
     };
   };
 
-  // 🚨 NEW: Dynamic Storefront Filters based on active products!
-  const dynamicStoreFilters = ['All Drops', ...Array.from(new Set(products.map(p => {
+  // 🚨 FIX: Only generate a filter pill if the product actually has at least ONE active variant!
+  const validProductsForFilters = products.filter(p => 
+    p.is_active !== false && 
+    p.product_variants && 
+    p.product_variants.some(v => v.is_active !== false)
+  );
+
+  const dynamicStoreFilters = ['All Drops', ...Array.from(new Set(validProductsForFilters.map(p => {
     if (p.name.toLowerCase().includes('hibiscus')) return 'Sobolo';
     return p.name.replace(/Sparkle/ig, '').replace(/Drink/ig, '').trim();
   })))];
@@ -600,6 +606,7 @@ function ShopStorefront() {
   };
 
   const renderProductCard = (product, isModal = false) => {
+    // Check if there's any active variant
     const activeVariant = product.product_variants?.find(v => v.id === selectedVariantIds[product.id]) || product.product_variants?.[0];
     if (!activeVariant) return null;
 
