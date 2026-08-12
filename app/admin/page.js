@@ -1610,6 +1610,7 @@ function AdminDashboardContent() {
               </form>
             </div>
 
+            {/* 🚨 Dynamic Inventory Filter UI */}
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row justify-between gap-4">
               <div className="overflow-x-auto pb-1 -mb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <div className="flex gap-2 min-w-max">
@@ -1664,13 +1665,14 @@ function AdminDashboardContent() {
                         onClick={() => handleDeleteFlavorProduct(product.id, product.name)} 
                         disabled={updatingId === `delete-${product.id}`}
                         className="text-stone-500 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-500/10 disabled:opacity-50 border border-transparent hover:border-red-900/30"
-                        title="Permanently Delete Flavor"
+                        title="Permanently Delete Entire Flavor"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
 
+                  {/* 🚨 ADD NEW SIZE FORM */}
                   {addingSizeToProduct === product.id && (
                     <form onSubmit={(e) => handleAddNewSize(e, product.id, product.name)} className="bg-stone-950 p-4 border border-stone-800 rounded-xl flex items-end gap-3 animate-in slide-in-from-top-2">
                       <div className="flex-1">
@@ -1695,8 +1697,21 @@ function AdminDashboardContent() {
                         return (
                           <div id={`variant-${variant.id}`} key={variant.id} className={`bg-stone-950 border ${isPaused ? 'border-amber-900/50 opacity-80' : isLowStock ? 'border-red-950 bg-gradient-to-b from-stone-950 to-red-950/10' : 'border-stone-800'} rounded-xl p-5 flex flex-col justify-between space-y-3 relative transition-all duration-300`}>
                             
-                            <div className="flex justify-between items-start">
-                              <span className="text-[10px] bg-stone-800 text-stone-200 px-2 py-0.5 rounded font-mono font-bold uppercase">{variant.size}</span>
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] bg-stone-800 text-stone-200 px-2 py-0.5 rounded font-mono font-bold uppercase">{variant.size}</span>
+                                {/* 🚨 CLEARLY VISIBLE INDIVIDUAL SIZE DELETE BUTTON */}
+                                {!isEditing && (
+                                  <button 
+                                    onClick={() => handleDeleteVariant(variant.id, variant.size)} 
+                                    disabled={updatingId === variant.id}
+                                    title="Delete this size only"
+                                    className="text-stone-500 hover:text-red-500 bg-stone-900 hover:bg-red-500/10 p-1.5 rounded-md transition-colors disabled:opacity-50 border border-stone-800 hover:border-red-900/30"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
                               <span className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border ${isPaused ? 'bg-amber-500/10 text-amber-400 border-amber-900/30' : isLowStock ? 'bg-red-500/10 text-red-400 border-red-900/30 animate-pulse' : 'bg-stone-900 text-stone-500 border-stone-800'}`}>
                                 {isPaused ? 'Paused' : isLowStock ? 'Low Stock' : 'Stable'}
                               </span>
@@ -1763,32 +1778,22 @@ function AdminDashboardContent() {
                             <div className="pt-2 flex items-center gap-2">
                               {isEditing ? (
                                 <>
-                                  <button onClick={() => setEditingVariantId(null)} className="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-300 font-mono text-[10px] font-bold py-1.5 rounded-lg transition-colors border border-stone-700">Cancel</button>
-                                  <button onClick={() => handleSaveVariantChanges(variant.id)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg transition-colors shadow-md">Save</button>
+                                  {/* 🚨 THE CLEARLY VISIBLE RED CANCEL BUTTON */}
+                                  <button onClick={() => setEditingVariantId(null)} className="flex-1 bg-red-950/40 hover:bg-red-900/60 text-red-400 font-mono text-[10px] font-bold py-1.5 rounded-lg border border-red-900/50 transition-colors">Cancel</button>
+                                  <button onClick={() => handleSaveVariantChanges(variant.id)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg transition-colors shadow-md">Save Config</button>
                                 </>
                               ) : (
-                                <>
-                                  <button onClick={() => { 
-                                    setEditingVariantId(variant.id); 
-                                    setEditStock(variant.stock_quantity); 
-                                    setEditRetail(variant.retail_price); 
-                                    setEditWholesale(variant.wholesale_price);
-                                    setEditWholesaleTrigger(variant.moq_floor || 50);
-                                    setEditClientDiscount(variant.client_discount || 0);
-                                    setEditReferrerEarnings(variant.referrer_earnings || 0);
-                                    setEditLowStockTrigger(variant.low_stock_trigger ?? 20); 
-                                    setEditIsActive(variant.is_active !== false); 
-                                  }} className="flex-1 bg-stone-800 text-stone-300 hover:text-white font-mono text-[10px] font-bold py-1.5 rounded-lg border border-stone-750 transition-colors">Edit Parameters</button>
-                                  
-                                  <button 
-                                    onClick={() => handleDeleteVariant(variant.id, variant.size)} 
-                                    disabled={updatingId === variant.id} 
-                                    title="Delete Size"
-                                    className="p-1.5 bg-red-950/20 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-colors border border-red-900/30 disabled:opacity-50"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </>
+                                <button onClick={() => { 
+                                  setEditingVariantId(variant.id); 
+                                  setEditStock(variant.stock_quantity); 
+                                  setEditRetail(variant.retail_price); 
+                                  setEditWholesale(variant.wholesale_price);
+                                  setEditWholesaleTrigger(variant.moq_floor || 50);
+                                  setEditClientDiscount(variant.client_discount || 0);
+                                  setEditReferrerEarnings(variant.referrer_earnings || 0);
+                                  setEditLowStockTrigger(variant.low_stock_trigger ?? 20); 
+                                  setEditIsActive(variant.is_active !== false); 
+                                }} className="w-full bg-stone-800 text-stone-300 hover:text-white font-mono text-[10px] font-bold py-1.5 rounded-lg border border-stone-750 transition-colors">Edit Parameters</button>
                               )}
                             </div>
                           </div>
