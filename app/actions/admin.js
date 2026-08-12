@@ -8,7 +8,6 @@ function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
-  // Hard disable Next.js fetch caching
   return createClient(supabaseUrl, supabaseKey, {
     auth: { persistSession: false },
     global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
@@ -295,7 +294,8 @@ export async function createNewProductWithVariantsAdmin(name, description) {
   noStore();
   try {
     const supabase = getAdminClient();
-    const { data: newProduct, error: productError } = await supabase.from('products').insert([{ name: name.trim(), description: description.trim(), is_active: true }]).select('*').single();
+    // 🚨 NEW FLAVORS ARE NOW CREATED AS "DRAFTS" (is_active: false)
+    const { data: newProduct, error: productError } = await supabase.from('products').insert([{ name: name.trim(), description: description.trim(), is_active: false }]).select('*').single();
     if (productError || !newProduct) return { success: false, error: productError.message };
 
     const skuSlug = name.substring(0, 3).toUpperCase().replace(/\s+/g, '');
@@ -319,7 +319,7 @@ export async function createNewProductWithVariantsAdmin(name, description) {
       client_discount: 1.00, 
       referrer_earnings: 1.00, 
       is_in_stock: false,
-      image_url: '' // 🚨 FIX: Satisfies the NOT NULL database requirement
+      image_url: ''
     }));
     
     const { error: variantError } = await supabase.from('product_variants').insert(variantRows);
@@ -331,16 +331,28 @@ export async function createNewProductWithVariantsAdmin(name, description) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
+export async function toggleProductVisibilityAdmin(productId, targetState) {
+  noStore();
+  try {
+    const supabase = getAdminClient();
+    const { error } = await supabase.from('products').update({ is_active: targetState }).eq('id', productId);
+    if (error) throw error;
+    
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 export async function deleteProductAdminAction(productId) {
   noStore();
   try {
     const supabase = getAdminClient();
-    
-    // Safety check: Delete the sizes/variants first
     const { error: variantErr } = await supabase.from('product_variants').delete().eq('product_id', productId);
     if (variantErr) throw variantErr;
-    
-    // Then delete the main flavor folder
     const { error: prodErr } = await supabase.from('products').delete().eq('id', productId);
     if (prodErr) throw prodErr;
     
@@ -371,7 +383,7 @@ export async function addVariantAdminAction(productId, size, sku) {
       referrer_earnings: 0,
       is_in_stock: false,
       is_active: false,
-      image_url: '' // 🚨 FIX: Satisfies the NOT NULL database requirement
+      image_url: '' 
     };
     
     const { error } = await supabase.from('product_variants').insert([newVariant]);
