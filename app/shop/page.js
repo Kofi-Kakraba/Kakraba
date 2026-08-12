@@ -142,7 +142,7 @@ function ShopStorefront() {
             id, name, description, is_active,
             product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, is_active, moq_floor, client_discount, referrer_earnings, image_url )
           `)
-          .eq('is_active', true)
+          .eq('is_active', true) 
           .order('name', { ascending: true });
 
         if (error) throw error;
@@ -529,7 +529,6 @@ function ShopStorefront() {
     };
   };
 
-  // 🚨 FIX: Only generate a filter pill if the product actually has at least ONE active variant!
   const validProductsForFilters = products.filter(p => 
     p.is_active !== false && 
     p.product_variants && 
@@ -553,18 +552,21 @@ function ShopStorefront() {
 
   const getFilterClasses = (filter, isActive) => {
     const base = "w-full sm:w-auto px-3 sm:px-6 py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-2 flex items-center justify-center text-center leading-none";
+    // 🚨 FIX: Convert the filter to lowercase instantly so it ignores capitalization mistakes in the database!
+    const f = filter.toLowerCase();
+    
     if (isActive) {
-      if (filter === 'All Drops') return `${base} bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 text-white border-transparent shadow-md`;
-      if (filter === 'Sobolo') return `${base} bg-rose-600 text-white border-rose-600 shadow-md`;
-      if (filter === 'Lemonade') return `${base} bg-amber-500 text-white border-amber-500 shadow-md`;
-      if (filter === 'Pinezest') return `${base} bg-emerald-600 text-white border-emerald-600 shadow-md`;
+      if (f === 'all drops') return `${base} bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 text-white border-transparent shadow-md`;
+      if (f === 'sobolo') return `${base} bg-rose-600 text-white border-rose-600 shadow-md`;
+      if (f === 'lemonade') return `${base} bg-amber-500 text-white border-amber-500 shadow-md`;
+      if (f === 'pinezest') return `${base} bg-emerald-600 text-white border-emerald-600 shadow-md`;
       // Fallback for custom flavors
       return `${base} bg-stone-900 text-white border-stone-900 shadow-md`;
     } else {
-      if (filter === 'All Drops') return `${base} bg-white border-stone-200 hover:border-stone-300 text-stone-900`;
-      if (filter === 'Sobolo') return `${base} bg-white text-rose-500 border-rose-200 hover:bg-rose-50`;
-      if (filter === 'Lemonade') return `${base} bg-white text-amber-500 border-amber-200 hover:bg-amber-50`;
-      if (filter === 'Pinezest') return `${base} bg-white text-emerald-500 border-emerald-200 hover:bg-emerald-50`;
+      if (f === 'all drops') return `${base} bg-white border-stone-200 hover:border-stone-300 text-stone-900`;
+      if (f === 'sobolo') return `${base} bg-white text-rose-500 border-rose-200 hover:bg-rose-50`;
+      if (f === 'lemonade') return `${base} bg-white text-amber-500 border-amber-200 hover:bg-amber-50`;
+      if (f === 'pinezest') return `${base} bg-white text-emerald-500 border-emerald-200 hover:bg-emerald-50`;
       // Fallback for custom flavors
       return `${base} bg-white text-stone-500 border-stone-200 hover:bg-stone-50`;
     }
@@ -606,7 +608,6 @@ function ShopStorefront() {
   };
 
   const renderProductCard = (product, isModal = false) => {
-    // Check if there's any active variant
     const activeVariant = product.product_variants?.find(v => v.id === selectedVariantIds[product.id]) || product.product_variants?.[0];
     if (!activeVariant) return null;
 
@@ -649,7 +650,7 @@ function ShopStorefront() {
 
     const wrapperClasses = isModal 
       ? `bg-white border-2 ${theme.border} rounded-[40px] p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-2xl ${theme.shadow} relative overflow-hidden w-full group`
-      : `bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} ${isUnbuyable ? 'bg-stone-50' : 'hover:-translate-y-1'} transition-transform duration-300 relative overflow-hidden group`;
+      : `bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} ${isUnbuyable ? 'bg-stone-50' : 'hover:-translate-y-1'} transition-transform duration-300 relative overflow-hidden group h-full`;
 
     return (
       <div key={isModal ? `modal-${product.id}` : product.id} className={wrapperClasses}>
@@ -907,7 +908,14 @@ function ShopStorefront() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 pb-20 relative z-10">
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* 🚨 FIX: Dynamic Grid Centering if only 1 item is visible */}
+        <section className={
+          filteredProducts.length === 1 
+            ? "max-w-[400px] mx-auto w-full" 
+            : filteredProducts.length === 2 
+              ? "grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto"
+              : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+        }>
           {filteredProducts.map(product => renderProductCard(product, false))}
         </section>
       </main>
@@ -928,7 +936,7 @@ function ShopStorefront() {
             </button>
 
             <div 
-              className="relative z-10 w-full max-w-md mx-auto animate-in fade-in zoom-in-95 duration-300"
+              className="relative z-10 w-full max-w-md mx-auto animate-in fade-in zoom-in-95 duration-300 h-[80vh] flex flex-col"
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
