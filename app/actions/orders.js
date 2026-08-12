@@ -92,7 +92,6 @@ async function releaseAbandonedStockReservations(supabase) {
         }
       }
     }
-    // 🚨 Push cache clear when Janitor runs
     revalidatePath('/admin', 'layout');
     revalidatePath('/shop', 'layout');
   } catch (e) {
@@ -126,7 +125,6 @@ export async function cancelAbandonedOrderServerAction(orderId) {
         }
       }
     }
-    // 🚨 Clear cache so returned stock shows on Admin immediately
     revalidatePath('/admin', 'layout');
     revalidatePath('/shop', 'layout');
     return { success: true };
@@ -187,7 +185,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       
       successfullyReservedItems.push(item);
 
-      // 🚨 SMART NOTIFICATIONS: Run asynchronously
+      // Keep push alerts here as an immediate pre-payment warning
       if (newStock === 0) {
         fireAdminPushAlert(
           '🚨 ZERO STOCK FATAL',
@@ -262,7 +260,6 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       throw new Error(`Paystack Initialization Rejected: ${paystackJson.message || 'Gateway connection timeout.'}`);
     }
 
-    // 🚨 THE FIX: Force the Admin to revalidate cache now that stock is deducted!
     revalidatePath('/admin', 'layout');
     revalidatePath('/shop', 'layout');
 
@@ -335,42 +332,75 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
     const metadata = updatedOrder.metadata || {};
     const appliedCodeId = metadata.code_id;
 
-    if (appliedCodeId && !metadata.payout_processed) {
-      const { data: itemLines } = await supabase
-        .from('order_items')
-        .select(`quantity, product_variants ( id, referrer_earnings )`)
-        .eq('order_id', orderId);
+    // 🚨 FETCH ALL ITEMS: Needed for BOTH payout logic and stock email alerts
+    const { data: itemLines } = await supabase
+      .from('order_items')
+      .select(`
+        quantity, 
+        size,
+        product_variants ( 
+          id, 
+          referrer_earnings,
+          stock_quantity,
+          low_stock_trigger,
+          products ( name )
+        )
+      `)
+      .eq('order_id', orderId);
 
-      if (itemLines && itemLines.length > 0) {
-        let accumulatedPayout = 0;
-        itemLines.forEach(line => {
-          const bountyAmountPerUnit = Number(line.product_variants?.referrer_earnings || 1.00);
-          accumulatedPayout += bountyAmountPerUnit * Number(line.quantity || 1);
-        });
+    // 1. Ambassador Payout Logic
+    if (appliedCodeId && !metadata.payout_processed && itemLines && itemLines.length > 0) {
+      let accumulatedPayout = 0;
+      itemLines.forEach(line => {
+        const bountyAmountPerUnit = Number(line.product_variants?.referrer_earnings || 1.00);
+        accumulatedPayout += bountyAmountPerUnit * Number(line.quantity || 1);
+      });
 
-        if (accumulatedPayout > 0) {
-          const { data: currentWallet } = await supabase
-            .from('referral_codes')
-            .select('total_earnings')
-            .eq('id', appliedCodeId)
-            .single();
+      if (accumulatedPayout > 0) {
+        const { data: currentWallet } = await supabase
+          .from('referral_codes')
+          .select('total_earnings')
+          .eq('id', appliedCodeId)
+          .single();
 
-          const newWalletTotal = Number(currentWallet?.total_earnings || 0) + accumulatedPayout;
-          
-          await supabase
-            .from('referral_codes')
-            .update({ total_earnings: newWalletTotal })
-            .eq('id', appliedCodeId);
+        const newWalletTotal = Number(currentWallet?.total_earnings || 0) + accumulatedPayout;
+        
+        await supabase
+          .from('referral_codes')
+          .update({ total_earnings: newWalletTotal })
+          .eq('id', appliedCodeId);
 
-          metadata.payout_processed = true;
-          metadata.calculated_payout_amount = accumulatedPayout;
-          
-          await supabase
-            .from('orders')
-            .update({ metadata })
-            .eq('id', orderId);
-        }
+        metadata.payout_processed = true;
+        metadata.calculated_payout_amount = accumulatedPayout;
+        
+        await supabase
+          .from('orders')
+          .update({ metadata })
+          .eq('id', orderId);
       }
+    }
+
+    // 2. Build Low Stock Email Alert String
+    let lowStockAlertsHTML = '';
+    if (itemLines && itemLines.length > 0) {
+      itemLines.forEach(line => {
+        const variant = line.product_variants;
+        if (variant) {
+          const currentStock = variant.stock_quantity;
+          const triggerLimit = variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20;
+          
+          // Format product name safely handling Supabase relation arrays/objects
+          const productName = Array.isArray(variant.products) 
+            ? variant.products[0]?.name 
+            : variant.products?.name || 'Sparkle Drink';
+
+          if (currentStock <= 0) {
+            lowStockAlertsHTML += `<p style="color: #DC2626; font-weight: bold; margin: 8px 0; font-size: 14px;">🚨 ZERO STOCK: ${productName} (${line.size}) has completely sold out!</p>`;
+          } else if (currentStock <= triggerLimit) {
+            lowStockAlertsHTML += `<p style="color: #D97706; font-weight: bold; margin: 8px 0; font-size: 14px;">⚠️ LOW STOCK: ${productName} (${line.size}) is down to ${currentStock} units.</p>`;
+          }
+        }
+      });
     }
 
     try {
@@ -379,6 +409,7 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
         `A payment of ₵${Number(updatedOrder.total_amount).toFixed(2)} just cleared for ${updatedOrder.customer_name}.`
       ).catch(e => console.error(e));
 
+      // SEND 1: The standard "New Order" notification
       await resend.emails.send({
         from: 'Sparkle Admin <admin@sparklebeverages.com>',
         to: ['orders@sparklebeverages.com'], 
@@ -396,6 +427,28 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
           </div>
         `
       });
+
+      // SEND 2: The guaranteed Low Stock Email Fallback
+      if (lowStockAlertsHTML !== '') {
+        await resend.emails.send({
+          from: 'Sparkle Admin <admin@sparklebeverages.com>',
+          to: ['orders@sparklebeverages.com'], 
+          subject: `⚠️ INVENTORY ALERT: Low Stock Detected!`,
+          html: `
+            <div style="font-family: sans-serif; padding: 20px; border-radius: 10px; background-color: #FFFBEB; border: 1px solid #FCD34D;">
+              <h2 style="color: #B45309; margin-top: 0;">Inventory Threshold Reached</h2>
+              <p style="color: #4B5563;">Following the recent payment from ${updatedOrder.customer_name}, the system verified the following inventory alerts:</p>
+              
+              <div style="background-color: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #E5E7EB; margin: 15px 0;">
+                ${lowStockAlertsHTML}
+              </div>
+              
+              <p style="font-size: 12px; color: #6B7280; margin-bottom: 0;">Please log into the Sparkle Operations Hub to update your stock matrix.</p>
+            </div>
+          `
+        });
+      }
+
     } catch (emailError) {
       console.error("Failed to send admin email:", emailError);
     }
