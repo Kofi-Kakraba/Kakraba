@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { MessageCircle, X, ChevronRight, HelpCircle } from 'lucide-react';
 
-export default function SmartSupportBot() {
+// 🚨 THE FIX: Added the isCartVisible signal as a prop here!
+export default function SmartSupportBot({ isCartVisible = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState(null);
   const [hasBeenOpened, setHasBeenOpened] = useState(false); 
@@ -46,8 +47,8 @@ export default function SmartSupportBot() {
   };
 
   return (
-    /* 🚨 THE FIX: Changed bottom-24 to bottom-4 and raised z-index to 100 */
-    <div className="fixed bottom-4 md:bottom-6 right-4 z-[100] font-sans flex flex-col items-end transition-all duration-300">
+    /* 🚨 THE FIX: The bottom position now dynamically changes based on the isCartVisible signal */
+    <div className={`fixed right-4 z-[100] font-sans flex flex-col items-end transition-all duration-300 ${isCartVisible ? 'bottom-[90px] md:bottom-6' : 'bottom-4 md:bottom-6'}`}>
       
       {isOpen && (
         <div className="mb-4 w-[320px] bg-white border border-stone-200 rounded-[24px] shadow-2xl overflow-hidden flex flex-col transform origin-bottom-right transition-all">
@@ -106,7 +107,6 @@ export default function SmartSupportBot() {
         </div>
       )}
 
-      {/* 🚨 THE SHAPE-SHIFTING TOGGLE BUTTON */}
       <button 
         onClick={handleToggleBot}
         className={`bg-stone-950 hover:bg-stone-800 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:scale-105 transition-all duration-300 relative ml-auto ${
