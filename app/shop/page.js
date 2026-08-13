@@ -646,25 +646,47 @@ function ShopStorefront() {
     const activeBtnStatus = buttonStatuses[activeVariant.id] || 'idle';
 
     const wrapperClasses = isModal 
-      ? `bg-white border-2 ${theme.border} rounded-[40px] p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-2xl ${theme.shadow} relative w-full group h-full`
+      ? `bg-white border-2 ${theme.border} rounded-[40px] p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-2xl ${theme.shadow} relative w-full group h-full max-h-full overflow-y-auto scrollbar-none`
       : `bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} ${isUnbuyable ? 'bg-stone-50' : 'hover:-translate-y-1'} transition-transform duration-300 relative overflow-hidden group h-full`;
 
     return (
       <div key={isModal ? `modal-${product.id}` : product.id} className={wrapperClasses}>
         
+        {/* 🚨 THE FIX: Put the X button INSIDE the card so it never gets cut off */}
+        {isModal && (
+          <button 
+            onClick={() => setFocusedProductId(null)} 
+            className="absolute top-4 right-4 bg-white/80 backdrop-blur hover:bg-white text-stone-600 p-2 rounded-full shadow-sm border border-stone-200 z-50 transition-all"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
+
         <div className={`absolute top-0 right-0 w-64 h-64 ${theme.bg} rounded-full blur-3xl opacity-50 pointer-events-none -mr-20 -mt-20 ${isUnbuyable ? 'grayscale' : ''}`} />
 
-        <div className="flex justify-between items-start relative z-10">
+        <div className="flex justify-between items-start relative z-10 pt-2 sm:pt-0">
           <div>
-            <h4 className={`font-black uppercase text-lg leading-tight tracking-tight pr-2 ${theme.title} ${isUnbuyable ? 'opacity-50' : ''}`}>{product.name}</h4>
+            <h4 className={`font-black uppercase text-lg leading-tight tracking-tight pr-8 sm:pr-2 ${theme.title} ${isUnbuyable ? 'opacity-50' : ''}`}>{product.name}</h4>
           </div>
           
-          <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${
-            isPaused ? 'bg-amber-400 text-amber-950' : isOutOfStock ? 'bg-stone-200 text-stone-500' : theme.stockBadge
-          }`}>
-            {isPaused ? 'Not Available' : isOutOfStock ? 'Sold Out' : 'In Stock'}
-          </span>
+          {!isModal && (
+            <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase shrink-0 shadow-sm ${
+              isPaused ? 'bg-amber-400 text-amber-950' : isOutOfStock ? 'bg-stone-200 text-stone-500' : theme.stockBadge
+            }`}>
+              {isPaused ? 'Not Available' : isOutOfStock ? 'Sold Out' : 'In Stock'}
+            </span>
+          )}
         </div>
+
+        {isModal && (
+          <div className="relative z-10">
+            <span className={`text-[9px] font-black tracking-widest px-3 py-1 rounded-full uppercase inline-block shadow-sm ${
+              isPaused ? 'bg-amber-400 text-amber-950' : isOutOfStock ? 'bg-stone-200 text-stone-500' : theme.stockBadge
+            }`}>
+              {isPaused ? 'Not Available' : isOutOfStock ? 'Sold Out' : 'In Stock'}
+            </span>
+          </div>
+        )}
 
         <div className="relative z-20 flex flex-wrap gap-2">
           {product.product_variants.map(v => (
@@ -803,9 +825,6 @@ function ShopStorefront() {
     );
   };
 
-  // 🚨 FLAG: Determine if the checkout banner is visible to pass down to the SmartSupportBot!
-  const isCartBannerVisible = cart.length > 0 && !isCartOpen;
-
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-900 antialiased font-sans pb-24 selection:bg-rose-500 selection:text-white relative">
       
@@ -919,16 +938,13 @@ function ShopStorefront() {
         </section>
       </main>
 
-      {/* 🚨 FIX: The highly framed modal that avoids crashing into the headers and footers */}
+      {/* 🚨 THE FIX: Permanent bottom padding on the modal so it never overlaps the bot! */}
       {gatewayStage === 'unlocked' && focusedProductId && (() => {
         const focusedProduct = products.find(p => p.id === focusedProductId);
         if (!focusedProduct) return null;
 
-        // Push the modal up if the cart banner is active at the bottom
-        const bottomPaddingClass = isCartBannerVisible ? 'pb-[100px]' : 'pb-4';
-
         return (
-          <div className={`fixed inset-0 z-[80] flex items-center justify-center p-4 pt-28 sm:pt-6 sm:p-6 ${bottomPaddingClass}`}>
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 pt-16 pb-[100px] sm:pt-6 sm:p-6 sm:pb-6">
             <div 
               className="absolute inset-0 bg-stone-950/70 backdrop-blur-sm transition-opacity cursor-pointer" 
               onClick={() => setFocusedProductId(null)} 
@@ -939,30 +955,21 @@ function ShopStorefront() {
             </button>
 
             <div 
-              className="relative z-10 w-full max-w-md mx-auto animate-in fade-in zoom-in-95 duration-300 flex flex-col max-h-full"
+              className="relative z-10 w-full max-w-md mx-auto animate-in fade-in zoom-in-95 duration-300 flex flex-col h-full"
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
             >
-              
-              <button 
-                onClick={() => setFocusedProductId(null)} 
-                className="absolute -top-14 right-0 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md border border-white/20 transition-all shadow-lg z-50"
-              >
-                <X className="h-6 w-6" />
-              </button>
-              
-              <div className="md:hidden flex items-center justify-center gap-2 text-white/80 text-[10px] font-black uppercase tracking-widest mb-4 animate-bounce drop-shadow-md z-50">
+              <div className="md:hidden flex items-center justify-center gap-2 text-white/80 text-[10px] font-black uppercase tracking-widest mb-3 animate-bounce drop-shadow-md z-50">
                  <ChevronLeft className="h-4 w-4" />
                  <span>Swipe to explore flavors</span>
                  <ChevronRight className="h-4 w-4" />
               </div>
               
-              <div className="flex-1 overflow-y-auto overflow-x-hidden rounded-[40px]" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+              <div className="flex-1 overflow-y-auto overflow-x-hidden rounded-[40px] shadow-2xl relative" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
                 <style dangerouslySetInnerHTML={{__html: `::-webkit-scrollbar { display: none; }`}} />
                 {renderProductCard(focusedProduct, true)}
               </div>
-
             </div>
 
             <button onClick={handleNextModalItem} className="hidden md:flex absolute right-4 lg:right-12 z-20 bg-white/10 hover:bg-white/20 text-white p-4 rounded-full backdrop-blur-md border border-white/10 transition-all shadow-lg">
@@ -973,7 +980,7 @@ function ShopStorefront() {
       })()}
 
       {cart.length > 0 && !isCartOpen && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 z-[90] shadow-[0_-10px_30px_rgba(0,0,0,0.1)] flex justify-between items-center">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 z-[90] shadow-[0_-10px_30px_rgba(0,0,0,0.1)] flex justify-between items-center h-[72px]">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-stone-500 block">Your Drop ({globalTotalItemsCount})</span>
             <span className="text-lg font-black text-stone-950">₵{grandTotal.toFixed(2)}</span>
@@ -1268,8 +1275,7 @@ function ShopStorefront() {
         </div>
       </footer>
 
-      {/* 🚨 FIX: Passing the isCartVisible signal to the SmartSupportBot! */}
-      <SmartSupportBot isCartVisible={isCartBannerVisible} />
+      <SmartSupportBot />
 
       {checkoutAlert && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm">
