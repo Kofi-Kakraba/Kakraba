@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { MessageCircle, X, ChevronRight, HelpCircle } from 'lucide-react';
 
-// 🚨 THE FIX: Added the isCartVisible signal as a prop here!
-export default function SmartSupportBot({ isCartVisible = false }) {
+export default function SmartSupportBot() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState(null);
   const [hasBeenOpened, setHasBeenOpened] = useState(false); 
@@ -46,9 +45,11 @@ export default function SmartSupportBot({ isCartVisible = false }) {
     setHasBeenOpened(true); 
   };
 
+  // 🚨 THE FIX: Check if we are on the storefront to determine the height
+  const isStorefront = pathname === '/' || pathname?.includes('/shop');
+
   return (
-    /* 🚨 THE FIX: The bottom position now dynamically changes based on the isCartVisible signal */
-    <div className={`fixed right-4 z-[100] font-sans flex flex-col items-end transition-all duration-300 ${isCartVisible ? 'bottom-[90px] md:bottom-6' : 'bottom-4 md:bottom-6'}`}>
+    <div className={`fixed right-4 z-[100] font-sans flex flex-col items-end transition-all duration-300 ${isStorefront ? 'bottom-[80px] md:bottom-6' : 'bottom-4 md:bottom-6'}`}>
       
       {isOpen && (
         <div className="mb-4 w-[320px] bg-white border border-stone-200 rounded-[24px] shadow-2xl overflow-hidden flex flex-col transform origin-bottom-right transition-all">
