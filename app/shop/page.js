@@ -552,7 +552,6 @@ function ShopStorefront() {
 
   const getFilterClasses = (filter, isActive) => {
     const base = "w-full sm:w-auto px-3 sm:px-6 py-2.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-2 flex items-center justify-center text-center leading-none";
-    // 🚨 FIX: Convert the filter to lowercase instantly so it ignores capitalization mistakes in the database!
     const f = filter.toLowerCase();
     
     if (isActive) {
@@ -560,14 +559,12 @@ function ShopStorefront() {
       if (f === 'sobolo') return `${base} bg-rose-600 text-white border-rose-600 shadow-md`;
       if (f === 'lemonade') return `${base} bg-amber-500 text-white border-amber-500 shadow-md`;
       if (f === 'pinezest') return `${base} bg-emerald-600 text-white border-emerald-600 shadow-md`;
-      // Fallback for custom flavors
       return `${base} bg-stone-900 text-white border-stone-900 shadow-md`;
     } else {
       if (f === 'all drops') return `${base} bg-white border-stone-200 hover:border-stone-300 text-stone-900`;
       if (f === 'sobolo') return `${base} bg-white text-rose-500 border-rose-200 hover:bg-rose-50`;
       if (f === 'lemonade') return `${base} bg-white text-amber-500 border-amber-200 hover:bg-amber-50`;
       if (f === 'pinezest') return `${base} bg-white text-emerald-500 border-emerald-200 hover:bg-emerald-50`;
-      // Fallback for custom flavors
       return `${base} bg-white text-stone-500 border-stone-200 hover:bg-stone-50`;
     }
   };
@@ -649,7 +646,7 @@ function ShopStorefront() {
     const activeBtnStatus = buttonStatuses[activeVariant.id] || 'idle';
 
     const wrapperClasses = isModal 
-      ? `bg-white border-2 ${theme.border} rounded-[40px] p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-2xl ${theme.shadow} relative overflow-hidden w-full group`
+      ? `bg-white border-2 ${theme.border} rounded-[40px] p-6 sm:p-8 flex flex-col justify-between space-y-6 shadow-2xl ${theme.shadow} relative w-full group h-full`
       : `bg-white border-2 ${theme.border} rounded-[40px] p-6 flex flex-col justify-between space-y-6 shadow-xl ${theme.shadow} ${isUnbuyable ? 'bg-stone-50' : 'hover:-translate-y-1'} transition-transform duration-300 relative overflow-hidden group h-full`;
 
     return (
@@ -806,6 +803,9 @@ function ShopStorefront() {
     );
   };
 
+  // 🚨 FLAG: Determine if the checkout banner is visible to pass down to the SmartSupportBot!
+  const isCartBannerVisible = cart.length > 0 && !isCartOpen;
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-stone-900 antialiased font-sans pb-24 selection:bg-rose-500 selection:text-white relative">
       
@@ -908,7 +908,6 @@ function ShopStorefront() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 pb-20 relative z-10">
-        {/* 🚨 FIX: Dynamic Grid Centering if only 1 item is visible */}
         <section className={
           filteredProducts.length === 1 
             ? "max-w-[400px] mx-auto w-full" 
@@ -920,12 +919,16 @@ function ShopStorefront() {
         </section>
       </main>
 
+      {/* 🚨 FIX: The highly framed modal that avoids crashing into the headers and footers */}
       {gatewayStage === 'unlocked' && focusedProductId && (() => {
         const focusedProduct = products.find(p => p.id === focusedProductId);
         if (!focusedProduct) return null;
 
+        // Push the modal up if the cart banner is active at the bottom
+        const bottomPaddingClass = isCartBannerVisible ? 'pb-[100px]' : 'pb-4';
+
         return (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6">
+          <div className={`fixed inset-0 z-[80] flex items-center justify-center p-4 pt-28 sm:pt-6 sm:p-6 ${bottomPaddingClass}`}>
             <div 
               className="absolute inset-0 bg-stone-950/70 backdrop-blur-sm transition-opacity cursor-pointer" 
               onClick={() => setFocusedProductId(null)} 
@@ -936,25 +939,30 @@ function ShopStorefront() {
             </button>
 
             <div 
-              className="relative z-10 w-full max-w-md mx-auto animate-in fade-in zoom-in-95 duration-300 h-[80vh] flex flex-col"
+              className="relative z-10 w-full max-w-md mx-auto animate-in fade-in zoom-in-95 duration-300 flex flex-col max-h-full"
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
             >
+              
               <button 
                 onClick={() => setFocusedProductId(null)} 
-                className="absolute -top-12 right-0 bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full backdrop-blur-md border border-white/20 transition-all shadow-lg"
+                className="absolute -top-14 right-0 bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md border border-white/20 transition-all shadow-lg z-50"
               >
-                <X className="h-5 w-5" />
+                <X className="h-6 w-6" />
               </button>
               
-              <div className="md:hidden flex items-center justify-center gap-2 text-white/80 text-[10px] font-black uppercase tracking-widest mb-4 animate-bounce drop-shadow-md">
+              <div className="md:hidden flex items-center justify-center gap-2 text-white/80 text-[10px] font-black uppercase tracking-widest mb-4 animate-bounce drop-shadow-md z-50">
                  <ChevronLeft className="h-4 w-4" />
-                 <span>Swipe for more flavors</span>
+                 <span>Swipe to explore flavors</span>
                  <ChevronRight className="h-4 w-4" />
               </div>
               
-              {renderProductCard(focusedProduct, true)}
+              <div className="flex-1 overflow-y-auto overflow-x-hidden rounded-[40px]" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+                <style dangerouslySetInnerHTML={{__html: `::-webkit-scrollbar { display: none; }`}} />
+                {renderProductCard(focusedProduct, true)}
+              </div>
+
             </div>
 
             <button onClick={handleNextModalItem} className="hidden md:flex absolute right-4 lg:right-12 z-20 bg-white/10 hover:bg-white/20 text-white p-4 rounded-full backdrop-blur-md border border-white/10 transition-all shadow-lg">
@@ -1260,7 +1268,8 @@ function ShopStorefront() {
         </div>
       </footer>
 
-      <SmartSupportBot />
+      {/* 🚨 FIX: Passing the isCartVisible signal to the SmartSupportBot! */}
+      <SmartSupportBot isCartVisible={isCartBannerVisible} />
 
       {checkoutAlert && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm">
