@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, ChevronRight, ChevronLeft, UserPlus, Phone, Mail, MessageCircle } from 'lucide-react';
+import { ArrowRight, ChevronRight, ChevronLeft, Phone, Mail } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../lib/supabaseClient';
 import Navbar from '../components/Navbar'; 
-import SmartSupportBot from '../components/SmartSupportBot'; // 🚨 IMPORTED BOT
+import SmartSupportBot from '../components/SmartSupportBot'; 
 
 const carouselSlides = [
   {
@@ -57,6 +57,8 @@ export default function BrandWelcomeHomePage() {
   const nextSlide = () => setCurrentSlide((prev) => (prev === carouselSlides.length - 1 ? 0 : prev + 1));
   const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? carouselSlides.length - 1 : prev - 1));
 
+  // Left the team fields in the CMS payload so your Admin panel doesn't throw a missing field error,
+  // but they are no longer rendered on the frontend.
   const cms = content || {
     story_title: "The Sparkle Vibe.",
     story_p1: "We got tired of the same old boring drinks. Sparkle was born to bring high-energy, authentic fruit flavors in a pouch that actually keeps up with your lifestyle. Slow-cooked, locally sourced, and packed with real vibes.",
@@ -115,7 +117,6 @@ export default function BrandWelcomeHomePage() {
                   {slide.title}
                 </h1>
                 
-                {/* 🚨 THE FIX: Passes the specific slide ID (sobolo, lemonade, pinezest) to trigger the storefront modal */}
                 <Link href={`/shop?focus=${slide.id}`}>
                   <button className={`${slide.buttonColor} text-white px-8 py-4 rounded-full font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 group drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]`}>
                     Shop The Drop <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -143,7 +144,6 @@ export default function BrandWelcomeHomePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* 🚨 THE FIX: Added ?focus=sobolo */}
           <Link href="/shop?focus=sobolo" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
             <Image src="/Sparkle 500ml high-def ad.jpeg" alt="Sobolo" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent flex flex-col justify-end p-8">
@@ -152,7 +152,6 @@ export default function BrandWelcomeHomePage() {
             </div>
           </Link>
 
-          {/* 🚨 THE FIX: Added ?focus=lemonade */}
           <Link href="/shop?focus=lemonade" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
             <Image src="/lemonade 500ml 2.jpeg" alt="Lemonade" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent flex flex-col justify-end p-8">
@@ -161,7 +160,6 @@ export default function BrandWelcomeHomePage() {
             </div>
           </Link>
 
-          {/* 🚨 THE FIX: Added ?focus=pinezest */}
           <Link href="/shop?focus=pinezest" className="group relative rounded-[40px] overflow-hidden bg-stone-100 h-96 shadow-xl hover:-translate-y-2 transition-transform duration-500">
             <Image src="/pinezest.jpeg" alt="Pinezest" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-950/20 to-transparent flex flex-col justify-end p-8">
@@ -230,41 +228,6 @@ export default function BrandWelcomeHomePage() {
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 md:px-8 py-24 space-y-16">
-        <div className="space-y-3 text-center max-w-2xl mx-auto">
-          <div className="text-[11px] font-black tracking-widest text-emerald-500 uppercase justify-center flex items-center gap-2">
-            03 / The Architects
-          </div>
-          <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-stone-950 uppercase">Meet The Squad</h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-          {[
-            { img: cms.team_m1_img, name: cms.team_m1_name, role: cms.team_m1_role, color: "bg-rose-100", text: "text-rose-600" },
-            { img: cms.team_m2_img, name: cms.team_m2_name, role: cms.team_m2_role, color: "bg-amber-100", text: "text-amber-600" },
-            { img: cms.team_m3_img, name: cms.team_m3_name, role: cms.team_m3_role, color: "bg-emerald-100", text: "text-emerald-600" },
-          ].map((member, idx) => (
-            <div key={idx} className="flex flex-col items-center group text-center space-y-4">
-              <div className={`w-64 h-64 sm:w-full sm:h-auto sm:aspect-square ${member.color} rounded-full overflow-hidden border-4 border-white shadow-xl flex items-center justify-center p-2 transition-transform duration-500 group-hover:-translate-y-2`}>
-                <div className="w-full h-full rounded-full overflow-hidden bg-white relative">
-                  {member.img ? (
-                    <Image src={member.img} alt={member.name} layout="fill" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 font-black uppercase text-[10px] tracking-widest bg-stone-100">
-                      <UserPlus className="h-6 w-6 mb-2 opacity-50" /> Awaiting Pic
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div>
-                <h4 className="font-black text-lg text-stone-950 uppercase tracking-tight">{member.name}</h4>
-                <p className={`text-[10px] font-black uppercase tracking-widest ${member.text} mt-1`}>{member.role}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <footer className="bg-stone-950 text-white border-t-4 border-emerald-500 pt-16 pb-12 px-6 sm:px-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 border-b border-stone-900 pb-12 mb-12">
           <div className="md:col-span-5 space-y-4 text-left">
@@ -310,7 +273,6 @@ export default function BrandWelcomeHomePage() {
         </div>
       </footer>
 
-      {/* 🚨 SMART SUPPORT BOT INSTALLED */}
       <SmartSupportBot />
 
     </div>
