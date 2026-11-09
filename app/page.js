@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, ChevronRight, ChevronLeft, Phone, Mail } from 'lucide-react';
@@ -8,6 +8,8 @@ import { createBrowserSupabaseClient } from '../lib/supabaseClient';
 import CampaignHeroTag from '../components/CampaignHeroTag';
 import Navbar from '../components/Navbar'; 
 import SmartSupportBot from '../components/SmartSupportBot'; 
+import CustomBlock from '../components/blocks/CustomBlock';
+import { usePageLayout } from '../lib/pageLayoutClient';
 
 const carouselSlides = [
   {
@@ -37,6 +39,7 @@ export default function BrandWelcomeHomePage() {
   const supabase = createBrowserSupabaseClient();
   const [content, setContent] = useState(null);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { blocks: pageBlocks, preview: draftPreview } = usePageLayout();
 
   useEffect(() => {
     async function loadWebpageContent() {
@@ -89,10 +92,9 @@ export default function BrandWelcomeHomePage() {
     { id: 4, title: cms.gallery_4_title || "The Community Giveback", src: cms.gallery_4_img, tag: "Culture" },
   ];
 
-  return (
-    <div className="min-h-screen bg-[#FDFBF7] font-sans text-stone-950 antialiased selection:bg-rose-500 selection:text-white pb-1 relative">
-      <Navbar />
-
+  // Each built-in section of the page, keyed by name. The saved layout decides order and visibility.
+  const builtInBlocks = {
+    hero: (
       <section className="relative w-full h-[75vh] md:h-[85vh] bg-stone-950 overflow-hidden">
         <CampaignHeroTag />
         {carouselSlides.map((slide, index) => (
@@ -134,7 +136,8 @@ export default function BrandWelcomeHomePage() {
           <button onClick={nextSlide} className="bg-white/10 hover:bg-white/30 backdrop-blur-md p-3 rounded-full text-white transition-all drop-shadow-md"><ChevronRight className="h-5 w-5" /></button>
         </div>
       </section>
-
+    ),
+    products: (
       <section className="max-w-7xl mx-auto px-6 md:px-12 mt-24 mb-12">
         <div className="text-center mb-12 space-y-4">
           <h2 className="text-4xl md:text-5xl font-black tracking-tighter uppercase text-stone-950">
@@ -171,7 +174,8 @@ export default function BrandWelcomeHomePage() {
           </Link>
         </div>
       </section>
-
+    ),
+    story: (
       <section className="max-w-7xl mx-auto px-4 md:px-8 py-24 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
         <div className="space-y-8">
           <div className="text-[11px] font-black tracking-widest text-emerald-500 uppercase flex items-center gap-2">
@@ -194,7 +198,8 @@ export default function BrandWelcomeHomePage() {
           />
         </div>
       </section>
-
+    ),
+    gallery: (
       <section className="bg-[#111111] text-white py-24 border-t border-stone-900">
         <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-16">
           <div className="flex flex-col justify-between items-start gap-4 border-b border-stone-800 pb-8">
@@ -229,6 +234,18 @@ export default function BrandWelcomeHomePage() {
           </div>
         </div>
       </section>
+    ),
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] font-sans text-stone-950 antialiased selection:bg-rose-500 selection:text-white pb-1 relative">
+      <Navbar />
+
+      {pageBlocks.filter((block) => block.visible).map((block) =>
+        builtInBlocks[block.type]
+          ? <Fragment key={block.id}>{builtInBlocks[block.type]}</Fragment>
+          : <CustomBlock key={block.id} block={block} />
+      )}
 
       <footer className="bg-stone-950 text-white border-t-4 border-emerald-500 pt-16 pb-12 px-6 sm:px-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 border-b border-stone-900 pb-12 mb-12">
@@ -274,6 +291,13 @@ export default function BrandWelcomeHomePage() {
           </div>
         </div>
       </footer>
+
+      {draftPreview && (
+        <div className="fixed bottom-4 left-4 z-[60] flex items-center gap-3 rounded-full border border-amber-400 bg-stone-950 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-2xl">
+          <span className="text-amber-400">Draft preview</span>
+          <a href="/?previewDraft=off" className="underline">Exit</a>
+        </div>
+      )}
 
       <SmartSupportBot />
 

@@ -7,6 +7,7 @@ import {
   THEMES, THEME_KEYS, getTheme, makeCampaign, campaignStatus, pickActiveCampaign,
   suggestWindow, newId, todayUTC,
 } from '../../lib/siteThemes';
+import PageBuilder from './PageBuilder';
 
 const STATUS_STYLE = {
   live: 'bg-emerald-950 text-emerald-400 border-emerald-900/50',
@@ -20,7 +21,7 @@ const STATUS_LABEL = { live: 'Live now', scheduled: 'Scheduled', ended: 'Ended',
 const inputCls = 'w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-stone-600';
 const labelCls = 'block text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-1';
 
-export default function CampaignsManager() {
+function CampaignsPanel() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -307,6 +308,29 @@ export default function CampaignsManager() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// The "Campaigns" tab now holds two tools. Both stay mounted so unsaved edits are never lost when switching.
+export default function CampaignsManager() {
+  const [view, setView] = useState('campaigns');
+  const pill = (key, label) => (
+    <button
+      onClick={() => setView(key)}
+      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${view === key ? 'bg-emerald-600 text-white' : 'bg-stone-900 border border-stone-800 text-stone-400 hover:text-white'}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-2">
+        {pill('campaigns', '📅 Campaigns & Templates')}
+        {pill('builder', '🧱 Page Builder')}
+      </div>
+      <div className={view === 'campaigns' ? '' : 'hidden'}><CampaignsPanel /></div>
+      <div className={view === 'builder' ? '' : 'hidden'}><PageBuilder /></div>
     </div>
   );
 }

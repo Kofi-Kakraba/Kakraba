@@ -28,7 +28,7 @@ export function proxy(req: NextRequest) {
   });
 }
 
-// Admin pages plus the two admin-only endpoints are protected; the customer storefront is unaffected.
+// Admin pages plus the admin-only endpoints are protected; the customer storefront is unaffected.
 export const config = {
-  matcher: ['/admin/:path*', '/api/ambassador-reset', '/sms/send'],
+  matcher: ['/admin/:path*', '/api/ambassador-reset', '/sms/send', '/api/site/layout-draft'],
 };
