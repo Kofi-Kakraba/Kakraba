@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Droplet, X, Home, ShoppingBag, CalendarDays, Users, MessageCircle } from 'lucide-react';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // 🚨 Ensures the portal only renders after the client has loaded
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <>
@@ -40,9 +47,9 @@ export default function Navbar() {
         </button>
       </nav>
 
-      {/* SLIDE-OUT DRAWER */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-[100] overflow-hidden font-sans">
+      {/* 🚨 FIX: Using a React Portal to break out of the sticky navbar trap! */}
+      {isMenuOpen && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] overflow-hidden font-sans">
           <div 
             className="absolute inset-0 bg-stone-950/60 backdrop-blur-sm transition-opacity" 
             onClick={() => setIsMenuOpen(false)} 
@@ -60,7 +67,6 @@ export default function Navbar() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* HOME LINK ADDED HERE */}
               <Link href="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 bg-white p-5 rounded-2xl shadow-sm border border-stone-100 hover:border-stone-400 hover:shadow-md transition-all group">
                 <div className="bg-stone-100 text-stone-700 p-3 rounded-xl group-hover:scale-110 transition-transform"><Home className="h-6 w-6" /></div>
                 <div>
@@ -100,7 +106,8 @@ export default function Navbar() {
               </a>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

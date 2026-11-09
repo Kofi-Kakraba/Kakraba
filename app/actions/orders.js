@@ -422,7 +422,7 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
       ).catch(e => console.error(e));
 
       // SEND 1: The standard "New Order" notification
-      await sendChecked({
+      await resend.emails.send({
         from: 'Sparkle Admin <admin@sparklebeverages.com>',
         to: ['orders@sparklebeverages.com'], 
         subject: `🚨 New PAID Sparkle Order: ₵${Number(updatedOrder.total_amount).toFixed(2)}`,
@@ -442,7 +442,7 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
 
       // SEND 2: The guaranteed Low Stock Email Fallback
       if (lowStockAlertsHTML !== '') {
-        await sendChecked({
+        await resend.emails.send({
           from: 'Sparkle Admin <admin@sparklebeverages.com>',
           to: ['orders@sparklebeverages.com'], 
           subject: `⚠️ INVENTORY ALERT: Low Stock Detected!`,

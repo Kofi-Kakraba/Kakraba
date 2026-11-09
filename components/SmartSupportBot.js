@@ -45,8 +45,11 @@ export default function SmartSupportBot() {
     setHasBeenOpened(true); 
   };
 
+  // 🚨 THE FIX: Check if we are on the storefront to determine the height
+  const isStorefront = pathname === '/' || pathname?.includes('/shop');
+
   return (
-    <div className="fixed bottom-24 md:bottom-6 right-4 z-[90] font-sans flex flex-col items-end">
+    <div className={`fixed right-4 z-[100] font-sans flex flex-col items-end transition-all duration-300 ${isStorefront ? 'bottom-[80px] md:bottom-6' : 'bottom-4 md:bottom-6'}`}>
       
       {isOpen && (
         <div className="mb-4 w-[320px] bg-white border border-stone-200 rounded-[24px] shadow-2xl overflow-hidden flex flex-col transform origin-bottom-right transition-all">
@@ -105,7 +108,6 @@ export default function SmartSupportBot() {
         </div>
       )}
 
-      {/* 🚨 THE NEW SHAPE-SHIFTING TOGGLE BUTTON */}
       <button 
         onClick={handleToggleBot}
         className={`bg-stone-950 hover:bg-stone-800 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:scale-105 transition-all duration-300 relative ml-auto ${

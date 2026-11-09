@@ -1,11 +1,17 @@
 'use server';
 
 import { createClient } from '@supabase/supabase-js';
+import { revalidatePath } from 'next/cache';
+import { unstable_noStore as noStore } from 'next/cache';
 
 function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return createClient(supabaseUrl, supabaseKey);
+  
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false },
+    global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
+  });
 }
 
 function formatGhanaianPhoneNumber(rawPhone) {
@@ -24,13 +30,14 @@ async function fireSMSOnlineGHGateway(targetPhone, messageContent) {
     const response = await fetch('https://api.smsonlinegh.com/v5/message/sms/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `key ${apiKey}` },
-      body: JSON.stringify({ sender: senderId, text: messageContent, type: 0, destinations: [formatGhanaianPhoneNumber(targetPhone)] })
+      body: JSON.stringify({ sender: senderId, text: messageContent, type: 0, destinations: [formatGhanaianPhoneNumber(targetPhone)] }),
+      cache: 'no-store'
     });
     return response.ok;
   } catch (err) { return false; }
 }
 
-export async function getAllOrdersForAdmin() {
+export async function getAllOrdersForAdmin(_cacheBuster) {
   try {
     const supabase = getAdminClient();
     const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
@@ -58,7 +65,6 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
 
       if (!itemsError && lineItems && lineItems.length > 0) {
         let totalPayout = 0;
-        
         lineItems.forEach(item => {
           const variantEarningsBounty = Number(item.product_variants?.referrer_earnings || 1.00);
           totalPayout += variantEarningsBounty * Number(item.quantity);
@@ -78,7 +84,7 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-export async function getAllReferralCodesAdmin() {
+export async function getAllReferralCodesAdmin(_cacheBuster) {
   try {
     const supabase = getAdminClient();
     const { data, error } = await supabase.from('referral_codes').select('*').order('created_at', { ascending: false });
@@ -109,9 +115,7 @@ export async function processReferrerApprovalAdminAction(profileId) {
     if (fetchError || !profile) return { success: false, error: "Profile missing." };
 
     const APPROVAL_TEXT = `Welcome to the Sparkle Agent Network! Your account has been approved. Tracking Code (Username): ${profile.code} | Secure Password: ${profile.password}. Log in live to track your earnings.`;
-    const smsFired = await fireSMSOnlineGHGateway(profile.phone_number, APPROVAL_TEXT);
-    if (!smsFired) return { success: false, error: "SMS Gateway processing failure. Verify your credits." };
-
+    await fireSMSOnlineGHGateway(profile.phone_number, APPROVAL_TEXT);
     await supabase.from('referral_codes').update({ is_active: true, is_verified: true, status: 'approved' }).eq('id', profileId);
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
@@ -124,9 +128,7 @@ export async function processReferrerRejectionAdminAction(profileId) {
     if (fetchError || !profile) return { success: false, error: "Profile missing." };
 
     const REJECTION_TEXT = `Hello ${profile.legal_name || 'there'}, thank you for your application to Sparkle Beverages. Regrettably, your request to join our Ambassador Network has been declined due to credential mismatches.`;
-    const smsFired = await fireSMSOnlineGHGateway(profile.phone_number, REJECTION_TEXT);
-    if (!smsFired) return { success: false, error: "SMS processing failure. Check your balance parameters." };
-
+    await fireSMSOnlineGHGateway(profile.phone_number, REJECTION_TEXT);
     await supabase.from('referral_codes').update({ is_active: false, is_verified: false, status: 'rejected' }).eq('id', profileId);
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
@@ -150,10 +152,25 @@ export async function toggleReferralStateAdmin(codeId, updatePayload) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-export async function getStoreInventoryAdmin() {
+export async function getStoreInventoryAdmin(_cacheBuster) {
   try {
     const supabase = getAdminClient();
-    const { data, error } = await supabase.from('products').select(`id, name, description, is_active, product_variants ( id, sku, size, retail_price, wholesale_price, stock_quantity, is_in_stock, size_moq_floor, moq_floor, client_discount, referrer_earnings, image_url )`).order('name', { ascending: true });
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        id, 
+        name, 
+        description, 
+        is_active, 
+        product_variants ( 
+          id, sku, size, retail_price, wholesale_price, 
+          stock_quantity, is_in_stock, size_moq_floor, moq_floor, 
+          client_discount, referrer_earnings, image_url, 
+          low_stock_trigger, is_active 
+        )
+      `)
+      .order('name', { ascending: true });
+      
     if (error) return { success: false, error: error.message };
     return { success: true, data };
   } catch (err) { return { success: false, error: err.message }; }
@@ -168,7 +185,7 @@ export async function updateVariantInventoryAdmin(variantId, fieldsToUpdate) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-export async function getAdminWithdrawalTicketsQueueAction() {
+export async function getAdminWithdrawalTicketsQueueAction(_cacheBuster) {
   try {
     const supabase = getAdminClient();
     const { data, error } = await supabase
@@ -198,7 +215,8 @@ export async function executePaystackMobileMoneyPayoutAdminAction(ticketId) {
     const recipientResponse = await fetch('https://api.paystack.co/transferrecipient', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${paystackSecret}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'mobile_money', name: ticket.referral_codes.legal_name, account_number: recipientMoMoNumber, bank_code: recipientNetworkSlug, currency: 'GHS' })
+      body: JSON.stringify({ type: 'mobile_money', name: ticket.referral_codes.legal_name, account_number: recipientMoMoNumber, bank_code: recipientNetworkSlug, currency: 'GHS' }),
+      cache: 'no-store'
     });
 
     const recipientJson = await recipientResponse.json();
@@ -207,14 +225,14 @@ export async function executePaystackMobileMoneyPayoutAdminAction(ticketId) {
     const transferResponse = await fetch('https://api.paystack.co/transfer', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${paystackSecret}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source: 'balance', amount: Math.round(Number(ticket.net_payout) * 100), recipient: recipientJson.data.recipient_code, reason: `Sparkle Ref: ${ticket.referral_codes.code}` })
+      body: JSON.stringify({ source: 'balance', amount: Math.round(Number(ticket.net_payout) * 100), recipient: recipientJson.data.recipient_code, reason: `Sparkle Ref: ${ticket.referral_codes.code}` }),
+      cache: 'no-store'
     });
 
     const transferJson = await transferResponse.json();
     if (!transferResponse.ok || !transferJson.status) return { success: false, error: transferJson.message };
 
     await supabase.from('withdrawal_requests').update({ status: 'processed' }).eq('id', ticketId);
-    
     const PAID_TEXT = `Sparkle Wallet Alert: Your withdrawal has been processed! ₵${ticket.net_payout} Net has been transferred straight to your mobile wallet.`;
     await fireSMSOnlineGHGateway(ticket.referral_codes.phone_number, PAID_TEXT);
 
@@ -245,7 +263,7 @@ export async function processWithdrawalDeclineAndRollbackAdminAction(ticketId) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-export async function getSiteSettingsAdmin() {
+export async function getSiteSettingsAdmin(_cacheBuster) {
   try {
     const supabase = getAdminClient();
     const { data, error } = await supabase.from('site_settings').select('*').eq('id', 'homepage').single();
@@ -257,16 +275,27 @@ export async function getSiteSettingsAdmin() {
 export async function updateSiteSettingsAdmin(contentJson) {
   try {
     const supabase = getAdminClient();
-    const { error: error } = await supabase.from('site_settings').update({ content: contentJson }).eq('id', 'homepage');
+    const { error } = await supabase.from('site_settings').update({ content: contentJson }).eq('id', 'homepage');
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) { return { success: false, error: err.message }; }
+}
+
+export async function forceResetAmbassadorPasswordAdminAction(profileId, newPassword, phone, name) {
+  try {
+    const supabase = getAdminClient();
+    const { error } = await supabase.from('referral_codes').update({ password: newPassword }).eq('id', profileId);
     if (error) return { success: false, error: error.message };
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
 
 export async function createNewProductWithVariantsAdmin(name, description) {
+  noStore();
   try {
     const supabase = getAdminClient();
-    const { data: newProduct, error: productError } = await supabase.from('products').insert([{ name: name.trim(), description: description.trim(), is_active: true }]).select('*').single();
+    // 🚨 NEW FLAVORS ARE NOW CREATED AS "DRAFTS" (is_active: false)
+    const { data: newProduct, error: productError } = await supabase.from('products').insert([{ name: name.trim(), description: description.trim(), is_active: false }]).select('*').single();
     if (productError || !newProduct) return { success: false, error: productError.message };
 
     const skuSlug = name.substring(0, 3).toUpperCase().replace(/\s+/g, '');
@@ -277,23 +306,108 @@ export async function createNewProductWithVariantsAdmin(name, description) {
       { size: '5L',   retail: 45.00, wholesale: 40.00, floor: 5 }
     ];
 
-    const variantRows = standardSizes.map(item => ({ product_id: newProduct.id, size: item.size, sku: `SPK-${skuSlug}-${item.size}`, retail_price: item.retail, wholesale_price: item.wholesale, stock_quantity: 0, size_moq_floor: 30, moq_floor: item.floor, client_discount: 1.00, referrer_earnings: 1.00, is_in_stock: false }));
+    const variantRows = standardSizes.map(item => ({ 
+      product_id: newProduct.id, 
+      size: item.size, 
+      sku: `SPK-${skuSlug}-${item.size}`, 
+      retail_price: item.retail, 
+      wholesale_price: item.wholesale, 
+      stock_quantity: 0, 
+      size_moq_floor: 30, 
+      moq_floor: item.floor, 
+      wholesale_threshold: item.floor, 
+      client_discount: 1.00, 
+      referrer_earnings: 1.00, 
+      is_in_stock: false,
+      image_url: ''
+    }));
+    
     const { error: variantError } = await supabase.from('product_variants').insert(variantRows);
     if (variantError) return { success: false, error: `Product variant creation failed: ${variantError.message}` };
+    
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/', 'layout');
     return { success: true };
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-export async function forceResetAmbassadorPasswordAdminAction(profileId, newPassword, phone, name) {
+export async function toggleProductVisibilityAdmin(productId, targetState) {
+  noStore();
   try {
     const supabase = getAdminClient();
-    const { error } = await supabase.from('referral_codes').update({ password: newPassword }).eq('id', profileId);
+    const { error } = await supabase.from('products').update({ is_active: targetState }).eq('id', productId);
+    if (error) throw error;
     
-    if (error) return { success: false, error: error.message };
-
-    // You can keep the SMS fallback here if you want, but the Admin UI now triggers the email!
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
+    revalidatePath('/', 'layout');
     return { success: true };
-  } catch (err) { 
-    return { success: false, error: err.message }; 
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteProductAdminAction(productId) {
+  noStore();
+  try {
+    const supabase = getAdminClient();
+    const { error: variantErr } = await supabase.from('product_variants').delete().eq('product_id', productId);
+    if (variantErr) throw variantErr;
+    const { error: prodErr } = await supabase.from('products').delete().eq('id', productId);
+    if (prodErr) throw prodErr;
+    
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function addVariantAdminAction(productId, size, sku) {
+  noStore();
+  try {
+    const supabase = getAdminClient();
+    const newVariant = {
+      product_id: productId,
+      size: size,
+      sku: sku,
+      retail_price: 0,
+      wholesale_price: 0,
+      stock_quantity: 0,
+      size_moq_floor: 30,
+      moq_floor: 50,
+      wholesale_threshold: 50,
+      client_discount: 0,
+      referrer_earnings: 0,
+      is_in_stock: false,
+      is_active: false,
+      image_url: '' 
+    };
+    
+    const { error } = await supabase.from('product_variants').insert([newVariant]);
+    if (error) throw error;
+    
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
+    return { success: true };
+  } catch(err) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteVariantAdminAction(variantId) {
+  noStore();
+  try {
+    const supabase = getAdminClient();
+    const { error } = await supabase.from('product_variants').delete().eq('id', variantId);
+    if (error) throw error;
+    
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 }

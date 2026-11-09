@@ -490,7 +490,7 @@ function AdminDashboardContent() {
           const result = await confirmDispatchLogisticsServerAction({
             orderId: order.id,
             deliveryType: order.delivery_type,
-            customerPhone: order.customer_phone,
+            customerPhone: order.customer_name,
             customerName: order.customer_name,
             riderName: riderName,
             riderPhone: riderPhone,
