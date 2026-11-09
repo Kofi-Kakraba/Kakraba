@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   CheckCircle2, Clock, Truck, MapPin, Phone, User, Search, Calendar, ToggleLeft, ToggleRight,
   ShieldAlert, PackageCheck, RefreshCw, AlertCircle, Download, Camera, CreditCard,
   Tag, PlusCircle, ListFilter, Layers, Edit3, Save, LayoutGrid, FileText, Upload, XCircle, Trash2, Info, Coins, Printer, X, AlertTriangle, Navigation, Mail, Activity, CheckSquare, Square, Bell, BellRing
 } from 'lucide-react';
 import { createBrowserSupabaseClient } from '../../lib/supabaseClient';
+import CampaignsManager from '../../components/admin/CampaignsManager';
 
 // Admin Actions
 import { 
@@ -14,9 +16,10 @@ import {
   getAllReferralCodesAdmin, toggleReferralStateAdmin,
   getStoreInventoryAdmin, updateVariantInventoryAdmin,
   getSiteSettingsAdmin, updateSiteSettingsAdmin,
-  createNewProductWithVariantsAdmin, processReferrerApprovalAdminAction,
+  createNewProductWithVariantsAdmin, deleteProductAdminAction, processReferrerApprovalAdminAction,
   processReferrerRejectionAdminAction, deleteReferrerAdminAction,
-  getAdminWithdrawalTicketsQueueAction, forceResetAmbassadorPasswordAdminAction
+  getAdminWithdrawalTicketsQueueAction, forceResetAmbassadorPasswordAdminAction,
+  addVariantAdminAction, deleteVariantAdminAction, toggleProductVisibilityAdmin
 } from '../actions/admin';
 
 // Logistics Actions
@@ -38,7 +41,19 @@ const urlBase64ToUint8Array = (base64String) => {
   return outputArray;
 };
 
+// 1. Wrapper Component to handle Suspense
 export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-stone-950 flex items-center justify-center text-emerald-500 font-mono font-bold">Loading Operations Hub Data...</div>}>
+      <AdminDashboardContent />
+    </Suspense>
+  );
+}
+
+// 2. The Main Content Component
+function AdminDashboardContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createBrowserSupabaseClient();
 
   // Core Data States
@@ -119,10 +134,16 @@ export default function AdminDashboardPage() {
   const [editWholesaleTrigger, setEditWholesaleTrigger] = useState(0); 
   const [editClientDiscount, setEditClientDiscount] = useState(0); 
   const [editReferrerEarnings, setEditReferrerEarnings] = useState(0); 
-  
-  // EDITING STATES FOR INVENTORY CONTROL
   const [editLowStockTrigger, setEditLowStockTrigger] = useState(20);
   const [editIsActive, setEditIsActive] = useState(true);
+
+  // Filter States
+  const [inventoryFilter, setInventoryFilter] = useState('All Drops');
+  const [inventoryStatusFilter, setInventoryStatusFilter] = useState('all');
+
+  // SIZE CREATION STATES
+  const [addingSizeToProduct, setAddingSizeToProduct] = useState(null);
+  const [newSizeName, setNewSizeName] = useState('');
 
   // Derived Lists
   const humanAmbassadorsList = referrals.filter(r => r.legal_name && r.legal_name.trim() !== '');
@@ -271,7 +292,6 @@ export default function AdminDashboardPage() {
     pullChildInvoiceLineItems();
   }, [selectedPrintOrder, products]);
 
-  // Filters & Derived States
   const filteredOrders = orders.filter(order => {
     const textMatch = orderSearchText.trim() === '' || 
       order.customer_name.toLowerCase().includes(orderSearchText.toLowerCase()) ||
@@ -297,7 +317,6 @@ export default function AdminDashboardPage() {
     return textMatch && dateMatch && locationMatch && statusMatch && deliveryMatch;
   });
 
-  // 🚨 THE FIX: Added "variant.is_active !== false" to ignore paused items
   const lowStockAlertInventoryBin = products.flatMap(flavor => 
     (flavor.product_variants || []).map(variant => ({
       ...variant,
@@ -305,15 +324,59 @@ export default function AdminDashboardPage() {
     }))
   ).filter(variant => variant.is_active !== false && variant.stock_quantity <= (variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20));
 
+  // Dynamic Inventory Filters
+  const dynamicInventoryFilters = ['All Drops', ...Array.from(new Set(products.map(p => {
+    if (p.name.toLowerCase().includes('hibiscus')) return 'Sobolo';
+    return p.name.replace(/Sparkle/ig, '').replace(/Drink/ig, '').trim();
+  })))];
+
+  const getInventoryFilterClasses = (filter, isActive) => {
+    const base = "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center justify-center text-center leading-none";
+    if (isActive) {
+      if (filter === 'All Drops') return `${base} bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 text-white border-transparent shadow-md`;
+      if (filter === 'Sobolo') return `${base} bg-rose-600 text-white border-rose-600 shadow-md`;
+      if (filter === 'Lemonade') return `${base} bg-amber-500 text-white border-amber-500 shadow-md`;
+      if (filter === 'Pinezest') return `${base} bg-emerald-600 text-white border-emerald-600 shadow-md`;
+      return `${base} bg-stone-200 text-stone-900 border-stone-200 shadow-md`;
+    } else {
+      if (filter === 'All Drops') return `${base} bg-stone-950 border-stone-800 hover:border-stone-600 text-stone-400 hover:text-white`;
+      if (filter === 'Sobolo') return `${base} bg-stone-950 text-rose-500/70 border-rose-900/30 hover:border-rose-500 hover:text-rose-400`;
+      if (filter === 'Lemonade') return `${base} bg-stone-950 text-amber-500/70 border-amber-900/30 hover:border-amber-500 hover:text-amber-400`;
+      if (filter === 'Pinezest') return `${base} bg-stone-950 text-emerald-500/70 border-emerald-900/30 hover:border-emerald-500 hover:text-emerald-400`;
+      return `${base} bg-stone-950 text-stone-500 border-stone-800 hover:border-stone-600 hover:text-white`;
+    }
+  };
+
+  const filteredInventoryProducts = products.map(p => {
+    const filteredVariants = (p.product_variants || []).filter(v => {
+      if (inventoryStatusFilter === 'active') return v.is_active !== false;
+      if (inventoryStatusFilter === 'paused') return v.is_active === false;
+      return true;
+    });
+    return { ...p, product_variants: filteredVariants };
+  }).filter(p => {
+    if (inventoryFilter !== 'All Drops') {
+      const pNameLower = p.name.toLowerCase();
+      const fNameLower = inventoryFilter.toLowerCase();
+      if (fNameLower === 'sobolo' && !pNameLower.includes('hibiscus')) return false;
+      if (fNameLower !== 'sobolo' && !pNameLower.includes(fNameLower)) return false;
+    }
+    
+    if (inventoryStatusFilter !== 'all' && p.product_variants.length === 0) return false;
+    return true;
+  });
+
   // Core Methods
   async function loadDashboardData() {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const ordersRes = await getAllOrdersForAdmin();
-      const referralsRes = await getAllReferralCodesAdmin();
-      const inventoryRes = await getStoreInventoryAdmin();
-      const cmsRes = await getSiteSettingsAdmin();
+      const now = Date.now(); 
+      
+      const ordersRes = await getAllOrdersForAdmin(now);
+      const referralsRes = await getAllReferralCodesAdmin(now);
+      const inventoryRes = await getStoreInventoryAdmin(now);
+      const cmsRes = await getSiteSettingsAdmin(now);
 
       const { data: scansLog, error: scansErr } = await supabase.from('campaign_scans').select('*');
       const { data: discountRows } = await supabase.from('referral_discounts').select('*');
@@ -337,7 +400,21 @@ export default function AdminDashboardPage() {
       if (ordersRes.success && referralsRes.success && inventoryRes.success && cmsRes.success) {
         setOrders(ordersRes.data || []);
         setReferrals(referralsRes.data || []);
-        setProducts(inventoryRes.data || []);
+        
+        const inventoryData = inventoryRes.data || [];
+        const sizeOrder = { '300ml': 1, '500ml': 2, '1.5l': 3, '5l': 4 };
+        
+        inventoryData.forEach(p => {
+          if (p.product_variants && p.product_variants.length > 0) {
+            p.product_variants.sort((a, b) => {
+              const aVal = sizeOrder[a.size.toLowerCase().trim()] || 99;
+              const bVal = sizeOrder[b.size.toLowerCase().trim()] || 99;
+              return aVal - bVal;
+            });
+          }
+        });
+        
+        setProducts(inventoryData);
         setCmsContent(cmsRes.data || {});
         
         if (!scansErr && scansLog) {
@@ -347,7 +424,7 @@ export default function AdminDashboardPage() {
         if (!directQueryErr && directClientCashoutsLog) {
           setCashouts(directClientCashoutsLog);
         } else {
-          const cashoutsRes = await getAdminWithdrawalTicketsQueueAction();
+          const cashoutsRes = await getAdminWithdrawalTicketsQueueAction(now);
           setCashouts(cashoutsRes.data || []);
         }
       } else {
@@ -407,9 +484,10 @@ export default function AdminDashboardPage() {
         ? orders.filter(o => selectedOrderIds.includes(o.id)) 
         : [dispatchOrder];
 
+      const problems = [];
       for (const order of ordersToProcess) {
         if (order.delivery_type === 'delivery') {
-          await confirmDispatchLogisticsServerAction({
+          const result = await confirmDispatchLogisticsServerAction({
             orderId: order.id,
             deliveryType: order.delivery_type,
             customerPhone: order.customer_phone,
@@ -420,16 +498,28 @@ export default function AdminDashboardPage() {
             vehicleColor: vehicleColor,
             plateNumber: plateNumber
           });
+          if (!result?.success) {
+            problems.push(`${order.customer_name}: NOT dispatched. ${result?.error || 'Unknown error.'}`);
+            continue;
+          }
           await updateOrderStatusAdmin(order.id, 'dispatched');
+          if (!result.smsSent) {
+            problems.push(`${order.customer_name}: dispatched, but the SMS was NOT sent (${result.smsError || 'unknown reason'}). Please contact them yourself.`);
+          }
         } else {
           await updateOrderStatusAdmin(order.id, 'completed');
         }
       }
 
-      alert("🌟 LOGISTICS MANIFESTS PROCESSED SUCCESSFULLY!");
+      if (problems.length > 0) {
+        alert(`⚠️ Finished, but with problems:\n\n${problems.join('\n')}`);
+      } else {
+        alert("🌟 LOGISTICS MANIFESTS PROCESSED SUCCESSFULLY!");
+      }
       setDispatchOrder(null);
       setSelectedOrderIds([]); 
       await loadDashboardData(); 
+      router.refresh();
     } catch (err) {
       alert(`Network Error: ${err.message}`);
     } finally { 
@@ -475,6 +565,7 @@ export default function AdminDashboardPage() {
       alert(`PROMO CAMPAIGN NODE ${newCode.toUpperCase()} LAUNCHED LIVE!`);
       setNewCode(''); setNewCampaign('');
       await loadDashboardData();
+      router.refresh();
     } catch (err) { 
       alert(`Failed: ${err.message}`); 
     }
@@ -509,6 +600,7 @@ export default function AdminDashboardPage() {
       alert(`AMBASSADOR ACCOUNT ALLOCATED LIVE!\nCode handle: #${newCode.trim().toUpperCase()}\nPassword: ${passToUse}`);
       setNewCode(''); setNewAmbassadorName(''); setNewAmbassadorPhone(''); setNewAmbassadorEmail(''); setNewAmbassadorMomo(''); setNewAmbassadorPassword('');
       await loadDashboardData();
+      router.refresh();
     } else { 
       alert(`Database rejected entry: ${error.message}`); 
     }
@@ -549,11 +641,12 @@ export default function AdminDashboardPage() {
       const emailResult = await emailResponse.json();
 
       if (!emailResult.success) {
-        throw new Error("Database updated, but the email server failed to send the notification.");
+        throw new Error(`The password WAS changed, but the email could not be sent (${emailResult.error || 'unknown reason'}). Please send this temporary password to ${name} yourself: ${newPass}`);
       }
 
       alert(`Success! The new password has been securely emailed to ${email}.`);
       await loadDashboardData();
+      router.refresh();
 
     } catch (error) {
       console.error(error);
@@ -570,11 +663,58 @@ export default function AdminDashboardPage() {
     const result = await createNewProductWithVariantsAdmin(newProductName, newProductDesc);
     if (result.success) {
       setNewProductName(''); setNewProductDesc('');
-      const inventoryRes = await getStoreInventoryAdmin();
-      if (inventoryRes.success) setProducts(inventoryRes.data || []);
-      alert("New flavor line deployed successfully!");
+      await loadDashboardData();
+      alert("New flavor line deployed successfully in Draft mode!");
+      router.refresh();
     } else { 
       alert(`Failed: ${result.error}`); 
+    }
+    setUpdatingId(null);
+  };
+
+  const handleDeleteFlavorProduct = async (productId, productName) => {
+    if (!confirm(`⚠️ DANGER: Are you sure you want to completely delete "${productName}" and all its sizes? This cannot be undone.`)) return;
+    setUpdatingId(`delete-${productId}`);
+    const res = await deleteProductAdminAction(productId);
+    if (res.success) {
+      alert(`${productName} has been permanently deleted.`);
+      await loadDashboardData();
+      router.refresh();
+    } else {
+      alert(`Failed to delete: ${res.error}\n\n(Note: You cannot delete a product if customers have already placed orders for it. You must pause it instead.)`);
+    }
+    setUpdatingId(null);
+  };
+
+  const handleAddNewSize = async (e, productId, productName) => {
+    e.preventDefault();
+    if (!newSizeName) return;
+    setUpdatingId(`add-size-${productId}`);
+    
+    const skuSlug = productName.substring(0, 3).toUpperCase().replace(/\s+/g, '');
+    const sku = `SPK-${skuSlug}-${newSizeName.replace(/\s+/g, '').toUpperCase()}`;
+    
+    const res = await addVariantAdminAction(productId, newSizeName.trim(), sku);
+    if (res.success) {
+      setAddingSizeToProduct(null);
+      setNewSizeName('');
+      await loadDashboardData();
+      router.refresh();
+    } else {
+      alert(`Failed to add size: ${res.error}`);
+    }
+    setUpdatingId(null);
+  };
+
+  const handleDeleteVariant = async (variantId, sizeName) => {
+    if(!confirm(`Are you sure you want to completely delete the ${sizeName} size? This cannot be undone.`)) return;
+    setUpdatingId(variantId);
+    const res = await deleteVariantAdminAction(variantId);
+    if (res.success) {
+      await loadDashboardData();
+      router.refresh();
+    } else {
+      alert(`Failed to delete size: ${res.error}\n\n(Cannot delete if customers have previously ordered this size. Pause it instead.)`);
     }
     setUpdatingId(null);
   };
@@ -584,6 +724,7 @@ export default function AdminDashboardPage() {
     const result = await updateOrderStatusAdmin(orderId, targetState);
     if (result.success) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: targetState } : o));
+      router.refresh();
     } else { 
       alert(`Fulfillment Error: ${result.error}`); 
     }
@@ -607,6 +748,7 @@ export default function AdminDashboardPage() {
       alert("Campaign Parameters custom discounts overrides modified live!");
       setEditingPromoId(null);
       await loadDashboardData();
+      router.refresh();
     } catch (err) { 
       alert(`Override failure: ${err.message}`); 
     }
@@ -619,6 +761,7 @@ export default function AdminDashboardPage() {
     if (result.success) {
       alert("Verification Cleared: Account status set to approved.");
       await loadDashboardData();
+      router.refresh();
     } else { 
       alert(`Gateway Refusal: ${result.error}`); 
     }
@@ -631,6 +774,7 @@ export default function AdminDashboardPage() {
     if (result.success) {
       alert("Application Declined: Rejection advisory log fired.");
       await loadDashboardData();
+      router.refresh();
     } else { 
       alert(`Gateway Refusal: ${result.error}`); 
     }
@@ -657,6 +801,7 @@ export default function AdminDashboardPage() {
         product_variants: p.product_variants.map(v => v.id === variantId ? { ...v, ...updates } : v) 
       })));
       setEditingVariantId(null);
+      router.refresh();
     } else { 
       alert(`Update failed: ${result.error}`); 
     }
@@ -756,6 +901,7 @@ export default function AdminDashboardPage() {
     if (result.success) {
       alert("DELETED successfully.");
       await loadDashboardData();
+      router.refresh();
     }
     setUpdatingId(null);
   };
@@ -800,6 +946,7 @@ export default function AdminDashboardPage() {
     const { error } = await supabase.from('referral_codes').update({ [field]: !currentVal }).eq('id', id);
     if (!error) {
       setReferrals(prev => prev.map(r => r.id === id ? { ...r, [field]: !currentVal } : r));
+      router.refresh();
     } else { alert(`Toggle failed: ${error.message}`); }
     setUpdatingId(null);
   };
@@ -840,6 +987,7 @@ export default function AdminDashboardPage() {
                 Stock {lowStockAlertInventoryBin.length > 0 && <span className="ml-1 px-1.5 py-0.2 bg-red-600 text-white text-[9px] rounded-full animate-pulse">!</span>}
               </button>
               <button onClick={() => setActiveTab('cms')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'cms' ? 'bg-stone-800 text-white' : 'text-stone-400'}`}>Web CMS</button>
+              <button onClick={() => setActiveTab('campaigns')} className={`px-2.5 py-1.5 rounded-lg transition-all ${activeTab === 'campaigns' ? 'bg-stone-800 text-white text-emerald-400' : 'text-stone-400'}`}>Campaigns</button>
             </div>
           </div>
           
@@ -1476,115 +1624,230 @@ export default function AdminDashboardPage() {
               </form>
             </div>
 
+            {/* 🚨 Dynamic Inventory Filter UI */}
+            <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row justify-between gap-4">
+              <div className="overflow-x-auto pb-1 -mb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="flex gap-2 min-w-max">
+                  {dynamicInventoryFilters.map(filter => (
+                    <button
+                      key={filter}
+                      onClick={() => setInventoryFilter(filter)}
+                      className={getInventoryFilterClasses(filter, inventoryFilter === filter)}
+                    >
+                      {filter === 'All Drops' && inventoryFilter !== 'All Drops' ? (
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500">All Drops</span>
+                      ) : (
+                        filter
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto pb-1 -mb-1 md:border-l md:border-stone-800 md:pl-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="flex gap-2 min-w-max">
+                  {['all', 'active', 'paused'].map(status => (
+                    <button
+                      key={status}
+                      onClick={() => setInventoryStatusFilter(status)}
+                      className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                        inventoryStatusFilter === status
+                          ? 'bg-stone-200 text-stone-900 border-stone-200 shadow-md'
+                          : 'bg-stone-950 text-stone-400 border-stone-800 hover:border-stone-600 hover:text-white'
+                      }`}
+                    >
+                      {status === 'all' ? 'All Status' : status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-6">
-              {products.map((product) => (
+              {filteredInventoryProducts.map((product) => (
                 <div key={product.id} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4 shadow-lg">
-                  <div className="flex justify-between items-baseline border-b border-stone-800/60 pb-2"><h3 className="font-sans font-bold text-base text-white">{product.name}</h3></div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {product.product_variants?.map((variant) => {
-                      const isEditing = editingVariantId === variant.id;
-                      const triggerLvl = variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20;
-                      const isLowStock = variant.stock_quantity <= triggerLvl;
-                      const isPaused = variant.is_active === false;
+                  <div className="flex flex-col sm:flex-row justify-between items-baseline border-b border-stone-800/60 pb-2 gap-2">
+                    <h3 className="font-sans font-bold text-base text-white">{product.name}</h3>
+                    <div className="flex items-center gap-2">
                       
-                      return (
-                        <div id={`variant-${variant.id}`} key={variant.id} className={`bg-stone-950 border ${isPaused ? 'border-amber-900/50 opacity-80' : isLowStock ? 'border-red-950 bg-gradient-to-b from-stone-950 to-red-950/10' : 'border-stone-800'} rounded-xl p-5 flex flex-col justify-between space-y-3 relative transition-all duration-300`}>
-                          
-                          <div className="flex justify-between items-start">
-                            <span className="text-[10px] bg-stone-800 text-stone-200 px-2 py-0.5 rounded font-mono font-bold uppercase">{variant.size}</span>
-                            <span className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border ${isPaused ? 'bg-amber-500/10 text-amber-400 border-amber-900/30' : isLowStock ? 'bg-red-500/10 text-red-400 border-red-900/30 animate-pulse' : 'bg-stone-900 text-stone-500 border-stone-800'}`}>
-                              {isPaused ? 'Paused' : isLowStock ? 'Low Stock' : 'Stable'}
-                            </span>
-                          </div>
+                      {/* 🚨 THE MASTER DEPLOY TOGGLE */}
+                      <div className="flex items-center gap-1.5 mr-2 bg-stone-950 px-3 py-1.5 rounded-lg border border-stone-800" title="Toggle this to make the entire flavor visible on the storefront">
+                        <span className={`text-[9px] font-bold uppercase tracking-widest ${product.is_active ? 'text-emerald-400' : 'text-stone-500'}`}>
+                          {product.is_active ? 'Live on Store' : 'Draft / Hidden'}
+                        </span>
+                        <button 
+                          onClick={async () => {
+                            setUpdatingId(`toggle-prod-${product.id}`);
+                            await toggleProductVisibilityAdmin(product.id, !product.is_active);
+                            await loadDashboardData();
+                            setUpdatingId(null);
+                          }}
+                          disabled={updatingId === `toggle-prod-${product.id}`}
+                        >
+                          {product.is_active ? <ToggleRight className="h-5 w-5 text-emerald-500" /> : <ToggleLeft className="h-5 w-5 text-stone-600" />}
+                        </button>
+                      </div>
 
-                          {variant.image_url && (
-                            <div className={`h-24 w-full bg-stone-950 rounded-xl border border-stone-850 p-1 flex items-center justify-center overflow-hidden ${isPaused ? 'grayscale' : ''}`}>
-                              <img src={variant.image_url} alt={variant.sku} className="h-full object-contain" />
-                            </div>
-                          )}
-
-                          <div className="border-t border-stone-900 pt-2 space-y-1.5 text-[11px] font-mono">
-                            {isEditing ? (
-                              <div className="space-y-2 text-stone-400">
-                                
-                                <div className="grid grid-cols-2 gap-2 pb-1 border-b border-stone-800 mb-2">
-                                  <div>
-                                    <label className="text-[8px] text-rose-400 font-bold uppercase">Push Alert Trigger</label>
-                                    <input type="number" value={editLowStockTrigger} onChange={(e)=>setEditLowStockTrigger(e.target.value)} className="w-full bg-stone-900 border border-rose-900/50 text-white px-2 py-0.5 rounded outline-none" />
-                                  </div>
-                                  <div className="flex flex-col justify-end items-end pb-0.5">
-                                    <span className="text-[8px] font-bold uppercase text-stone-400 mb-1">Storefront Status</span>
-                                    <button type="button" onClick={() => setEditIsActive(!editIsActive)}>
-                                      {editIsActive ? <ToggleRight className="h-6 w-6 text-emerald-500" /> : <ToggleLeft className="h-6 w-6 text-amber-500" />}
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div><label className="text-[8px] font-bold uppercase">Stock Count</label><input type="number" value={editStock} onChange={(e)=>setEditStock(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                                <div><label className="text-[8px] text-blue-400 font-bold uppercase">Wholesale Volume Trigger</label><input type="number" value={editWholesaleTrigger} onChange={(e)=>setEditWholesaleTrigger(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                                <div><label className="text-[8px] text-red-400 font-bold uppercase">Default Referral Discount</label><input type="number" step="0.01" value={editClientDiscount} onChange={(e)=>setEditClientDiscount(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                                <div><label className="text-[8px] text-purple-400 font-bold uppercase">Ambassador Bonus Earning</label><input type="number" step="0.01" value={editReferrerEarnings} onChange={(e)=>setEditReferrerEarnings(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                                <div><label className="text-[8px] text-emerald-400 font-bold uppercase">Retail Price (₵)</label><input type="number" step="0.01" value={editRetail} onChange={(e)=>setEditRetail(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                                <div><label className="text-[8px] text-amber-500 font-bold uppercase">Wholesale Price (₵)</label><input type="number" step="0.01" value={editWholesale} onChange={(e)=>setEditWholesale(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
-                              </div>
-                            ) : (
-                              <div className="space-y-1.5 text-stone-400 font-medium">
-                                <div className="flex justify-between"><span>Stock Remaining:</span><strong className={isLowStock ? 'text-red-400 font-black' : 'text-white'}>{variant.stock_quantity} units</strong></div>
-                                
-                                <div className="flex justify-between text-rose-400/80"><span>Alert Trigger:</span><strong>{triggerLvl} units</strong></div>
-                                
-                                <div className="flex justify-between text-blue-400/90"><span>Wholesale Trigger:</span><strong>{variant.moq_floor || 50} units</strong></div>
-                                <div className="flex justify-between text-red-400/90 border-t border-stone-900 pt-1"><span>Referral Discount:</span><th>₵{Number(variant.client_discount || 0).toFixed(2)}</th></div>
-                                <div className="flex justify-between text-purple-400/90"><span>Ambassador Bonus:</span><strong>₵{Number(variant.referrer_earnings || 0).toFixed(2)}</strong></div>
-                                <div className="flex justify-between border-t border-stone-900 pt-1"><span>Retail Cost:</span><strong className="text-emerald-400">₵{Number(variant.retail_price).toFixed(2)}</strong></div>
-                                <div className="flex justify-between"><span>Wholesale Cost:</span><strong className="text-amber-400">₵{Number(variant.wholesale_price).toFixed(2)}</strong></div>
-                                
-                                <div className="pt-2 border-t border-stone-900 flex flex-col gap-1">
-                                  <span className="text-[8px] text-stone-500 uppercase font-bold">Variant Graphic:</span>
-                                  <label className="cursor-pointer bg-stone-900 hover:bg-stone-850 border border-stone-800 px-2 py-1.5 rounded text-center flex items-center justify-center gap-1 text-[10px] text-stone-300 font-bold">
-                                    <Upload className="h-3 w-3 text-emerald-400" />
-                                    <span>Upload Graphic</span>
-                                    <input 
-                                      type="file" 
-                                      accept="image/*" 
-                                      className="hidden" 
-                                      onChange={(e) => handleImageUploadEngine(e, `${variant.id}-img`, 'inventory', variant.id)} 
-                                    />
-                                  </label>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <div className="pt-2">
-                            {isEditing ? (
-                              <button onClick={() => handleSaveVariantChanges(variant.id)} className="w-full bg-emerald-600 text-white font-mono text-[10px] font-bold py-1 rounded-lg">Save Config</button>
-                            ) : (
-                              <button onClick={() => { 
-                                setEditingVariantId(variant.id); 
-                                setEditStock(variant.stock_quantity); 
-                                setEditRetail(variant.retail_price); 
-                                setEditWholesale(variant.wholesale_price);
-                                setEditWholesaleTrigger(variant.moq_floor || 50);
-                                setEditClientDiscount(variant.client_discount || 0);
-                                setEditReferrerEarnings(variant.referrer_earnings || 0);
-                                setEditLowStockTrigger(variant.low_stock_trigger ?? 20); 
-                                setEditIsActive(variant.is_active !== false); 
-                              }} className="w-full bg-stone-800 text-stone-300 hover:text-white font-mono text-[10px] font-bold py-1 rounded-lg border border-stone-750 transition-colors">Edit Parameters</button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                      <button 
+                        onClick={() => setAddingSizeToProduct(product.id)}
+                        className="text-[9px] font-bold uppercase tracking-widest bg-stone-800 border border-stone-700 text-stone-300 hover:text-white hover:bg-stone-700 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        + Add Size
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteFlavorProduct(product.id, product.name)} 
+                        disabled={updatingId === `delete-${product.id}`}
+                        className="text-stone-500 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-500/10 disabled:opacity-50 border border-transparent hover:border-red-900/30"
+                        title="Permanently Delete Entire Flavor"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
+
+                  {addingSizeToProduct === product.id && (
+                    <form onSubmit={(e) => handleAddNewSize(e, product.id, product.name)} className="bg-stone-950 p-4 border border-stone-800 rounded-xl flex items-end gap-3 animate-in slide-in-from-top-2">
+                      <div className="flex-1">
+                        <label className="text-[9px] text-stone-400 font-bold uppercase mb-1 block">New Size Name</label>
+                        <input type="text" placeholder="e.g. 250ml or 10L" required value={newSizeName} onChange={e => setNewSizeName(e.target.value)} className="bg-stone-900 border border-stone-800 rounded-lg px-3 py-2 text-xs text-white outline-none w-full" />
+                      </div>
+                      <button type="submit" disabled={updatingId === `add-size-${product.id}`} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest h-8 transition-colors">Save</button>
+                      <button type="button" onClick={() => {setAddingSizeToProduct(null); setNewSizeName('');}} className="bg-stone-800 hover:bg-stone-700 text-stone-300 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest h-8 transition-colors">Cancel</button>
+                    </form>
+                  )}
+                  
+                  {product.product_variants.length === 0 ? (
+                    <div className="text-stone-500 text-xs italic py-4">No variants currently match the status filter. Switch to "All Status" to view hidden sizes.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {product.product_variants.map((variant) => {
+                        const isEditing = editingVariantId === variant.id;
+                        const triggerLvl = variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20;
+                        const isLowStock = variant.stock_quantity <= triggerLvl;
+                        const isPaused = variant.is_active === false;
+                        
+                        return (
+                          <div id={`variant-${variant.id}`} key={variant.id} className={`bg-stone-950 border ${isPaused ? 'border-amber-900/50 opacity-80' : isLowStock ? 'border-red-950 bg-gradient-to-b from-stone-950 to-red-950/10' : 'border-stone-800'} rounded-xl p-5 flex flex-col justify-between space-y-3 relative transition-all duration-300`}>
+                            
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] bg-stone-800 text-stone-200 px-2 py-0.5 rounded font-mono font-bold uppercase">{variant.size}</span>
+                                {!isEditing && (
+                                  <button 
+                                    onClick={() => handleDeleteVariant(variant.id, variant.size)} 
+                                    disabled={updatingId === variant.id}
+                                    title="Delete this size only"
+                                    className="text-stone-500 hover:text-red-500 bg-stone-900 hover:bg-red-500/10 p-1.5 rounded-md transition-colors disabled:opacity-50 border border-stone-800 hover:border-red-900/30"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                              <span className={`text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded border ${isPaused ? 'bg-amber-500/10 text-amber-400 border-amber-900/30' : isLowStock ? 'bg-red-500/10 text-red-400 border-red-900/30 animate-pulse' : 'bg-stone-900 text-stone-500 border-stone-800'}`}>
+                                {isPaused ? 'Paused' : isLowStock ? 'Low Stock' : 'Stable'}
+                              </span>
+                            </div>
+
+                            {variant.image_url && (
+                              <div className={`h-24 w-full bg-stone-950 rounded-xl border border-stone-850 p-1 flex items-center justify-center overflow-hidden ${isPaused ? 'grayscale' : ''}`}>
+                                <img src={variant.image_url} alt={variant.sku} className="h-full object-contain" />
+                              </div>
+                            )}
+
+                            <div className="border-t border-stone-900 pt-2 space-y-1.5 text-[11px] font-mono">
+                              {isEditing ? (
+                                <div className="space-y-2 text-stone-400">
+                                  
+                                  <div className="grid grid-cols-2 gap-2 pb-1 border-b border-stone-800 mb-2">
+                                    <div>
+                                      <label className="text-[8px] text-rose-400 font-bold uppercase">Push Alert Trigger</label>
+                                      <input type="number" value={editLowStockTrigger} onChange={(e)=>setEditLowStockTrigger(e.target.value)} className="w-full bg-stone-900 border border-rose-900/50 text-white px-2 py-0.5 rounded outline-none" />
+                                    </div>
+                                    <div className="flex flex-col justify-end items-end pb-0.5">
+                                      <span className="text-[8px] font-bold uppercase text-stone-400 mb-1">Storefront Status</span>
+                                      <button type="button" onClick={() => setEditIsActive(!editIsActive)}>
+                                        {editIsActive ? <ToggleRight className="h-6 w-6 text-emerald-500" /> : <ToggleLeft className="h-6 w-6 text-amber-500" />}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div><label className="text-[8px] font-bold uppercase">Stock Count</label><input type="number" value={editStock} onChange={(e)=>setEditStock(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                  <div><label className="text-[8px] text-blue-400 font-bold uppercase">Wholesale Volume Trigger</label><input type="number" value={editWholesaleTrigger} onChange={(e)=>setEditWholesaleTrigger(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                  <div><label className="text-[8px] text-red-400 font-bold uppercase">Default Referral Discount</label><input type="number" step="0.01" value={editClientDiscount} onChange={(e)=>setEditClientDiscount(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                  <div><label className="text-[8px] text-purple-400 font-bold uppercase">Ambassador Bonus Earning</label><input type="number" step="0.01" value={editReferrerEarnings} onChange={(e)=>setEditReferrerEarnings(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                  <div><label className="text-[8px] text-emerald-400 font-bold uppercase">Retail Price (₵)</label><input type="number" step="0.01" value={editRetail} onChange={(e)=>setEditRetail(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                  <div><label className="text-[8px] text-amber-500 font-bold uppercase">Wholesale Price (₵)</label><input type="number" step="0.01" value={editWholesale} onChange={(e)=>setEditWholesale(e.target.value)} className="w-full bg-stone-900 border text-white px-2 py-0.5 rounded outline-none" /></div>
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5 text-stone-400 font-medium">
+                                  <div className="flex justify-between"><span>Stock Remaining:</span><strong className={isLowStock ? 'text-red-400 font-black' : 'text-white'}>{variant.stock_quantity} units</strong></div>
+                                  
+                                  <div className="flex justify-between text-rose-400/80"><span>Alert Trigger:</span><strong>{triggerLvl} units</strong></div>
+                                  
+                                  <div className="flex justify-between text-blue-400/90"><span>Wholesale Trigger:</span><strong>{variant.moq_floor || 50} units</strong></div>
+                                  <div className="flex justify-between text-red-400/90 border-t border-stone-900 pt-1"><span>Referral Discount:</span><th>₵{Number(variant.client_discount || 0).toFixed(2)}</th></div>
+                                  <div className="flex justify-between text-purple-400/90"><span>Ambassador Bonus:</span><strong>₵{Number(variant.referrer_earnings || 0).toFixed(2)}</strong></div>
+                                  <div className="flex justify-between border-t border-stone-900 pt-1"><span>Retail Cost:</span><strong className="text-emerald-400">₵{Number(variant.retail_price).toFixed(2)}</strong></div>
+                                  <div className="flex justify-between"><span>Wholesale Cost:</span><strong className="text-amber-400">₵{Number(variant.wholesale_price).toFixed(2)}</strong></div>
+                                  
+                                  <div className="pt-2 border-t border-stone-900 flex flex-col gap-1">
+                                    <span className="text-[8px] text-stone-500 uppercase font-bold">Variant Graphic:</span>
+                                    <label className="cursor-pointer bg-stone-900 hover:bg-stone-850 border border-stone-800 px-2 py-1.5 rounded text-center flex items-center justify-center gap-1 text-[10px] text-stone-300 font-bold">
+                                      <Upload className="h-3 w-3 text-emerald-400" />
+                                      <span>Upload Graphic</span>
+                                      <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        onChange={(e) => handleImageUploadEngine(e, `${variant.id}-img`, 'inventory', variant.id)} 
+                                      />
+                                    </label>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="pt-2 flex items-center gap-2">
+                              {isEditing ? (
+                                <>
+                                  <button onClick={() => setEditingVariantId(null)} className="flex-1 bg-red-950/40 hover:bg-red-900/60 text-red-400 font-mono text-[10px] font-bold py-1.5 rounded-lg border border-red-900/50 transition-colors">Cancel</button>
+                                  <button onClick={() => handleSaveVariantChanges(variant.id)} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-[10px] font-bold py-1.5 rounded-lg transition-colors shadow-md">Save Config</button>
+                                </>
+                              ) : (
+                                <button onClick={() => { 
+                                  setEditingVariantId(variant.id); 
+                                  setEditStock(variant.stock_quantity); 
+                                  setEditRetail(variant.retail_price); 
+                                  setEditWholesale(variant.wholesale_price);
+                                  setEditWholesaleTrigger(variant.moq_floor || 50);
+                                  setEditClientDiscount(variant.client_discount || 0);
+                                  setEditReferrerEarnings(variant.referrer_earnings || 0);
+                                  setEditLowStockTrigger(variant.low_stock_trigger ?? 20); 
+                                  setEditIsActive(variant.is_active !== false); 
+                                }} className="w-full bg-stone-800 text-stone-300 hover:text-white font-mono text-[10px] font-bold py-1.5 rounded-lg border border-stone-750 transition-colors">Edit Parameters</button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
 
+        {/* TAB 8: Campaigns & Templates */}
+        {activeTab === 'campaigns' && <CampaignsManager />}
+
         {/* TAB 7: Web CMS */}
         {activeTab === 'cms' && (
-          <form onSubmit={(e) => { e.preventDefault(); updateSiteSettingsAdmin(cmsContent).then(() => alert("All Web CMS Content Published Live Successfully!")); }} className="space-y-8 max-w-4xl mx-auto font-mono text-xs text-left">
+          <form onSubmit={async (e) => { 
+            e.preventDefault(); 
+            await updateSiteSettingsAdmin(cmsContent);
+            alert("All Web CMS Content Published Live Successfully!"); 
+            router.refresh();
+          }} className="space-y-8 max-w-4xl mx-auto font-mono text-xs text-left">
             <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 space-y-4">
               <h3 className="font-bold text-cyan-400 uppercase text-[10px] tracking-wider flex items-center gap-1"><Printer className="h-4 w-4" /> Receipt Header Brand Configurations</h3>
               <div className="space-y-3">

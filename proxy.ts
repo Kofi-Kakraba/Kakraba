@@ -2,23 +2,24 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function proxy(req: NextRequest) {
+  const validUser = process.env.ADMIN_USER;
+  const validPass = process.env.ADMIN_PASSWORD;
   const basicAuth = req.headers.get('authorization');
 
-  if (basicAuth) {
-    // Decode the credentials from the browser request
-    const authValue = basicAuth.split(' ')[1];
-    const [user, pwd] = atob(authValue).split(':');
-
-    // Pull keys from your environment variables (with fallback values for local safety)
-    const validUser = process.env.ADMIN_USER || 'mr sparkle';
-    const validPass = process.env.ADMIN_PASSWORD || 'sp@rks91';
-
-    if (user === validUser && pwd === validPass) {
-      return NextResponse.next(); // Keys match! Allow them into the admin hub
+  // The login comes only from your hosting settings (ADMIN_USER / ADMIN_PASSWORD).
+  // If they are missing, the admin stays locked rather than falling back to a default.
+  if (validUser && validPass && basicAuth && basicAuth.startsWith('Basic ')) {
+    try {
+      const decoded = atob(basicAuth.slice(6).trim());
+      const i = decoded.indexOf(':');
+      if (i >= 0 && decoded.slice(0, i) === validUser && decoded.slice(i + 1) === validPass) {
+        return NextResponse.next();
+      }
+    } catch {
+      // malformed header: fall through to the login prompt
     }
   }
 
-  // If credentials are missing or wrong, prompt the browser login modal
   return new NextResponse('Authentication Required.', {
     status: 401,
     headers: {
@@ -27,8 +28,7 @@ export function proxy(req: NextRequest) {
   });
 }
 
-// The matcher guarantees this code ONLY intercepts /admin paths, 
-// leaving your main customer storefront completely unaffected and blazing fast.
+// Admin pages plus the two admin-only endpoints are protected; the customer storefront is unaffected.
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/api/ambassador-reset', '/sms/send'],
 };

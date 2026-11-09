@@ -2,14 +2,45 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
-import { fireAdminPushAlert } from './notifications'; // 🚨 NEW: Import the Push Alert brain!
+import { fireAdminPushAlert } from './notifications';
+import { revalidatePath } from 'next/cache';
+import { unstable_noStore as noStore } from 'next/cache';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Resend does not throw when it refuses an email; it returns { error }. Log it so failures are visible in Vercel Logs.
+async function sendChecked(payload) {
+  try {
+    const result = await resend.emails.send(payload);
+    if (result?.error) console.error(`📧 Resend rejected "${payload.subject}":`, JSON.stringify(result.error));
+    return result;
+  } catch (err) {
+    console.error(`📧 Resend failed "${payload.subject}":`, err.message);
+    return { data: null, error: err };
+  }
+}
 
 function getServiceSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return createClient(supabaseUrl, supabaseKey);
+  
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false },
+    global: {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'x-timestamp': Date.now().toString()
+      },
+      fetch: (url, options) => {
+        return fetch(url, { 
+          ...options, 
+          cache: 'no-store',
+          next: { revalidate: 0 } 
+        });
+      }
+    }
+  });
 }
 
 function formatGhanaianPhoneNumber(rawPhone) {
@@ -21,6 +52,7 @@ function formatGhanaianPhoneNumber(rawPhone) {
 }
 
 async function fireSMSOnlineGHGateway(targetPhone, messageContent) {
+  noStore();
   try {
     const apiKey = process.env.SMS_ONLINE_GH_KEY;
     const senderId = process.env.SMS_ONLINE_GH_SENDER_ID || 'SPARKLE';
@@ -38,7 +70,8 @@ async function fireSMSOnlineGHGateway(targetPhone, messageContent) {
         text: messageContent, 
         type: 0, 
         destinations: [formatGhanaianPhoneNumber(targetPhone)] 
-      })
+      }),
+      cache: 'no-store'
     });
     return response.ok;
   } catch (err) { 
@@ -71,18 +104,22 @@ async function releaseAbandonedStockReservations(supabase) {
         }
       }
     }
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
   } catch (e) {
     console.error("Auto-cleanup failed:", e);
   }
 }
 
 export async function runAutoJanitorServerAction() {
+  noStore();
   const supabase = getServiceSupabaseClient();
   await releaseAbandonedStockReservations(supabase);
   return { success: true };
 }
 
 export async function cancelAbandonedOrderServerAction(orderId) {
+  noStore();
   try {
     const supabase = getServiceSupabaseClient();
     const { data: order } = await supabase.from('orders').select('status').eq('id', orderId).single();
@@ -100,6 +137,8 @@ export async function cancelAbandonedOrderServerAction(orderId) {
         }
       }
     }
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
     return { success: true };
   } catch (err) {
     console.error("Cancel abandon failed:", err);
@@ -108,6 +147,7 @@ export async function cancelAbandonedOrderServerAction(orderId) {
 }
 
 export async function createCustomerOrderServerAction(orderPayload, cartItemsList) {
+  noStore();
   const supabase = getServiceSupabaseClient();
   let successfullyReservedItems = [];
   
@@ -157,7 +197,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
       
       successfullyReservedItems.push(item);
 
-      // 🚨 SMART NOTIFICATIONS: Run asynchronously so they don't slow down the customer's checkout!
+      // Keep push alerts here as an immediate pre-payment warning
       if (newStock === 0) {
         fireAdminPushAlert(
           '🚨 ZERO STOCK FATAL',
@@ -222,7 +262,8 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
         amount: Math.round(Number(orderPayload.totalAmount) * 100), 
         reference: newOrderHeader.id,
         callback_url: `${siteDomainBaseUrl}/checkout/success?orderId=${newOrderHeader.id}`
-      })
+      }),
+      cache: 'no-store'
     });
 
     const paystackJson = await paystackResponse.json();
@@ -230,6 +271,9 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
     if (!paystackResponse.ok || !paystackJson.status) {
       throw new Error(`Paystack Initialization Rejected: ${paystackJson.message || 'Gateway connection timeout.'}`);
     }
+
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
 
     return { 
       success: true, 
@@ -252,6 +296,7 @@ export async function createCustomerOrderServerAction(orderPayload, cartItemsLis
 }
 
 export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
+  noStore();
   try {
     const supabase = getServiceSupabaseClient();
     const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
@@ -274,7 +319,8 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
 
     const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${orderId}`, {
       method: 'GET',
-      headers: { 'Authorization': `Bearer ${paystackSecret}` }
+      headers: { 'Authorization': `Bearer ${paystackSecret}` },
+      cache: 'no-store'
     });
 
     const verifyJson = await verifyResponse.json();
@@ -298,52 +344,85 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
     const metadata = updatedOrder.metadata || {};
     const appliedCodeId = metadata.code_id;
 
-    if (appliedCodeId && !metadata.payout_processed) {
-      const { data: itemLines } = await supabase
-        .from('order_items')
-        .select(`quantity, product_variants ( id, referrer_earnings )`)
-        .eq('order_id', orderId);
+    // 🚨 FETCH ALL ITEMS: Needed for BOTH payout logic and stock email alerts
+    const { data: itemLines } = await supabase
+      .from('order_items')
+      .select(`
+        quantity, 
+        size,
+        product_variants ( 
+          id, 
+          referrer_earnings,
+          stock_quantity,
+          low_stock_trigger,
+          products ( name )
+        )
+      `)
+      .eq('order_id', orderId);
 
-      if (itemLines && itemLines.length > 0) {
-        let accumulatedPayout = 0;
-        itemLines.forEach(line => {
-          const bountyAmountPerUnit = Number(line.product_variants?.referrer_earnings || 1.00);
-          accumulatedPayout += bountyAmountPerUnit * Number(line.quantity || 1);
-        });
+    // 1. Ambassador Payout Logic
+    if (appliedCodeId && !metadata.payout_processed && itemLines && itemLines.length > 0) {
+      let accumulatedPayout = 0;
+      itemLines.forEach(line => {
+        const bountyAmountPerUnit = Number(line.product_variants?.referrer_earnings || 1.00);
+        accumulatedPayout += bountyAmountPerUnit * Number(line.quantity || 1);
+      });
 
-        if (accumulatedPayout > 0) {
-          const { data: currentWallet } = await supabase
-            .from('referral_codes')
-            .select('total_earnings')
-            .eq('id', appliedCodeId)
-            .single();
+      if (accumulatedPayout > 0) {
+        const { data: currentWallet } = await supabase
+          .from('referral_codes')
+          .select('total_earnings')
+          .eq('id', appliedCodeId)
+          .single();
 
-          const newWalletTotal = Number(currentWallet?.total_earnings || 0) + accumulatedPayout;
-          
-          await supabase
-            .from('referral_codes')
-            .update({ total_earnings: newWalletTotal })
-            .eq('id', appliedCodeId);
+        const newWalletTotal = Number(currentWallet?.total_earnings || 0) + accumulatedPayout;
+        
+        await supabase
+          .from('referral_codes')
+          .update({ total_earnings: newWalletTotal })
+          .eq('id', appliedCodeId);
 
-          metadata.payout_processed = true;
-          metadata.calculated_payout_amount = accumulatedPayout;
-          
-          await supabase
-            .from('orders')
-            .update({ metadata })
-            .eq('id', orderId);
-        }
+        metadata.payout_processed = true;
+        metadata.calculated_payout_amount = accumulatedPayout;
+        
+        await supabase
+          .from('orders')
+          .update({ metadata })
+          .eq('id', orderId);
       }
     }
 
+    // 2. Build Low Stock Email Alert String
+    let lowStockAlertsHTML = '';
+    if (itemLines && itemLines.length > 0) {
+      itemLines.forEach(line => {
+        const variant = line.product_variants;
+        if (variant) {
+          const currentStock = variant.stock_quantity;
+          const triggerLimit = variant.low_stock_trigger !== null ? variant.low_stock_trigger : 20;
+          
+          // Format product name safely handling Supabase relation arrays/objects
+          const productName = Array.isArray(variant.products) 
+            ? variant.products[0]?.name 
+            : variant.products?.name || 'Sparkle Drink';
+
+          if (currentStock <= 0) {
+            lowStockAlertsHTML += `<p style="color: #DC2626; font-weight: bold; margin: 8px 0; font-size: 14px;">🚨 ZERO STOCK: ${productName} (${line.size}) has completely sold out!</p>`;
+          } else if (currentStock <= triggerLimit) {
+            lowStockAlertsHTML += `<p style="color: #D97706; font-weight: bold; margin: 8px 0; font-size: 14px;">⚠️ LOW STOCK: ${productName} (${line.size}) is down to ${currentStock} units.</p>`;
+          }
+        }
+      });
+    }
+
     try {
-      // 🚨 FIRE A PUSH NOTIFICATION FOR NEW PAID ORDERS TOO!
       fireAdminPushAlert(
         '💰 NEW PAID ORDER SECURED',
         `A payment of ₵${Number(updatedOrder.total_amount).toFixed(2)} just cleared for ${updatedOrder.customer_name}.`
       ).catch(e => console.error(e));
 
-      await resend.emails.send({
+      // SEND 1: The standard "New Order" notification
+      await sendChecked({
         from: 'Sparkle Admin <admin@sparklebeverages.com>',
         to: ['orders@sparklebeverages.com'], 
         subject: `🚨 New PAID Sparkle Order: ₵${Number(updatedOrder.total_amount).toFixed(2)}`,
@@ -360,9 +439,35 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
           </div>
         `
       });
+
+      // SEND 2: The guaranteed Low Stock Email Fallback
+      if (lowStockAlertsHTML !== '') {
+        await sendChecked({
+          from: 'Sparkle Admin <admin@sparklebeverages.com>',
+          to: ['orders@sparklebeverages.com'], 
+          subject: `⚠️ INVENTORY ALERT: Low Stock Detected!`,
+          html: `
+            <div style="font-family: sans-serif; padding: 20px; border-radius: 10px; background-color: #FFFBEB; border: 1px solid #FCD34D;">
+              <h2 style="color: #B45309; margin-top: 0;">Inventory Threshold Reached</h2>
+              <p style="color: #4B5563;">Following the recent payment from ${updatedOrder.customer_name}, the system verified the following inventory alerts:</p>
+              
+              <div style="background-color: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #E5E7EB; margin: 15px 0;">
+                ${lowStockAlertsHTML}
+              </div>
+              
+              <p style="font-size: 12px; color: #6B7280; margin-bottom: 0;">Please log into the Sparkle Operations Hub to update your stock matrix.</p>
+            </div>
+          `
+        });
+      }
+
     } catch (emailError) {
       console.error("Failed to send admin email:", emailError);
     }
+
+    revalidatePath('/admin', 'layout');
+    revalidatePath('/shop', 'layout');
+    revalidatePath('/', 'layout');
 
     return { success: true, data: updatedOrder };
 
@@ -373,6 +478,7 @@ export async function verifyAndFinalizeCustomerPaymentAction(orderId) {
 }
 
 export async function updateOrderStatusAdmin(orderId, targetState) {
+  noStore();
   try {
     const supabase = getServiceSupabaseClient(); 
 
@@ -409,10 +515,11 @@ export async function updateOrderStatusAdmin(orderId, targetState) {
         const magicLink = `https://sparklebeverages.com/track?id=${orderRef}&phone=${orderData.customer_phone.replace('+', '')}`;
         const smsMessage = `Hi ${firstName}, your Sparkle order is packed and READY for pickup at our HQ Depot! Present code (#${orderRef}). Track live status: ${magicLink}`;
 
-        const smsSent = await fireSMSOnlineGHGateway(orderData.customer_phone, smsMessage);
+        await fireSMSOnlineGHGateway(orderData.customer_phone, smsMessage);
       }
     }
 
+    revalidatePath('/admin', 'layout');
     return { success: true };
 
   } catch (error) {

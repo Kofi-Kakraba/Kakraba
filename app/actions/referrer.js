@@ -6,6 +6,18 @@ import { Resend } from 'resend';
 // Initialize Resend for the automated emails
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Resend does not throw when it refuses an email; it returns { error }. Log it so failures are visible in Vercel Logs.
+async function sendChecked(payload) {
+  try {
+    const result = await resend.emails.send(payload);
+    if (result?.error) console.error(`📧 Resend rejected "${payload.subject}":`, JSON.stringify(result.error));
+    return result;
+  } catch (err) {
+    console.error(`📧 Resend failed "${payload.subject}":`, err.message);
+    return { data: null, error: err };
+  }
+}
+
 function getServiceSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -172,7 +184,7 @@ export async function requestPasswordResetAction(email) {
     const magicLink = `${siteDomainBaseUrl}/referrer/reset-password?token=${resetToken}`;
 
     // 5. Dispatch the email via Resend
-    await resend.emails.send({
+    const mail = await sendChecked({
       from: 'Sparkle Admin <admin@sparklebeverages.com>',
       to: cleanEmail,
       subject: 'Sparkle Squad: Password Reset Request',
@@ -190,6 +202,10 @@ export async function requestPasswordResetAction(email) {
         </div>
       `
     });
+
+    if (mail?.error) {
+      return { success: false, error: "We could not send the email right now. Please try again in a few minutes." };
+    }
 
     return { success: true, message: "If that email matches an active account, a reset link has been sent." };
 
